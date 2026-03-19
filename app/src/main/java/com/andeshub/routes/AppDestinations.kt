@@ -6,4 +6,5 @@ sealed class AppDestinations(val route: String) {
     object Post      : AppDestinations("post")
     object Favorites : AppDestinations("favorites")
     object Profile   : AppDestinations("profile")
+    object Store : AppDestinations("store")
 }

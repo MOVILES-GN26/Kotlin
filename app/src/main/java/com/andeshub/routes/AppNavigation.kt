@@ -12,6 +12,7 @@ import com.andeshub.ui.home.LandingPageScreen
 import com.andeshub.ui.navigation.AndesBottomNavBar
 import com.andeshub.ui.profile.ProfileScreen
 import com.andeshub.ui.theme.SoftCream
+import com.andeshub.ui.store.StoreScreen
 
 @Composable
 fun AppNavigation() {
@@ -43,6 +44,12 @@ fun AppNavigation() {
             composable(AppDestinations.Profile.route) {
                 ProfileScreen(onSettingsClick = {},
                     onListingClick = {})
+            }
+
+            composable(AppDestinations.Store.route) {
+                StoreScreen(
+                    onBack = { navController.popBackStack() }
+                )
             }
         }
     }
