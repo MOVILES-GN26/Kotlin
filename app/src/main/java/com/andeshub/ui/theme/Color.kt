@@ -14,7 +14,7 @@ val LightNeutral = Color(0xFFF2F2E8)
 // Secondary Text
 val MutedOlive = Color(0xFF878563)
 
-// Main Text (te faltaba definirlo explícitamente)
+// Main Text
 val Black = Color(0xFF1C1A0D)
 
 val White = Color(0xFFFFFFFF)
