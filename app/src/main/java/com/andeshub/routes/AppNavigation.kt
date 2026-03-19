@@ -10,6 +10,7 @@ import androidx.navigation.compose.rememberNavController
 import com.andeshub.ui.favorites.FavoritesScreen
 import com.andeshub.ui.home.LandingPageScreen
 import com.andeshub.ui.navigation.AndesBottomNavBar
+import com.andeshub.ui.profile.ProfileScreen
 import com.andeshub.ui.theme.SoftCream
 
 @Composable
@@ -40,7 +41,8 @@ fun AppNavigation() {
                 FavoritesScreen()
             }
             composable(AppDestinations.Profile.route) {
-                // TODO: ProfileScreen()
+                ProfileScreen(onSettingsClick = {},
+                    onListingClick = {})
             }
         }
     }
