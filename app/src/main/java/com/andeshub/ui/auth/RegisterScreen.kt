@@ -39,17 +39,34 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.ui.tooling.preview.Preview
 import com.andeshub.ui.theme.AndesHubTheme
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 
 @Composable
 fun RegisterScreen(
     onBackClick: () -> Unit,
     onRegisterClick: (name: String, email: String, major: String, password: String) -> Unit,
-    onLoginClick: () -> Unit
+    onLoginClick: () -> Unit,
+    viewModel: AuthViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
 ) {
     var fullName by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var major by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    val uiState by viewModel.uiState.collectAsState()
+
+    LaunchedEffect(uiState) {
+        when (uiState) {
+            is AuthUiState.Success -> {
+                onRegisterClick(fullName, email, major, password)
+            }
+            is AuthUiState.Error -> {
+                val error = uiState as AuthUiState.Error
+                android.util.Log.e("RegisterScreen", "Error: ${error.message}")
+            }
+            else -> {}
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -128,7 +145,13 @@ fun RegisterScreen(
         Spacer(modifier = Modifier.height(32.dp))
 
         Button(
-            onClick = { onRegisterClick(fullName, email, major, password) },
+            onClick = {
+                android.util.Log.d("RegisterScreen", "Button clicked - email: $email")
+                val nameParts = fullName.trim().split(" ")
+                val firstName = nameParts.firstOrNull() ?: ""
+                val lastName = nameParts.drop(1).joinToString(" ")
+                viewModel.register(email, firstName, lastName, major, password)
+            },
             modifier = Modifier
                 .fillMaxWidth()
                 .height(52.dp),
