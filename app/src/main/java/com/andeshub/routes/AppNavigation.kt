@@ -7,6 +7,7 @@ import androidx.compose.ui.Modifier
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.andeshub.ui.favorites.FavoritesScreen
 import com.andeshub.ui.home.LandingPageScreen
 import com.andeshub.ui.navigation.AndesBottomNavBar
 import com.andeshub.ui.theme.SoftCream
@@ -36,7 +37,7 @@ fun AppNavigation() {
                 // TODO: PostScreen()
             }
             composable(AppDestinations.Favorites.route) {
-                // TODO: FavoritesScreen()
+                FavoritesScreen()
             }
             composable(AppDestinations.Profile.route) {
                 // TODO: ProfileScreen()
