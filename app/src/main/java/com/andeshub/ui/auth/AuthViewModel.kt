@@ -43,10 +43,13 @@ class AuthViewModel : ViewModel() {
     ) {
         viewModelScope.launch {
             _uiState.value = AuthUiState.Loading
+            android.util.Log.d("AuthViewModel", "Calling register...")
             try {
                 val response = repository.register(email, firstName, lastName, major, password)
+                android.util.Log.d("AuthViewModel", "Success: ${response.user.email}")
                 _uiState.value = AuthUiState.Success(response)
             } catch (e: Exception) {
+                android.util.Log.e("AuthViewModel", "Error: ${e.message}")
                 _uiState.value = AuthUiState.Error(e.message ?: "Unknown error")
             }
         }
