@@ -29,15 +29,25 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.ui.text.input.KeyboardType
 import com.andeshub.ui.components.InputField
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 
 @Composable
 fun LoginScreen(
     onLoginClick:(email: String, password: String) -> Unit,
     onSignUpClick: () -> Unit,
-    onForgotPasswordClick: () -> Unit
+    onForgotPasswordClick: () -> Unit,
+    viewModel: AuthViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
 ) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    val uiState by viewModel.uiState.collectAsState()
+
+    LaunchedEffect(uiState) {
+        if (uiState is AuthUiState.Success) {
+            onLoginClick(email, password)
+        }
+    }
 
     Box(
         modifier = Modifier
@@ -93,7 +103,7 @@ fun LoginScreen(
             Spacer(modifier = Modifier.height(32.dp))
 
             Button(
-                onClick = { onLoginClick(email, password) },
+                onClick = { viewModel.login(email, password) },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(52.dp),
