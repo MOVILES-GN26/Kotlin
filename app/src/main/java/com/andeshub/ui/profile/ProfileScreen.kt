@@ -1,4 +1,194 @@
 package com.andeshub.ui.profile
 
-class ProfileScreen {
+import androidx.compose.foundation.background
+import androidx.compose.runtime.Composable
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.Modifier
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.material.icons.filled.Badge
+import androidx.compose.material.icons.filled.Email
+import com.andeshub.ui.components.InfoRow
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.ui.text.style.TextAlign
+import com.andeshub.ui.components.Product
+import com.andeshub.ui.components.ProductCard
+import androidx.compose.ui.tooling.preview.Preview
+import com.andeshub.ui.theme.AndesHubTheme
+import androidx.compose.foundation.layout.Row
+
+@Composable
+fun ProfileScreen(
+    onSettingsClick: () -> Unit,
+    onListingClick: (String) -> Unit,
+    listings: List<Product> = emptyList()
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+            .verticalScroll(rememberScrollState())
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 16.dp)
+        ) {
+            Text(
+                text = "Profile",
+                style = MaterialTheme.typography.titleLarge,
+                color = MaterialTheme.colorScheme.onBackground,
+                modifier = Modifier.align(Alignment.Center)
+            )
+            IconButton(
+                onClick = onSettingsClick,
+                modifier = Modifier.align(Alignment.CenterEnd)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Settings,
+                    contentDescription = "Settings",
+                    tint = MaterialTheme.colorScheme.onBackground
+                )
+            }
+        }
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Box(
+            modifier = Modifier
+                .fillMaxWidth(),
+            contentAlignment = Alignment.Center
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(96.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.surface),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "M",
+                    style = MaterialTheme.typography.displayMedium,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        Text(
+            text = "Mariana Silva",
+            style = MaterialTheme.typography.titleLarge,
+            color = MaterialTheme.colorScheme.onBackground,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth()
+        )
+        Text(
+            text = "Industrial Engineering",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.secondary,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        Text(
+            text = "Personal Info",
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onBackground,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp)
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            InfoRow(
+                icon = Icons.Default.Email,
+                label = "Email",
+                value = "mariana.silva@uniandes.edu.co"
+            )
+            InfoRow(
+                icon = Icons.Default.Badge,
+                label = "Student ID",
+                value = "202112345"
+            )
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        Text(
+            text = "My Listings",
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onBackground,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp)
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        LazyVerticalGrid(
+            columns = GridCells.Fixed(2),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp)
+                .heightIn(max = 600.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            items(listings) { listing ->
+                ProductCard(
+                    product = listing,
+                    onClick = { onListingClick(listing.title) }
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun ProfileScreenPreview() {
+    AndesHubTheme {
+        ProfileScreen(
+            onSettingsClick = {},
+            onListingClick = {},
+            listings = listOf(
+                Product("Calculus Textbook", "$50"),
+                Product("Engineering Drawing Set", "$30"),
+                Product("Statistics Software", "$20")
+            )
+        )
+    }
 }
