@@ -2,8 +2,19 @@ package com.andeshub.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-val SmallBackground = Color(0xFFF2F2E8)
+//  Primary Action Color
+val Yellow = Color(0xFFF0D442)
+
+// Background
+val SoftCream = Color(0xFFFCFAF7)
+
+// Secondary Interface
+val LightNeutral = Color(0xFFF2F2E8)
+
+// Secondary Text
+val MutedOlive = Color(0xFF878563)
+
+// Main Text (te faltaba definirlo explícitamente)
 val Black = Color(0xFF1C1A0D)
-val BackgroundWhite = Color(0xFFFCFAF7)
-val Yellow = Color(0xFFF0E342)
-val OliveGreen = Color(0xFF99944D)
+
+val White = Color(0xFFFFFFFF)
