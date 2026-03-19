@@ -25,13 +25,10 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
+import com.andeshub.ui.components.InputField
 
 @Composable
 fun LoginScreen(
@@ -64,69 +61,22 @@ fun LoginScreen(
 
             Spacer(modifier = Modifier.height(48.dp))
 
-            // Label Email
-            Text(
-                text = "Email",
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onBackground,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 6.dp)
-            )
-            OutlinedTextField(
+            InputField(
                 value = email,
                 onValueChange = { email = it },
-                placeholder = {
-                    Text(
-                        text = "Enter your email",
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.secondary
-                    )
-                },
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = MaterialTheme.colorScheme.primary,
-                    unfocusedBorderColor = MaterialTheme.colorScheme.surface,
-                    focusedContainerColor = MaterialTheme.colorScheme.surface,
-                    unfocusedContainerColor = MaterialTheme.colorScheme.surface,
-                )
+                placeholder = "Enter your email",
+                label = "Email",
+                keyboardType = KeyboardType.Email
             )
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Label Password
-            Text(
-                text = "Password",
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onBackground,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 6.dp)
-            )
-            OutlinedTextField(
+            InputField(
                 value = password,
                 onValueChange = { password = it },
-                placeholder = {
-                    Text(
-                        text = "Enter your password",
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.secondary
-                    )
-                },
-                singleLine = true,
-                visualTransformation = PasswordVisualTransformation(),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = MaterialTheme.colorScheme.primary,
-                    unfocusedBorderColor = MaterialTheme.colorScheme.surface,
-                    focusedContainerColor = MaterialTheme.colorScheme.surface,
-                    unfocusedContainerColor = MaterialTheme.colorScheme.surface,
-                )
+                placeholder = "Enter your password",
+                label = "Password",
+                isPassword = true
             )
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -134,7 +84,7 @@ fun LoginScreen(
             Text(
                 text = "Forgot Password?",
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.secondary,
+                color = MaterialTheme.colorScheme.onBackground,
                 modifier = Modifier
                     .fillMaxWidth()
                     .clickable { onForgotPasswordClick() }
