@@ -56,10 +56,18 @@ fun RegisterScreen(
     val uiState by viewModel.uiState.collectAsState()
 
     LaunchedEffect(uiState) {
-        if (uiState is AuthUiState.Success) {
-            onRegisterClick(fullName, email, major, password)
+        when (uiState) {
+            is AuthUiState.Success -> {
+                onRegisterClick(fullName, email, major, password)
+            }
+            is AuthUiState.Error -> {
+                val error = uiState as AuthUiState.Error
+                android.util.Log.e("RegisterScreen", "Error: ${error.message}")
+            }
+            else -> {}
         }
     }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
