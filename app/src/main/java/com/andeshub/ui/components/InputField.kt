@@ -25,9 +25,12 @@ fun InputField(
     placeholder: String,
     label: String? = null,
     isPassword: Boolean = false,
-    keyboardType: KeyboardType = KeyboardType.Text
+    singleLine: Boolean = true,
+    minLines: Int = 1,
+    keyboardType: KeyboardType = KeyboardType.Text,
+    modifier: Modifier = Modifier
 ) {
-    Column(modifier = Modifier.fillMaxWidth()) {
+    Column(modifier = modifier.fillMaxWidth()) {
         if (label != null) {
             Text(
                 text = label,
@@ -46,7 +49,8 @@ fun InputField(
                     color = MaterialTheme.colorScheme.secondary
                 )
             },
-            singleLine = true,
+            singleLine = singleLine,
+            minLines = minLines,
             visualTransformation = if (isPassword) PasswordVisualTransformation() else VisualTransformation.None,
             keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
             modifier = Modifier.fillMaxWidth(),
