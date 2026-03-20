@@ -40,8 +40,17 @@ fun LandingPageScreen(
 
     // ACTUALIZACIÓN INSTANTÁNEA: 
     // Al entrar a la pantalla (o volver a ella), refrescamos los datos del backend.
-    LaunchedEffect(Unit) {
-        viewModel.loadData()
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+                viewModel.loadData()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
     }
 
     Column(
