@@ -14,8 +14,13 @@ class ProductRepository(private val context: Context) {
 
     private val api = RetrofitClient.apiService
 
-    suspend fun getProducts(): List<Product> {
-        val response = api.getProducts()
+    suspend fun getProducts(
+        search: String? = null,
+        category: String? = null,
+        condition: String? = null,
+        priceSort: String? = null
+    ): List<Product> {
+        val response = api.getProducts(search, category, condition, priceSort)
         return response.items ?: emptyList()
     }
 
