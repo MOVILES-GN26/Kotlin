@@ -18,10 +18,14 @@ import com.andeshub.ui.theme.*
 
 @Composable
 fun FavoritesScreen(
-    viewModel: FavoritesViewModel = viewModel()
+    viewModel: FavoritesViewModel = viewModel(),
+    onProductClick: (com.andeshub.data.model.Product) -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
+    LaunchedEffect(Unit) {
+        viewModel.getFavorites()
+    }
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -78,7 +82,10 @@ fun FavoritesScreen(
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         items(favorites) { product ->
-                            ProductCard(product = product)
+                            ProductCard(
+                                product = product,
+                                onClick = { onProductClick(product) }
+                            )
                         }
                     }
                 }

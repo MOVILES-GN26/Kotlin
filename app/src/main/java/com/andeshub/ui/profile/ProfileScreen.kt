@@ -52,7 +52,7 @@ import androidx.compose.runtime.LaunchedEffect
 @Composable
 fun ProfileScreen(
     onSettingsClick: () -> Unit,
-    onListingClick: (String) -> Unit,
+    onListingClick: (Product) -> Unit,
     onCreateStoreClick: () -> Unit,
     onStoreClick: (String) -> Unit,
     viewModel: ProfileViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
@@ -312,7 +312,7 @@ fun ProfileScreen(
                     items(uiState.listings) { listing ->   // ← desde uiState
                         ProductCard(
                             product = listing,
-                            onClick = { onListingClick(listing.title) }
+                            onClick = { onListingClick(listing) }
                         )
                     }
                 }
