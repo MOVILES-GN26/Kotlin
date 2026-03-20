@@ -29,10 +29,11 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.andeshub.data.getRecommendedCategories
+import com.andeshub.data.local.SessionManager
 import com.andeshub.data.model.Product
 import com.andeshub.ui.components.SearchBar
 import com.andeshub.ui.product.ProductUiState
@@ -71,7 +72,7 @@ fun CatalogScreen(
             search = searchQuery.ifEmpty { null },
             category = selectedCategory,
             condition = selectedCondition,
-            priceSort = when(selectedSort) {
+            priceSort = when (selectedSort) {
                 "Lowest Price" -> "asc"
                 "Highest Price" -> "desc"
                 else -> null
@@ -196,10 +197,18 @@ fun CatalogScreen(
                 is ProductUiState.Error -> {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(text = "Error: " + (uiState as ProductUiState.Error).message, color = Color.Red)
-                            Button(onClick = {
-                                productViewModel.getProducts(searchQuery, selectedCategory, selectedCondition, selectedSort)
-                            }, colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)) {
+                            Text(
+                                text = "Error: " + (uiState as ProductUiState.Error).message,
+                                color = Color.Red
+                            )
+                            Button(
+                                onClick = {
+                                    productViewModel.getProducts(
+                                        searchQuery, selectedCategory, selectedCondition, selectedSort
+                                    )
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                            ) {
                                 Text("Retry", color = MaterialTheme.colorScheme.onPrimary)
                             }
                         }
@@ -211,6 +220,17 @@ fun CatalogScreen(
                             Text("No products found", color = MaterialTheme.colorScheme.secondary)
                         }
                     } else {
+                        // Smart feature: reordenar por carrera solo si no hay filtros activos
+                        val sortedProducts = if (selectedCategory == null && searchQuery.isEmpty()) {
+                            val major = SessionManager(context).getUserMajor()
+                            val recommendedCategories = getRecommendedCategories(major)
+                            val recommended = products.filter { it.category in recommendedCategories }
+                            val rest = products.filter { it.category !in recommendedCategories }
+                            recommended + rest
+                        } else {
+                            products
+                        }
+
                         LazyVerticalGrid(
                             columns = GridCells.Fixed(2),
                             contentPadding = PaddingValues(24.dp),
@@ -218,8 +238,11 @@ fun CatalogScreen(
                             verticalArrangement = Arrangement.spacedBy(24.dp),
                             modifier = Modifier.fillMaxSize()
                         ) {
-                            items(products) { product ->
-                                CatalogProductItem(product = product, onClick = { onProductClick(product) })
+                            items(sortedProducts) { product ->
+                                CatalogProductItem(
+                                    product = product,
+                                    onClick = { onProductClick(product) }
+                                )
                             }
                         }
                     }
@@ -285,7 +308,7 @@ fun FilterBottomSheetContent(
                 Icon(Icons.Default.Close, contentDescription = "Close")
             }
             Text(
-                text = when(type) {
+                text = when (type) {
                     "sort" -> "Sort by Price"
                     "condition" -> "Condition"
                     else -> "All Filters"
@@ -322,10 +345,7 @@ fun FilterBottomSheetContent(
         if (type == "all" || type == "condition") {
             Text("Condition", style = Typography.bodyLarge, fontWeight = FontWeight.Bold)
             Spacer(modifier = Modifier.height(12.dp))
-            FlowRow(
-                mainAxisSpacing = 8.dp,
-                crossAxisSpacing = 8.dp
-            ) {
+            FlowRow(mainAxisSpacing = 8.dp, crossAxisSpacing = 8.dp) {
                 listOf("New", "Like New", "Good", "Fair").forEach { cond ->
                     FilterOptionChip(
                         label = cond,
@@ -340,23 +360,12 @@ fun FilterBottomSheetContent(
         if (type == "all") {
             Text("Category", style = Typography.bodyLarge, fontWeight = FontWeight.Bold)
             Spacer(modifier = Modifier.height(12.dp))
-            FlowRow(
-                mainAxisSpacing = 8.dp,
-                crossAxisSpacing = 8.dp
-            ) {
-                val fullCategories = listOf(
-                    "Books & Supplies",
-                    "Clothing & Accessories",
-                    "Electronics",
-                    "Food & Drinks",
-                    "Furniture",
-                    "Sports & Outdoors",
-                    "Tickets & Events",
-                    "Transportation",
-                    "Tutoring & Services",
-                    "Other"
-                )
-                fullCategories.forEach { cat ->
+            FlowRow(mainAxisSpacing = 8.dp, crossAxisSpacing = 8.dp) {
+                listOf(
+                    "Books & Supplies", "Clothing & Accessories", "Electronics",
+                    "Food & Drinks", "Furniture", "Sports & Outdoors",
+                    "Tickets & Events", "Transportation", "Tutoring & Services", "Other"
+                ).forEach { cat ->
                     FilterOptionChip(
                         label = cat,
                         isSelected = tempCategory == cat,
