@@ -4,11 +4,15 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -17,15 +21,18 @@ import com.andeshub.ui.theme.*
 
 @Composable
 fun SearchBar(
+    query: String,
+    onQueryChange: (String) -> Unit,
     modifier: Modifier = Modifier,
     onSearch: () -> Unit = {}
 ) {
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(50.dp))
+            .height(50.dp)
+            .clip(RoundedCornerShape(25.dp))
             .background(SoftCream)
-            .padding(horizontal = 12.dp, vertical = 4.dp),
+            .padding(horizontal = 16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Image(
@@ -33,26 +40,38 @@ fun SearchBar(
             contentDescription = "Buscar",
             modifier = Modifier.size(20.dp)
         )
-        Spacer(modifier = Modifier.width(8.dp))
-        Text(
-            text = "Search for items",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MutedOlive,
-            modifier = Modifier.weight(1f)
-        )
-        Button(
-            onClick = onSearch,
-            shape = RoundedCornerShape(50.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = Yellow,
-                contentColor = Black
-            ),
-            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp)
-        ) {
-            Text(
-                text = "Search",
-                style = MaterialTheme.typography.titleSmall
+        Spacer(modifier = Modifier.width(12.dp))
+        
+        Box(modifier = Modifier.weight(1f)) {
+            if (query.isEmpty()) {
+                Text(
+                    text = "Search for items",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MutedOlive
+                )
+            }
+            BasicTextField(
+                value = query,
+                onValueChange = onQueryChange,
+                textStyle = MaterialTheme.typography.bodyMedium.copy(color = Black),
+                cursorBrush = SolidColor(Black),
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true
             )
+        }
+        
+        if (query.isNotEmpty()) {
+            IconButton(
+                onClick = { onQueryChange("") },
+                modifier = Modifier.size(24.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Close,
+                    contentDescription = "Clear",
+                    modifier = Modifier.size(16.dp),
+                    tint = MutedOlive
+                )
+            }
         }
     }
 }
@@ -61,6 +80,7 @@ fun SearchBar(
 @Composable
 fun SearchBarPreview() {
     AndesHubTheme {
-        SearchBar()
+        var text by remember { mutableStateOf("") }
+        SearchBar(query = text, onQueryChange = { text = it })
     }
 }

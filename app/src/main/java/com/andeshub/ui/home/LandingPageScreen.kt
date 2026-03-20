@@ -27,6 +27,8 @@ import com.andeshub.ui.theme.*
 @Composable
 fun LandingPageScreen() {
 
+    var searchQuery by remember { mutableStateOf("") }
+
     val categories = listOf(
         Category("Books",    Icons.Outlined.MenuBook),
         Category("Tech",     Icons.Outlined.Laptop),
@@ -40,7 +42,7 @@ fun LandingPageScreen() {
         Product(
             id = "1",
             title = "Calculus Textbook",
-            description = "",
+            description = "A comprehensive guide to calculus.",
             category = "Books",
             building_location = "SD",
             price = 50.0,
@@ -51,7 +53,7 @@ fun LandingPageScreen() {
         Product(
             id = "2",
             title = "MacBook Pro",
-            description = "",
+            description = "Powerful laptop for all your needs.",
             category = "Tech",
             building_location = "SD",
             price = 1200.0,
@@ -62,7 +64,7 @@ fun LandingPageScreen() {
         Product(
             id = "3",
             title = "Apartment campus",
-            description = "",
+            description = "Convenient housing near campus.",
             category = "Housing",
             building_location = "SD",
             price = 800.0,
@@ -73,7 +75,7 @@ fun LandingPageScreen() {
         Product(
             id = "4",
             title = "Physics Book",
-            description = "",
+            description = "Essential textbook for physics students.",
             category = "Books",
             building_location = "SD",
             price = 30.0,
@@ -128,7 +130,11 @@ fun LandingPageScreen() {
                     textAlign = TextAlign.Center
                 )
                 Spacer(modifier = Modifier.height(16.dp))
-                SearchBar(onSearch = { })
+                SearchBar(
+                    query = searchQuery,
+                    onQueryChange = { searchQuery = it },
+                    onSearch = { /* TODO */ }
+                )
             }
         }
 
