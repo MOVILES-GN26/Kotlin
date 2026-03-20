@@ -26,7 +26,6 @@ import com.andeshub.ui.store.StoreScreen
 import com.andeshub.data.model.UserProfile
 import com.andeshub.ui.product.ProductDetailScreen
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.LaunchedEffect
 import com.andeshub.ui.store.CreateStoreScreen
 
 @Composable
@@ -132,8 +131,7 @@ fun AppNavigation() {
             composable(AppDestinations.Profile.route) {
                 ProfileScreen(
                     onSettingsClick = {},
-                    onListingClick = {},
-                    listings = emptyList()
+                    onListingClick = { _: String -> },
                     onCreateStoreClick = {
                         navController.navigate(AppDestinations.CreateStore.route)
                     },

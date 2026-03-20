@@ -34,7 +34,7 @@ class HomeViewModel : ViewModel() {
             _uiState.value = HomeUiState.Loading
             try {
                 val response = api.getProducts()
-                _uiState.value = HomeUiState.Success(response.items)
+                _uiState.value = HomeUiState.Success(response.items ?: emptyList())
             } catch (e: Exception) {
                 _uiState.value = HomeUiState.Error(e.message ?: "Error desconocido")
             }
@@ -50,7 +50,7 @@ class HomeViewModel : ViewModel() {
             _uiState.value = HomeUiState.Loading
             try {
                 val response = api.getProducts(search = _searchQuery.value)
-                _uiState.value = HomeUiState.Success(response.items)
+                _uiState.value = HomeUiState.Success(response.items ?: emptyList())
             } catch (e: Exception) {
                 _uiState.value = HomeUiState.Error(e.message ?: "Error desconocido")
             }
