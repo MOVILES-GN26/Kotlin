@@ -8,11 +8,13 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.andeshub.ui.theme.*
+import coil.compose.AsyncImage
 import com.andeshub.data.model.Product
+import com.andeshub.ui.theme.*
 
 @Composable
 fun ProductCard(
@@ -20,10 +22,8 @@ fun ProductCard(
     onClick: () -> Unit = {}
 ) {
     Column(
-        modifier = Modifier
-            .width(150.dp)
+        modifier = Modifier.width(150.dp)
     ) {
-        // Imagen placeholder por ahora
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -32,10 +32,19 @@ fun ProductCard(
                 .background(LightNeutral),
             contentAlignment = Alignment.Center
         ) {
-            Text(
-                text = "📷",
-                style = MaterialTheme.typography.titleLarge
-            )
+            if (product.image_urls.isNotEmpty()) {
+                AsyncImage(
+                    model = product.image_urls.first(),
+                    contentDescription = product.title,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
+                )
+            } else {
+                Text(
+                    text = "📷",
+                    style = MaterialTheme.typography.titleLarge
+                )
+            }
         }
         Spacer(modifier = Modifier.height(6.dp))
         Text(

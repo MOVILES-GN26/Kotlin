@@ -32,7 +32,7 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.ui.text.style.TextAlign
-import com.andeshub.ui.components.Product
+import com.andeshub.data.model.Product
 import com.andeshub.ui.components.ProductCard
 import androidx.compose.ui.tooling.preview.Preview
 import com.andeshub.ui.theme.AndesHubTheme
@@ -189,9 +189,28 @@ fun ProfileScreenPreview() {
             onSettingsClick = {},
             onListingClick = {},
             listings = listOf(
-                Product("Calculus Textbook", "$50"),
-                Product("Engineering Drawing Set", "$30"),
-                Product("Statistics Software", "$20")
+                Product(
+                    id = "1",
+                    title = "Calculus Textbook",
+                    description = "",
+                    category = "Books",
+                    building_location = "SD",
+                    price = 50.0,
+                    condition = "Used",
+                    image_urls = emptyList(),
+                    seller_id = ""
+                ),
+                Product(
+                    id = "2",
+                    title = "Engineering Drawing Set",
+                    description = "",
+                    category = "Books",
+                    building_location = "SD",
+                    price = 30.0,
+                    condition = "Used",
+                    image_urls = emptyList(),
+                    seller_id = ""
+                )
             )
         )
     }
