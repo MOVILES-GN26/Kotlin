@@ -34,7 +34,16 @@ import com.andeshub.ui.theme.*
 @Composable
 fun PostProductScreen(
     currentUser: UserProfile? = UserProfile(id = "current_user_id", name = "Mariana Silva", email = "mariana.silva@uniandes.edu.co", major = "Industrial Engineering"),
-    userStores: List<Store> = listOf(Store(id = "store_1", name = "Mariana's Shop", ownerId = "current_user_id")),
+    userStores: List<Store> = listOf(
+        Store(
+            id = "store_1",
+            name = "Mariana's Shop",
+            description = "My personal store",
+            category = "Clothing",
+            logo_url = null,
+            owner_id = "current_user_id"
+        )
+    ),
     onCloseClick: () -> Unit = {}
 ) {
     var title by remember { mutableStateOf("") }
@@ -301,7 +310,8 @@ fun PostProductScreen(
             OutlinedTextField(
                 value = price,
                 onValueChange = { price = it },
-                label = { Text("Price (COP)") },
+                label = { Text("Price") },
+                prefix = { Text("$ ") },
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
                 colors = OutlinedTextFieldDefaults.colors(
@@ -312,54 +322,54 @@ fun PostProductScreen(
                 )
             )
 
-            if (userStores.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(16.dp))
-                Text(
-                    text = "Optional: Add to Store",
-                    style = Typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(vertical = 12.dp)
-                )
-                
-                ExposedDropdownMenuBox(
-                    expanded = storeExpanded,
-                    onExpandedChange = { storeExpanded = !storeExpanded }
-                ) {
-                    OutlinedTextField(
-                        value = selectedStore?.name ?: "Personal Listing (No Store)",
-                        onValueChange = {},
-                        readOnly = true,
-                        label = { Text("Select Store") },
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = storeExpanded) },
-                        modifier = Modifier.menuAnchor().fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            unfocusedBorderColor = LightNeutral,
-                            focusedBorderColor = Yellow,
-                            unfocusedContainerColor = SoftCream,
-                            focusedContainerColor = SoftCream
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Store Selection
+            Text("Post as", style = Typography.bodyMedium, color = MutedOlive)
+            Spacer(modifier = Modifier.height(8.dp))
+            ExposedDropdownMenuBox(
+                expanded = storeExpanded,
+                onExpandedChange = { storeExpanded = !storeExpanded }
+            ) {
+                OutlinedTextField(
+                    value = selectedStore?.name ?: "Personal Profile",
+                    onValueChange = {},
+                    readOnly = true,
+                    leadingIcon = {
+                        Icon(
+                            if (selectedStore == null) Icons.Default.Person else Icons.Default.Store,
+                            contentDescription = null
                         )
+                    },
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = storeExpanded) },
+                    modifier = Modifier.menuAnchor().fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        unfocusedBorderColor = LightNeutral,
+                        focusedBorderColor = Yellow,
+                        unfocusedContainerColor = SoftCream,
+                        focusedContainerColor = SoftCream
                     )
-                    ExposedDropdownMenu(
-                        expanded = storeExpanded,
-                        onDismissRequest = { storeExpanded = false }
-                    ) {
+                )
+                ExposedDropdownMenu(
+                    expanded = storeExpanded,
+                    onDismissRequest = { storeExpanded = false }
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("Personal Profile (${currentUser?.name})") },
+                        onClick = {
+                            selectedStore = null
+                            storeExpanded = false
+                        }
+                    )
+                    userStores.forEach { store ->
                         DropdownMenuItem(
-                            text = { Text("Personal Listing (No Store)") },
+                            text = { Text(store.name) },
                             onClick = {
-                                selectedStore = null
+                                selectedStore = store
                                 storeExpanded = false
                             }
                         )
-                        userStores.forEach { store ->
-                            DropdownMenuItem(
-                                text = { Text(store.name) },
-                                onClick = {
-                                    selectedStore = store
-                                    storeExpanded = false
-                                }
-                            )
-                        }
                     }
                 }
             }
@@ -368,49 +378,39 @@ fun PostProductScreen(
 
             // Post Button
             Button(
-                onClick = { 
-                    // TODO: Post action using currentUser.id and selectedStore?.id
-                },
+                onClick = { /* TODO: Implement post logic */ },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(50.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Yellow),
-                shape = RoundedCornerShape(12.dp)
+                    .height(56.dp),
+                shape = RoundedCornerShape(16.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Yellow, contentColor = Black)
             ) {
-                Text("Post Item", color = Black, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                Text("Post Item", style = Typography.titleMedium, fontWeight = FontWeight.Bold)
             }
-            
-            Spacer(modifier = Modifier.height(40.dp))
+
+            Spacer(modifier = Modifier.height(48.dp))
         }
 
-        // Bottom Sheet o Dialog para elegir fuente de imagen
+        // Image Source Dialog
         if (showImageSourceOptions) {
             AlertDialog(
                 onDismissRequest = { showImageSourceOptions = false },
                 title = { Text("Select Photo Source") },
-                text = { Text("Choose how you want to add the product photo.") },
+                text = { Text("Choose how you want to add a photo of your item.") },
                 confirmButton = {
-                    TextButton(onClick = {
+                    TextButton(onClick = { 
                         cameraLauncher.launch()
-                        showImageSourceOptions = false
+                        showImageSourceOptions = false 
                     }) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.PhotoCamera, contentDescription = null)
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("Camera")
-                        }
+                        Text("Camera", color = MutedOlive)
                     }
                 },
                 dismissButton = {
-                    TextButton(onClick = {
+                    TextButton(onClick = { 
                         galleryLauncher.launch("image/*")
-                        showImageSourceOptions = false
+                        showImageSourceOptions = false 
                     }) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.PhotoLibrary, contentDescription = null)
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("Gallery")
-                        }
+                        Text("Gallery", color = MutedOlive)
                     }
                 }
             )
@@ -420,7 +420,7 @@ fun PostProductScreen(
 
 @Preview(showBackground = true)
 @Composable
-fun PostProductPreview() {
+fun PostProductScreenPreview() {
     AndesHubTheme {
         PostProductScreen()
     }

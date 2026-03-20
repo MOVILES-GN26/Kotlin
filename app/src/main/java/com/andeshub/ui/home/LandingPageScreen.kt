@@ -39,14 +39,10 @@ fun LandingPageScreen() {
     )
 
     val products = listOf(
-        Product("Calculus Textbook", "$50"),
-        Product("MacBook Pro", "$1200"),
-        Product("Apartment campus", "$800/mo"),
-        Product("Physics Book", "$30"),
         Product(
             id = "1",
             title = "Calculus Textbook",
-            description = "",
+            description = "A comprehensive guide to calculus.",
             category = "Books",
             building_location = "SD",
             price = 50.0,
@@ -57,7 +53,7 @@ fun LandingPageScreen() {
         Product(
             id = "2",
             title = "MacBook Pro",
-            description = "",
+            description = "Powerful laptop for all your needs.",
             category = "Tech",
             building_location = "SD",
             price = 1200.0,
@@ -68,7 +64,7 @@ fun LandingPageScreen() {
         Product(
             id = "3",
             title = "Apartment campus",
-            description = "",
+            description = "Convenient housing near campus.",
             category = "Housing",
             building_location = "SD",
             price = 800.0,
@@ -79,7 +75,7 @@ fun LandingPageScreen() {
         Product(
             id = "4",
             title = "Physics Book",
-            description = "",
+            description = "Essential textbook for physics students.",
             category = "Books",
             building_location = "SD",
             price = 30.0,
