@@ -26,6 +26,7 @@ import com.andeshub.ui.store.StoreScreen
 import com.andeshub.data.model.UserProfile
 import com.andeshub.ui.product.ProductDetailScreen
 import androidx.compose.runtime.getValue
+import com.andeshub.ui.onboarding.OnboardingScreen
 import com.andeshub.ui.store.CreateStoreScreen
 
 @Composable
@@ -33,13 +34,16 @@ fun AppNavigation() {
     val navController = rememberNavController()
     val context = androidx.compose.ui.platform.LocalContext.current
     val sessionManager = remember { SessionManager(context) }
+    
     LaunchedEffect(Unit) {
         sessionManager.getAccessToken()?.let {
             RetrofitClient.setToken(it)
         }
     }
 
-    val startDestination = if (sessionManager.isLoggedIn()) {
+    val startDestination = if (!sessionManager.isOnboardingCompleted()) {
+        AppDestinations.Onboarding.route
+    } else if (sessionManager.isLoggedIn()) {
         AppDestinations.Home.route
     } else {
         AppDestinations.Login.route
@@ -53,6 +57,7 @@ fun AppNavigation() {
             if (currentRoute != null && 
                 currentRoute != AppDestinations.Login.route &&
                 currentRoute != AppDestinations.Register.route &&
+                currentRoute != AppDestinations.Onboarding.route &&
                 !currentRoute.startsWith("product_detail")) {
                 AndesBottomNavBar(navController = navController)
             }
@@ -63,10 +68,22 @@ fun AppNavigation() {
             startDestination = startDestination,
             modifier = Modifier.padding(innerPadding)
         ) {
+            composable(AppDestinations.Onboarding.route) {
+                OnboardingScreen(
+                    onFinished = {
+                        sessionManager.setOnboardingCompleted()
+                        navController.navigate(AppDestinations.Login.route) {
+                            popUpTo(AppDestinations.Onboarding.route) { inclusive = true }
+                        }
+                    }
+                )
+            }
             composable(AppDestinations.Login.route) {
                 LoginScreen(
                     onLoginClick = { _, _ ->
-                        navController.navigate(AppDestinations.Home.route)
+                        navController.navigate(AppDestinations.Home.route) {
+                            popUpTo(AppDestinations.Login.route) { inclusive = true }
+                        }
                     },
                     onSignUpClick = {
                         navController.navigate(AppDestinations.Register.route)
@@ -80,7 +97,9 @@ fun AppNavigation() {
                         navController.popBackStack()
                     },
                     onRegisterClick = { _, _, _, _ ->
-                        navController.navigate(AppDestinations.Home.route)
+                        navController.navigate(AppDestinations.Home.route) {
+                            popUpTo(AppDestinations.Register.route) { inclusive = true }
+                        }
                     },
                     onLoginClick = {
                         navController.popBackStack()
@@ -93,14 +112,12 @@ fun AppNavigation() {
             composable(AppDestinations.Catalog.route) {
                 CatalogScreen(
                     onProductClick = { product ->
-                        // Pasamos el objeto completo a través del savedStateHandle
                         navController.currentBackStackEntry?.savedStateHandle?.set("product", product)
                         navController.navigate(AppDestinations.ProductDetail.route.replace("{productId}", product.id))
                     }
                 )
             }
             composable(AppDestinations.ProductDetail.route) { backStackEntry ->
-                // Recuperamos el producto del savedStateHandle de la entrada anterior
                 val product = navController.previousBackStackEntry?.savedStateHandle?.get<Product>("product")
                 
                 if (product != null) {
@@ -109,7 +126,6 @@ fun AppNavigation() {
                         onBackClick = { navController.popBackStack() }
                     )
                 } else {
-                    // Si por alguna razón es nulo, volvemos atrás
                     LaunchedEffect(Unit) { navController.popBackStack() }
                 }
             }
