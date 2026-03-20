@@ -46,6 +46,12 @@ class ProductViewModel(context: Context) : ViewModel() {
     private val _userStores = MutableStateFlow<List<Store>>(emptyList())
     val userStores: StateFlow<List<Store>> = _userStores
 
+    private val _favoritesCount = MutableStateFlow(0)
+    val favoritesCount: StateFlow<Int> = _favoritesCount
+
+    private val _isFavorited = MutableStateFlow(false)
+    val isFavorited: StateFlow<Boolean> = _isFavorited
+
     init {
         loadUserStores()
     }
@@ -94,19 +100,44 @@ class ProductViewModel(context: Context) : ViewModel() {
         Log.d("ProductViewModel", "isOwner Check - ID Match: $isByOwnerId, Name Match: $isByOwnerName")
         Log.d("ProductViewModel", "Details - CurrentID: $currentUserId, SellerID: ${product.seller_id}")
         Log.d("ProductViewModel", "Details - CurrentName: '$currentUserName', SellerName: '$sellerName'")
-        
+
         return isByOwnerId || isByOwnerName
+    }
+
+    fun checkIfFavorited(productId: String) {
+        viewModelScope.launch {
+            try {
+                val favorites = api.getFavorites()
+                _isFavorited.value = favorites.any { it.id == productId }
+            } catch (e: Exception) {
+                _isFavorited.value = false
+            }
+        }
+    }
+
+    fun toggleFavorite(productId: String) {
+        viewModelScope.launch {
+            try {
+                if (_isFavorited.value) {
+                    api.removeFavorite(productId)
+                    _isFavorited.value = false
+                    _favoritesCount.value = (_favoritesCount.value - 1).coerceAtLeast(0)
+                } else {
+                    api.addFavorite(productId)
+                    _isFavorited.value = true
+                    _favoritesCount.value = _favoritesCount.value + 1
+                }
+            } catch (e: Exception) {
+                Log.e("ProductViewModel", "Error toggling favorite", e)
+            }
+        }
     }
 
     fun recordProductView(productId: String, sellerId: String?) {
         viewModelScope.launch {
             try {
                 val currentUserId = sessionManager.getUserId()
-                
-                // Cargamos estadísticas primero
                 loadProductStats(productId)
-                
-                // Solo registramos si NO es el dueño (basándonos en ID)
                 if (currentUserId != null && currentUserId != sellerId) {
                     api.recordInteraction(RecordInteractionRequest(productId, sellerId))
                 }
@@ -123,6 +154,17 @@ class ProductViewModel(context: Context) : ViewModel() {
                 _productStats.value = stats
             } catch (e: Exception) {
                 _productStats.value = ProductStats(0, null, null)
+            }
+        }
+    }
+
+    fun loadFavoritesCount(productId: String) {
+        viewModelScope.launch {
+            try {
+                val result = api.getFavoritesCount(productId)
+                _favoritesCount.value = result.count
+            } catch (e: Exception) {
+                _favoritesCount.value = 0
             }
         }
     }

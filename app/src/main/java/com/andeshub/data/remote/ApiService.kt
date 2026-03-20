@@ -1,5 +1,6 @@
 package com.andeshub.data.remote
 
+import com.andeshub.data.model.FavoritesCount
 import com.andeshub.data.model.Product
 import com.andeshub.data.model.Store
 import com.andeshub.data.model.TrendingCategory
@@ -99,4 +100,7 @@ interface ApiService {
 
     @GET("interactions/product/{id}/stats")
     suspend fun getProductStats(@Path("id") productId: String): ProductStats
+
+    @GET("products/{id}/favorites/count")
+    suspend fun getFavoritesCount(@Path("id") productId: String): FavoritesCount
 }

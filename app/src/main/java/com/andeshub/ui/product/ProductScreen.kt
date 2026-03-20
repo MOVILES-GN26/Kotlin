@@ -10,6 +10,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Visibility
@@ -52,9 +54,13 @@ fun ProductDetailScreen(
     )
 
     val stats by productViewModel.productStats.collectAsState()
+    val isFavorited by productViewModel.isFavorited.collectAsState()
+    val favoritesCount by productViewModel.favoritesCount.collectAsState()
 
     LaunchedEffect(product.id) {
         productViewModel.recordProductView(product.id, product.seller_id)
+        productViewModel.checkIfFavorited(product.id)
+        productViewModel.loadFavoritesCount(product.id)
     }
 
     Scaffold(
@@ -134,7 +140,7 @@ fun ProductDetailScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(300.dp)
-                    .background(Color(0xFFD9E8B6))  // ← intencional, placeholder
+                    .background(Color(0xFFD9E8B6))
             ) {
                 if (product.image_urls.isNotEmpty()) {
                     AsyncImage(
@@ -152,8 +158,8 @@ fun ProductDetailScreen(
                             .background(Color(0xFF6DA025).copy(alpha = 0.8f))
                     )
                 }
-                
-                // MOSTRAR VISTAS PARA EL DUEÑO
+
+                // Vistas para el dueño
                 if (productViewModel.isOwner(product)) {
                     stats?.let { statsData ->
                         Surface(
@@ -190,17 +196,61 @@ fun ProductDetailScreen(
                     .fillMaxWidth()
                     .padding(24.dp)
             ) {
-                Text(
-                    text = product.title,
-                    style = Typography.headlineLarge,
-                    color = MaterialTheme.colorScheme.onBackground
-                )
-                Text(
-                    text = "$${product.price.toInt()}",
-                    style = Typography.titleLarge,
-                    color = MaterialTheme.colorScheme.secondary,
-                    modifier = Modifier.padding(top = 4.dp)
-                )
+                // Título + precio + corazón
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.Top
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = product.title,
+                            style = Typography.headlineLarge,
+                            color = MaterialTheme.colorScheme.onBackground
+                        )
+                        Text(
+                            text = "$${product.price.toInt()}",
+                            style = Typography.titleLarge,
+                            color = MaterialTheme.colorScheme.secondary,
+                            modifier = Modifier.padding(top = 4.dp)
+                        )
+                    }
+
+                    // Botón corazón para no dueños, contador para el dueño
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier.padding(top = 4.dp)
+                    ) {
+                        if (!productViewModel.isOwner(product)) {
+                            IconButton(onClick = { productViewModel.toggleFavorite(product.id) }) {
+                                Icon(
+                                    imageVector = if (isFavorited) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                                    contentDescription = "Favorite",
+                                    tint = if (isFavorited) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary,
+                                    modifier = Modifier.size(28.dp)
+                                )
+                            }
+                            Text(
+                                text = "$favoritesCount",
+                                style = Typography.labelSmall,
+                                color = MaterialTheme.colorScheme.secondary
+                            )
+                        } else {
+                            // El dueño ve el contador de favoritos
+                            Icon(
+                                imageVector = Icons.Default.Favorite,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.secondary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Text(
+                                text = "$favoritesCount saved",
+                                style = Typography.labelSmall,
+                                color = MaterialTheme.colorScheme.secondary
+                            )
+                        }
+                    }
+                }
 
                 Spacer(modifier = Modifier.height(24.dp))
 
@@ -227,7 +277,6 @@ fun ProductDetailScreen(
                                 color = MaterialTheme.colorScheme.secondary
                             )
                         }
-
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier.padding(top = 8.dp)
