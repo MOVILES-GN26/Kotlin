@@ -10,6 +10,8 @@ import com.andeshub.data.model.Store
 import com.andeshub.data.repository.StoreRepository
 import kotlinx.coroutines.launch
 import com.andeshub.data.model.Product
+import com.andeshub.data.model.ProductStats
+import com.andeshub.data.remote.RetrofitClient
 import com.andeshub.data.repository.ProductRepository
 
 data class ProfileUiState(
@@ -19,6 +21,7 @@ data class ProfileUiState(
     val major: String = "",
     val stores: List<Store> = emptyList(),
     val listings: List<Product> = emptyList(),
+    val productStats: Map<String, ProductStats> = emptyMap(),
     val isLoadingListings: Boolean = false,
     val listingsError: String? = null
 )
@@ -28,6 +31,7 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
     private val sessionManager = SessionManager(application)
     private val storeRepository = StoreRepository(application)
     private val productRepository = ProductRepository(application)
+    private val api = RetrofitClient.apiService
 
     private val _uiState = MutableStateFlow(ProfileUiState())
     val uiState: StateFlow<ProfileUiState> = _uiState
@@ -46,7 +50,7 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
 
         android.util.Log.d("ProfileViewModel", "firstName: $firstName, email: $email")
 
-        _uiState.value = ProfileUiState(
+        _uiState.value = _uiState.value.copy(
             firstName = firstName ?: "",
             lastName = lastName ?: "",
             email = email ?: "",
@@ -77,6 +81,7 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
                         listings = products,
                         isLoadingListings = false
                     )
+                    loadAllProductStats(products)
                 }
                 .onFailure { error ->
                     android.util.Log.e("ProfileViewModel", "Error loading listings: ${error.message}")
@@ -85,6 +90,21 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
                         isLoadingListings = false
                     )
                 }
+        }
+    }
+
+    private fun loadAllProductStats(products: List<Product>) {
+        viewModelScope.launch {
+            val statsMap = mutableMapOf<String, ProductStats>()
+            products.forEach { product ->
+                try {
+                    val stats = api.getProductStats(product.id)
+                    statsMap[product.id] = stats
+                } catch (e: Exception) {
+                    android.util.Log.e("ProfileViewModel", "Error loading stats for ${product.id}: ${e.message}")
+                }
+            }
+            _uiState.value = _uiState.value.copy(productStats = statsMap)
         }
     }
 

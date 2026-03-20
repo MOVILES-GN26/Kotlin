@@ -85,7 +85,6 @@ fun CatalogScreen(
         emptyList()
     }
 
-    // TENDENCIAS: Obtenemos el ranking del backend para ordenar las categorías
     val trendingRanking = if (uiState is ProductUiState.Success) {
         (uiState as ProductUiState.Success).trendingCategories.map { it.category }
     } else {
@@ -151,8 +150,6 @@ fun CatalogScreen(
                 )
             }
 
-            // ORDENACIÓN DINÁMICA DE CATEGORÍAS:
-            // Las que más se buscan aparecen primero en la lista horizontal.
             LazyRow(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -173,7 +170,6 @@ fun CatalogScreen(
                     "Other" to Icons.Outlined.MoreHoriz
                 )
 
-                // Ordenamos: si está en trendingRanking, su índice es su posición; si no, va al final.
                 val sortedCategories = originalCategories.sortedBy { (label, _) ->
                     val index = trendingRanking.indexOf(label)
                     if (index != -1) index else 100

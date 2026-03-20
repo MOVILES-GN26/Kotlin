@@ -12,17 +12,25 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.andeshub.data.model.Product
 import com.andeshub.data.model.UserProfile
@@ -34,6 +42,21 @@ fun ProductDetailScreen(
     product: Product,
     onBackClick: () -> Unit = {}
 ) {
+    val context = LocalContext.current
+    val productViewModel: ProductViewModel = viewModel(
+        factory = object : ViewModelProvider.Factory {
+            override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                return ProductViewModel(context) as T
+            }
+        }
+    )
+
+    val stats by productViewModel.productStats.collectAsState()
+
+    LaunchedEffect(product.id) {
+        productViewModel.recordProductView(product.id, product.seller_id)
+    }
+
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
@@ -105,7 +128,6 @@ fun ProductDetailScreen(
                 .padding(innerPadding)
                 .verticalScroll(rememberScrollState())
         ) {
-            // Imagen del producto
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -120,7 +142,6 @@ fun ProductDetailScreen(
                         contentScale = ContentScale.Crop
                     )
                 } else {
-                    // Fallback placeholder artistic style
                     Box(
                         modifier = Modifier
                             .fillMaxWidth(0.6f)
@@ -128,13 +149,37 @@ fun ProductDetailScreen(
                             .align(Alignment.BottomEnd)
                             .background(Color(0xFF6DA025).copy(alpha = 0.8f))
                     )
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth(0.8f)
-                            .height(100.dp)
-                            .align(Alignment.Center)
-                            .background(Color(0xFF5D5438).copy(alpha = 0.7f))
-                    )
+                }
+                
+                // MOSTRAR VISTAS PARA EL DUEÑO
+                if (productViewModel.isOwner(product)) {
+                    stats?.let { statsData ->
+                        Surface(
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                .padding(16.dp),
+                            color = Color.Black.copy(alpha = 0.6f),
+                            shape = RoundedCornerShape(16.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Visibility,
+                                    contentDescription = null,
+                                    tint = Color.White,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "${statsData.views} views",
+                                    color = Color.White,
+                                    style = Typography.labelMedium
+                                )
+                            }
+                        }
+                    }
                 }
             }
 
@@ -157,7 +202,6 @@ fun ProductDetailScreen(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // Sección del Vendedor
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -181,26 +225,8 @@ fun ProductDetailScreen(
                                 color = MutedOlive
                             )
                         }
-                        
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(top = 8.dp)
-                        ) {
-                            Text(
-                                text = "View Profile",
-                                style = Typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
-                                color = Black
-                            )
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                                contentDescription = null,
-                                modifier = Modifier.size(16.dp).padding(start = 4.dp),
-                                tint = Black
-                            )
-                        }
                     }
 
-                    // Avatar del vendedor
                     Box(
                         modifier = Modifier
                             .size(64.dp)
@@ -219,7 +245,6 @@ fun ProductDetailScreen(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Ubicación
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
                         imageVector = Icons.Default.LocationOn,
@@ -237,7 +262,6 @@ fun ProductDetailScreen(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // Descripción
                 Text(
                     text = "Description",
                     style = Typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
@@ -254,30 +278,5 @@ fun ProductDetailScreen(
                 Spacer(modifier = Modifier.height(120.dp))
             }
         }
-    }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun ProductDetailPreview() {
-    AndesHubTheme {
-        ProductDetailScreen(
-            product = Product(
-                id = "1",
-                title = "Tomi verde",
-                description = "Verde verde",
-                category = "Other",
-                building_location = "Biblioteca General",
-                price = 15000.0,
-                condition = "NEW",
-                image_urls = emptyList(),
-                seller_id = "s1",
-                seller = UserProfile(
-                    id = "s1",
-                    name = "Sofia Rozo",
-                    major = "Ingeniería de Sistemas y Computación"
-                )
-            )
-        )
     }
 }

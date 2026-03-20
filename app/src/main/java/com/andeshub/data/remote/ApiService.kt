@@ -1,19 +1,12 @@
 package com.andeshub.data.remote
 
-import ProductsResponse
 import com.andeshub.data.model.Product
 import com.andeshub.data.model.Store
 import com.andeshub.data.model.TrendingCategory
+import com.andeshub.data.model.RecordInteractionRequest
+import com.andeshub.data.model.ProductStats
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
-import retrofit2.http.GET
-import retrofit2.http.Multipart
-import retrofit2.http.POST
-import retrofit2.http.Part
-import retrofit2.http.Path
-import retrofit2.http.DELETE
-import retrofit2.http.Query
-
 import retrofit2.Response
 import retrofit2.http.*
 
@@ -79,6 +72,10 @@ interface ApiService {
     suspend fun getProductsByUser(
         @Path("userId") userId: String
     ): ProductsResponse
+
+    @POST("interactions/view")
+    suspend fun recordInteraction(@Body request: RecordInteractionRequest): Response<Unit>
+
+    @GET("interactions/product/{id}/stats")
+    suspend fun getProductStats(@Path("id") productId: String): ProductStats
 }
-
-

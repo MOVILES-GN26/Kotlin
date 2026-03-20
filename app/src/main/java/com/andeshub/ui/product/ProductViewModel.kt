@@ -3,11 +3,14 @@ package com.andeshub.ui.product
 import android.content.Context
 import android.graphics.Bitmap
 import android.net.Uri
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.andeshub.data.local.SessionManager
 import com.andeshub.data.model.Product
 import com.andeshub.data.model.TrendingCategory
+import com.andeshub.data.model.ProductStats
+import com.andeshub.data.model.RecordInteractionRequest
 import com.andeshub.data.repository.ProductRepository
 import com.andeshub.data.remote.RetrofitClient
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -34,6 +37,9 @@ class ProductViewModel(context: Context) : ViewModel() {
     private val _uiState = MutableStateFlow<ProductUiState>(ProductUiState.Idle)
     val uiState: StateFlow<ProductUiState> = _uiState
 
+    private val _productStats = MutableStateFlow<ProductStats?>(null)
+    val productStats: StateFlow<ProductStats?> = _productStats
+
     fun getProducts(
         search: String? = null,
         category: String? = null,
@@ -41,22 +47,12 @@ class ProductViewModel(context: Context) : ViewModel() {
         priceSort: String? = null
     ) {
         viewModelScope.launch {
-            // No ponemos Loading aquí para no parpadear toda la pantalla si ya hay datos, 
-            // pero si es la primera vez sí.
             if (_uiState.value !is ProductUiState.Success) {
                 _uiState.value = ProductUiState.Loading
             }
-            
             try {
                 val products = repository.getProducts(search, category, condition, priceSort)
-                
-                // También cargamos las tendencias para ordenar el catálogo
-                val trending = try {
-                    api.getTrendingCategories()
-                } catch (e: Exception) {
-                    emptyList()
-                }
-
+                val trending = try { api.getTrendingCategories() } catch (e: Exception) { emptyList() }
                 _uiState.value = ProductUiState.Success(products, trending)
             } catch (e: Exception) {
                 _uiState.value = ProductUiState.Error(e.message ?: "Unknown error")
@@ -64,29 +60,62 @@ class ProductViewModel(context: Context) : ViewModel() {
         }
     }
 
-    fun createProduct(
-        title: String,
-        description: String,
-        category: String,
-        location: String,
-        price: Double,
-        condition: String,
-        storeId: String?,
-        imageUri: Uri?,
-        imageBitmap: Bitmap? = null
-    ) {
+    fun isOwner(product: Product): Boolean {
+        val currentUserId = sessionManager.getUserId()
+        val firstName = sessionManager.getUserFirstName() ?: ""
+        val lastName = sessionManager.getUserLastName() ?: ""
+        val currentUserName = "$firstName $lastName".trim()
+        val sellerName = product.seller?.name?.trim() ?: ""
+
+        val isByOwnerId = currentUserId != null && currentUserId == product.seller_id
+        val isByOwnerName = currentUserName.isNotEmpty() && currentUserName.equals(sellerName, ignoreCase = true)
+
+        Log.d("ProductViewModel", "isOwner Check - ID Match: $isByOwnerId, Name Match: $isByOwnerName")
+        Log.d("ProductViewModel", "Details - CurrentID: $currentUserId, SellerID: ${product.seller_id}")
+        Log.d("ProductViewModel", "Details - CurrentName: '$currentUserName', SellerName: '$sellerName'")
+        
+        return isByOwnerId || isByOwnerName
+    }
+
+    fun recordProductView(productId: String, sellerId: String?) {
+        viewModelScope.launch {
+            try {
+                val currentUserId = sessionManager.getUserId()
+                
+                // Cargamos estadísticas primero
+                loadProductStats(productId)
+                
+                // Solo registramos si NO es el dueño (basándonos en ID)
+                if (currentUserId != null && currentUserId != sellerId) {
+                    api.recordInteraction(RecordInteractionRequest(productId, sellerId))
+                }
+            } catch (e: Exception) {
+                Log.e("ProductViewModel", "Error recording view", e)
+            }
+        }
+    }
+
+    fun loadProductStats(productId: String) {
+        viewModelScope.launch {
+            try {
+                val stats = api.getProductStats(productId)
+                _productStats.value = stats
+            } catch (e: Exception) {
+                _productStats.value = ProductStats(0, null, null)
+            }
+        }
+    }
+
+    fun createProduct(title: String, description: String, category: String, location: String, price: Double, condition: String, storeId: String?, imageUri: Uri?, imageBitmap: Bitmap? = null) {
         val token = sessionManager.getAccessToken() ?: ""
         if (token.isEmpty()) {
             _uiState.value = ProductUiState.Error("No active session. Please login again.")
             return
         }
-
         viewModelScope.launch {
             _uiState.value = ProductUiState.Loading
             try {
-                val product = repository.createProduct(
-                    token, title, description, category, location, price, condition, storeId, imageUri, imageBitmap
-                )
+                val product = repository.createProduct(token, title, description, category, location, price, condition, storeId, imageUri, imageBitmap)
                 _uiState.value = ProductUiState.Created(product)
             } catch (e: Exception) {
                 _uiState.value = ProductUiState.Error(e.message ?: "Error creating product")
