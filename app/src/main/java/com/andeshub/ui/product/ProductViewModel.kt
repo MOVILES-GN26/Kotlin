@@ -119,16 +119,20 @@ class ProductViewModel(context: Context) : ViewModel() {
         viewModelScope.launch {
             try {
                 if (_isFavorited.value) {
-                    api.removeFavorite(productId)
-                    _isFavorited.value = false
-                    _favoritesCount.value = (_favoritesCount.value - 1).coerceAtLeast(0)
+                    val response = api.removeFavorite(productId)
+                    if (response.isSuccessful) {
+                        _isFavorited.value = false
+                        _favoritesCount.value = (_favoritesCount.value - 1).coerceAtLeast(0)
+                    }
                 } else {
-                    api.addFavorite(productId)
-                    _isFavorited.value = true
-                    _favoritesCount.value = _favoritesCount.value + 1
+                    val response = api.addFavorite(productId)
+                    if (response.isSuccessful) {
+                        _isFavorited.value = true
+                        _favoritesCount.value = _favoritesCount.value + 1
+                    }
                 }
             } catch (e: Exception) {
-                Log.e("ProductViewModel", "Error toggling favorite", e)
+                Log.e("ProductViewModel", "Error toggling favorite: ${e.message}")
             }
         }
     }

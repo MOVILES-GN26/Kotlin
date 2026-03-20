@@ -60,10 +60,10 @@ interface ApiService {
     suspend fun getFavorites(): List<Product>
 
     @POST("users/me/favorites/{productId}")
-    suspend fun addFavorite(@Path("productId") productId: String)
+    suspend fun addFavorite(@Path("productId") productId: String): Response<Unit>
 
     @DELETE("users/me/favorites/{productId}")
-    suspend fun removeFavorite(@Path("productId") productId: String)
+    suspend fun removeFavorite(@Path("productId") productId: String): Response<Unit>
 
     @GET("products")
     suspend fun getProducts(
