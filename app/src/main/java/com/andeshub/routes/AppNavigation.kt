@@ -109,12 +109,15 @@ fun AppNavigation() {
                 )
             }
             composable(AppDestinations.Home.route) {
-                val homeViewModel: com.andeshub.ui.home.HomeViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
+                val homeViewModel: com.andeshub.ui.home.HomeViewModel =
+                    androidx.lifecycle.viewmodel.compose.viewModel()
                 LandingPageScreen(
                     viewModel = homeViewModel,
                     onProductClick = { product ->
-                        navController.currentBackStackEntry?.savedStateHandle?.set("product", product)
+                        // Guarda en el backstack del ProductDetail, no del Home
                         navController.navigate(AppDestinations.ProductDetail.createRoute(product.id))
+                        navController.getBackStackEntry(AppDestinations.ProductDetail.createRoute(product.id))
+                            .savedStateHandle["product"] = product
                     }
                 )
             }
@@ -127,8 +130,7 @@ fun AppNavigation() {
                 )
             }
             composable(AppDestinations.ProductDetail.route) { backStackEntry ->
-                val product = navController.previousBackStackEntry?.savedStateHandle?.get<Product>("product")
-                
+                val product = backStackEntry.savedStateHandle.get<Product>("product")
                 if (product != null) {
                     ProductDetailScreen(
                         product = product,
