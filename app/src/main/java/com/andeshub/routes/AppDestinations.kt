@@ -11,5 +11,7 @@ sealed class AppDestinations(val route: String) {
     object Register  : AppDestinations("register")
     object Store : AppDestinations("store")
     object CreateStore : AppDestinations("create_store")
-    object ProductDetail : AppDestinations("product_detail/{productId}")
+    object ProductDetail : AppDestinations("product_detail/{productId}"){
+        fun createRoute(productId: String) = "product_detail/$productId"
+    }
 }

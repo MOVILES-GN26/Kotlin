@@ -27,10 +27,13 @@ import com.andeshub.ui.components.CategoryChip
 import com.andeshub.ui.components.ProductCard
 import com.andeshub.ui.components.SearchBar
 import com.andeshub.ui.theme.*
+import com.andeshub.data.model.Product
 
 @Composable
 fun LandingPageScreen(
-    viewModel: HomeViewModel = viewModel()
+    viewModel: HomeViewModel = viewModel(),
+    onProductClick: (com.andeshub.data.model.Product) -> Unit = {}
+
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
@@ -142,6 +145,7 @@ fun LandingPageScreen(
             }
         }
 
+        // Sección Recently Added
         Spacer(modifier = Modifier.height(24.dp))
         Text(
             text = "Recently Added",
@@ -182,7 +186,10 @@ fun LandingPageScreen(
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     items(products) { product ->
-                        ProductCard(product = product)
+                        ProductCard(
+                            product = product,
+                            onClick = { onProductClick(product) }  // ← este es el cambio
+                        )
                     }
                 }
             }

@@ -107,7 +107,12 @@ fun AppNavigation() {
                 )
             }
             composable(AppDestinations.Home.route) {
-                LandingPageScreen()
+                LandingPageScreen(
+                    onProductClick = { product ->
+                        navController.currentBackStackEntry?.savedStateHandle?.set("product", product)
+                        navController.navigate(AppDestinations.ProductDetail.createRoute(product.id))
+                    }
+                )
             }
             composable(AppDestinations.Catalog.route) {
                 CatalogScreen(
