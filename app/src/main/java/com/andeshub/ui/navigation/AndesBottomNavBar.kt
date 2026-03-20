@@ -36,7 +36,7 @@ fun AndesBottomNavBar(navController: NavController) {
     val currentRoute = navBackStackEntry?.destination?.route
 
     NavigationBar(
-        containerColor = SoftCream,
+        containerColor = MaterialTheme.colorScheme.background,
         tonalElevation = 0.dp
     ) {
         items.forEach { item ->
@@ -63,11 +63,10 @@ fun AndesBottomNavBar(navController: NavController) {
                     )
                 },
                 colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = Black,
-                    selectedTextColor = Black,
-                    unselectedIconColor = MutedOlive,
-                    unselectedTextColor = MutedOlive,
-
+                    selectedIconColor = MaterialTheme.colorScheme.onBackground,
+                    selectedTextColor = MaterialTheme.colorScheme.onBackground,
+                    unselectedIconColor = MaterialTheme.colorScheme.secondary,
+                    unselectedTextColor = MaterialTheme.colorScheme.secondary,
                 )
             )
         }

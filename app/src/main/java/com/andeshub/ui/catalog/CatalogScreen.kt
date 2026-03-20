@@ -59,7 +59,7 @@ fun CatalogScreen(
     var searchQuery by remember { mutableStateOf("") }
     var selectedCategory by remember { mutableStateOf<String?>(null) }
     var selectedCondition by remember { mutableStateOf<String?>(null) }
-    var selectedSort by remember { mutableStateOf<String?>(null) } 
+    var selectedSort by remember { mutableStateOf<String?>(null) }
 
     val sheetState = rememberModalBottomSheetState()
     val scope = rememberCoroutineScope()
@@ -96,12 +96,12 @@ fun CatalogScreen(
         topBar = {
             CenterAlignedTopAppBar(
                 title = {
-                    Text(text = "AndesHub", style = Typography.titleLarge, color = Black)
+                    Text(text = "AndesHub", style = Typography.titleLarge, color = MaterialTheme.colorScheme.onBackground)
                 },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = White)
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = MaterialTheme.colorScheme.background)
             )
         },
-        containerColor = White
+        containerColor = MaterialTheme.colorScheme.background
     ) { innerPadding ->
         Column(
             modifier = Modifier
@@ -127,12 +127,12 @@ fun CatalogScreen(
                     },
                     modifier = Modifier
                         .size(36.dp)
-                        .background(SoftCream, RoundedCornerShape(8.dp))
-                        .border(1.dp, LightNeutral, RoundedCornerShape(8.dp))
+                        .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(8.dp))
+                        .border(1.dp, MaterialTheme.colorScheme.surface, RoundedCornerShape(8.dp))
                 ) {
                     Icon(Icons.Outlined.Tune, contentDescription = null, modifier = Modifier.size(18.dp))
                 }
-                
+
                 FilterChip(
                     label = selectedSort ?: "Sort",
                     icon = Icons.Default.KeyboardArrowDown,
@@ -194,17 +194,17 @@ fun CatalogScreen(
             when (uiState) {
                 is ProductUiState.Loading -> {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator(color = Yellow)
+                        CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                     }
                 }
                 is ProductUiState.Error -> {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Text(text = "Error: " + (uiState as ProductUiState.Error).message, color = Color.Red)
-                            Button(onClick = { 
-                                productViewModel.getProducts(searchQuery, selectedCategory, selectedCondition, selectedSort) 
-                            }, colors = ButtonDefaults.buttonColors(containerColor = Yellow)) {
-                                Text("Retry", color = Black)
+                            Button(onClick = {
+                                productViewModel.getProducts(searchQuery, selectedCategory, selectedCondition, selectedSort)
+                            }, colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)) {
+                                Text("Retry", color = MaterialTheme.colorScheme.onPrimary)
                             }
                         }
                     }
@@ -212,7 +212,7 @@ fun CatalogScreen(
                 else -> {
                     if (products.isEmpty()) {
                         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            Text("No products found", color = MutedOlive)
+                            Text("No products found", color = MaterialTheme.colorScheme.secondary)
                         }
                     } else {
                         LazyVerticalGrid(
@@ -235,7 +235,7 @@ fun CatalogScreen(
             ModalBottomSheet(
                 onDismissRequest = { showFilterSheet = false },
                 sheetState = sheetState,
-                containerColor = SoftCream,
+                containerColor = MaterialTheme.colorScheme.background,
                 dragHandle = null
             ) {
                 FilterBottomSheetContent(
@@ -302,7 +302,7 @@ fun FilterBottomSheetContent(
                 tempSort = null
                 tempCondition = null
             }) {
-                Text("Clear", color = MutedOlive)
+                Text("Clear", color = MaterialTheme.colorScheme.secondary)
             }
         }
 
@@ -349,15 +349,15 @@ fun FilterBottomSheetContent(
                 crossAxisSpacing = 8.dp
             ) {
                 val fullCategories = listOf(
-                    "Books & Supplies", 
-                    "Clothing & Accessories", 
-                    "Electronics", 
-                    "Food & Drinks", 
-                    "Furniture", 
-                    "Sports & Outdoors", 
-                    "Tickets & Events", 
-                    "Transportation", 
-                    "Tutoring & Services", 
+                    "Books & Supplies",
+                    "Clothing & Accessories",
+                    "Electronics",
+                    "Food & Drinks",
+                    "Furniture",
+                    "Sports & Outdoors",
+                    "Tickets & Events",
+                    "Transportation",
+                    "Tutoring & Services",
                     "Other"
                 )
                 fullCategories.forEach { cat ->
@@ -374,10 +374,10 @@ fun FilterBottomSheetContent(
         Button(
             onClick = { onApply(tempCategory, tempSort, tempCondition) },
             modifier = Modifier.fillMaxWidth().height(50.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = Yellow),
+            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
             shape = RoundedCornerShape(12.dp)
         ) {
-            Text("Apply", color = Black, fontWeight = FontWeight.Bold)
+            Text("Apply", color = MaterialTheme.colorScheme.onBackground, fontWeight = FontWeight.Bold)
         }
     }
 }
@@ -387,14 +387,14 @@ fun FilterOptionChip(label: String, isSelected: Boolean, onClick: () -> Unit) {
     Surface(
         onClick = onClick,
         shape = RoundedCornerShape(20.dp),
-        color = if (isSelected) Yellow.copy(alpha = 0.2f) else White,
-        border = BorderStroke(1.dp, if (isSelected) Yellow else LightNeutral),
+        color = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.2f) else MaterialTheme.colorScheme.background,
+        border = BorderStroke(1.dp, if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface),
     ) {
         Text(
             text = label,
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
             style = Typography.labelMedium,
-            color = Black
+            color = MaterialTheme.colorScheme.onBackground
         )
     }
 }
@@ -418,16 +418,16 @@ fun FilterChip(label: String, icon: ImageVector, onClick: () -> Unit = {}) {
     Surface(
         onClick = onClick,
         shape = RoundedCornerShape(20.dp),
-        color = SoftCream,
-        border = BorderStroke(1.dp, LightNeutral),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.surface),
         modifier = Modifier.height(36.dp)
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(text = label, style = Typography.labelMedium, color = Black)
-            Icon(imageVector = icon, contentDescription = null, modifier = Modifier.size(18.dp), tint = Black)
+            Text(text = label, style = Typography.labelMedium, color = MaterialTheme.colorScheme.onSurface)
+            Icon(imageVector = icon, contentDescription = null, modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurface)
         }
     }
 }
@@ -447,21 +447,21 @@ fun CategoryIconItem(
             modifier = Modifier
                 .size(50.dp)
                 .clip(CircleShape)
-                .background(if (isSelected) Yellow else SoftCream),
+                .background(if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 imageVector = icon,
                 contentDescription = label,
-                tint = Black,
+                tint = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.size(24.dp)
             )
         }
         Spacer(modifier = Modifier.height(4.dp))
         Text(
-            text = label.split(" ")[0], 
+            text = label.split(" ")[0],
             style = Typography.labelSmall,
-            color = if (isSelected) Black else MutedOlive,
+            color = if (isSelected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.secondary,
             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
         )
     }
@@ -502,13 +502,13 @@ fun CatalogProductItem(product: Product, onClick: () -> Unit) {
         Text(
             text = product.title,
             style = Typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-            color = Black,
+            color = MaterialTheme.colorScheme.onSurface,
             maxLines = 1
         )
         Text(
             text = "$${product.price.toInt()}",
             style = Typography.labelMedium,
-            color = MutedOlive
+            color = MaterialTheme.colorScheme.secondary
         )
     }
 }
