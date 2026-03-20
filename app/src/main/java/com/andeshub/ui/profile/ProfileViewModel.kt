@@ -57,4 +57,8 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
             }
         }
     }
+
+    fun refresh() {
+        loadStores()
+    }
 }
