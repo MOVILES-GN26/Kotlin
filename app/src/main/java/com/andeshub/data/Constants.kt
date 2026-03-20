@@ -1,0 +1,33 @@
+package com.andeshub.data
+
+val ALLOWED_MAJORS = listOf(
+    "Administración de Empresas",
+    "Antropología",
+    "Arquitectura",
+    "Arte",
+    "Biología",
+    "Ciencia Política",
+    "Derecho",
+    "Diseño",
+    "Economía",
+    "Filosofía",
+    "Física",
+    "Geografía",
+    "Geología",
+    "Historia",
+    "Ingeniería Biomédica",
+    "Ingeniería Civil",
+    "Ingeniería de Sistemas y Computación",
+    "Ingeniería Eléctrica",
+    "Ingeniería Electrónica",
+    "Ingeniería Industrial",
+    "Ingeniería Mecánica",
+    "Ingeniería Química",
+    "Literatura",
+    "Matemáticas",
+    "Medicina",
+    "Música",
+    "Psicología",
+    "Química",
+    "Sociología"
+)

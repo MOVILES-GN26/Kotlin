@@ -41,7 +41,16 @@ import androidx.compose.ui.tooling.preview.Preview
 import com.andeshub.ui.theme.AndesHubTheme
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import com.andeshub.data.ALLOWED_MAJORS
+import androidx.compose.material3.ExperimentalMaterial3Api
+import com.andeshub.data.*
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RegisterScreen(
     onBackClick: () -> Unit,
@@ -54,6 +63,12 @@ fun RegisterScreen(
     var major by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     val uiState by viewModel.uiState.collectAsState()
+    var majorExpanded by remember { mutableStateOf(false) }
+    var majorSearch by remember { mutableStateOf("") }
+    var fullNameError by remember { mutableStateOf<String?>(null) }
+    var emailError by remember { mutableStateOf<String?>(null) }
+    var majorError by remember { mutableStateOf<String?>(null) }
+    var passwordError by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(uiState) {
         when (uiState) {
@@ -113,7 +128,8 @@ fun RegisterScreen(
         InputField(
             value = fullName,
             onValueChange = { fullName = it },
-            placeholder = "Full Name"
+            placeholder = "Full Name",
+            errorMessage = fullNameError
         )
 
         Spacer(modifier = Modifier.height(12.dp))
@@ -122,35 +138,103 @@ fun RegisterScreen(
             value = email,
             onValueChange = { email = it },
             placeholder = "University Email (@uniandes.edu.co)",
-            keyboardType = KeyboardType.Email
+            keyboardType = KeyboardType.Email,
+            errorMessage = emailError
         )
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        InputField(
-            value = major,
-            onValueChange = { major = it },
-            placeholder = "Major"
-        )
+        ExposedDropdownMenuBox(
+            expanded = majorExpanded,
+            onExpandedChange = { majorExpanded = !majorExpanded }
+        ) {
+            OutlinedTextField(
+                value = majorSearch,
+                onValueChange = {
+                    majorSearch = it
+                    major = it
+                    majorExpanded = true
+                },
+                placeholder = {
+                    Text(
+                        text = "Major",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.secondary
+                    )
+                },
+                trailingIcon = {
+                    ExposedDropdownMenuDefaults.TrailingIcon(expanded = majorExpanded)
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .menuAnchor(),
+                shape = RoundedCornerShape(12.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                    unfocusedBorderColor = MaterialTheme.colorScheme.surface,
+                    focusedContainerColor = MaterialTheme.colorScheme.surface,
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                )
+            )
+            val filteredMajors = ALLOWED_MAJORS.filter {
+                it.contains(majorSearch, ignoreCase = true)
+            }
+            if (filteredMajors.isNotEmpty()) {
+                ExposedDropdownMenu(
+                    expanded = majorExpanded,
+                    onDismissRequest = { majorExpanded = false }
+                ) {
+                    filteredMajors.forEach { option ->
+                        DropdownMenuItem(
+                            text = {
+                                Text(
+                                    text = option,
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
+                            },
+                            onClick = {
+                                major = option
+                                majorSearch = option
+                                majorExpanded = false
+                            }
+                        )
+                    }
+                }
+            }
+        }
 
+        Text(
+            text = majorError ?: "",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.error,
+            modifier = Modifier.padding(top = 4.dp, start = 4.dp)
+        )
         Spacer(modifier = Modifier.height(12.dp))
 
         InputField(
             value = password,
             onValueChange = { password = it },
             placeholder = "Password",
-            isPassword = true
+            isPassword = true,
+            errorMessage = passwordError
         )
 
         Spacer(modifier = Modifier.height(32.dp))
 
         Button(
             onClick = {
-                android.util.Log.d("RegisterScreen", "Button clicked - email: $email")
-                val nameParts = fullName.trim().split(" ")
-                val firstName = nameParts.firstOrNull() ?: ""
-                val lastName = nameParts.drop(1).joinToString(" ")
-                viewModel.register(email, firstName, lastName, major, password)
+                fullNameError = validateFullName(fullName)
+                emailError = validateEmail(email)
+                majorError = validateMajor(major)
+                passwordError = validatePassword(password)
+
+                if (fullNameError == null && emailError == null &&
+                    majorError == null && passwordError == null) {
+                    val nameParts = fullName.trim().split(" ")
+                    val firstName = nameParts.firstOrNull() ?: ""
+                    val lastName = nameParts.drop(1).joinToString(" ")
+                    viewModel.register(email, firstName, lastName, major, password)
+                }
             },
             modifier = Modifier
                 .fillMaxWidth()
