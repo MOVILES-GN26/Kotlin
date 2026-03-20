@@ -38,7 +38,6 @@ import com.andeshub.ui.theme.*
 @Composable
 fun PostProductScreen(
     currentUser: UserProfile? = null,
-    userStores: List<Store> = emptyList(),
     onCloseClick: () -> Unit = {}
 ) {
     val context = LocalContext.current
@@ -51,6 +50,7 @@ fun PostProductScreen(
     )
 
     val uiState by productViewModel.uiState.collectAsState()
+    val userStores by productViewModel.userStores.collectAsState()
 
     var title by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }

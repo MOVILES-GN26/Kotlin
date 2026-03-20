@@ -11,7 +11,9 @@ import com.andeshub.data.model.Product
 import com.andeshub.data.model.TrendingCategory
 import com.andeshub.data.model.ProductStats
 import com.andeshub.data.model.RecordInteractionRequest
+import com.andeshub.data.model.Store
 import com.andeshub.data.repository.ProductRepository
+import com.andeshub.data.repository.StoreRepository
 import com.andeshub.data.remote.RetrofitClient
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -31,6 +33,7 @@ sealed class ProductUiState {
 class ProductViewModel(context: Context) : ViewModel() {
 
     private val repository = ProductRepository(context)
+    private val storeRepository = StoreRepository(context)
     private val sessionManager = SessionManager(context)
     private val api = RetrofitClient.apiService
 
@@ -39,6 +42,24 @@ class ProductViewModel(context: Context) : ViewModel() {
 
     private val _productStats = MutableStateFlow<ProductStats?>(null)
     val productStats: StateFlow<ProductStats?> = _productStats
+
+    private val _userStores = MutableStateFlow<List<Store>>(emptyList())
+    val userStores: StateFlow<List<Store>> = _userStores
+
+    init {
+        loadUserStores()
+    }
+
+    private fun loadUserStores() {
+        viewModelScope.launch {
+            try {
+                val stores = storeRepository.getMyStores()
+                _userStores.value = stores
+            } catch (e: Exception) {
+                Log.e("ProductViewModel", "Error loading user stores", e)
+            }
+        }
+    }
 
     fun getProducts(
         search: String? = null,
