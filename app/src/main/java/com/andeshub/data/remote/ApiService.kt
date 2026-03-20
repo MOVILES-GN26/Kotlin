@@ -93,7 +93,6 @@ interface ApiService {
     suspend fun updateAvatar(
         @Part avatar: MultipartBody.Part
     ): UserResponse
-}
 
     @POST("interactions/view")
     suspend fun recordInteraction(@Body request: RecordInteractionRequest): Response<Unit>
