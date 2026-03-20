@@ -13,6 +13,8 @@ import retrofit2.http.Part
 import retrofit2.http.Path
 import retrofit2.http.DELETE
 import retrofit2.http.Query
+import com.andeshub.data.model.UpdateProfileRequest
+import com.andeshub.data.model.UserResponse
 
 import retrofit2.Response
 import retrofit2.http.*
@@ -79,6 +81,17 @@ interface ApiService {
     suspend fun getProductsByUser(
         @Path("userId") userId: String
     ): ProductsResponse
+
+    @PATCH("users/me")
+    suspend fun updateProfile(
+        @Body body: UpdateProfileRequest
+    ): UserResponse
+
+    @Multipart
+    @PATCH("users/me/avatar")
+    suspend fun updateAvatar(
+        @Part avatar: MultipartBody.Part
+    ): UserResponse
 }
 
 

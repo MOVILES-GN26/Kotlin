@@ -7,7 +7,8 @@ data class UserResponse(
     val email: String,
     @SerializedName("first_name") val firstName: String,
     @SerializedName("last_name") val lastName: String,
-    val major: String
+    val major: String,
+    @SerializedName("avatar_url") val avatarUrl: String? = null
 )
 
 data class AuthResponse(
@@ -27,4 +28,11 @@ data class RegisterRequest(
     @SerializedName("last_name") val lastName: String,
     val major: String,
     val password: String
+)
+
+data class UpdateProfileRequest(
+    @SerializedName("first_name") val firstName: String? = null,
+    @SerializedName("last_name") val lastName: String? = null,
+    val major: String? = null,
+    val password: String? = null
 )

@@ -32,6 +32,7 @@ import androidx.navigation.NavType
 import androidx.navigation.navArgument
 import com.andeshub.ui.settings.SettingsScreen
 import com.andeshub.ui.favorites.FavoritesViewModel
+import com.andeshub.ui.profile.EditProfileScreen
 
 @Composable
 fun AppNavigation() {
@@ -207,12 +208,21 @@ fun AppNavigation() {
             composable(AppDestinations.Settings.route) {
                 SettingsScreen(
                     onBackClick = { navController.popBackStack() },
+                    onEditProfileClick = {
+                        navController.navigate(AppDestinations.EditProfile.route)
+                    },
                     onLogout = {
                         sessionManager.clearSession()
                         navController.navigate(AppDestinations.Login.route) {
                             popUpTo(0) { inclusive = true }
                         }
                     }
+                )
+            }
+            composable(AppDestinations.EditProfile.route) {
+                EditProfileScreen(
+                    onBackClick = { navController.popBackStack() },
+                    onSaveSuccess = { navController.popBackStack() }
                 )
             }
         }
