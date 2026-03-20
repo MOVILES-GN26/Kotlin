@@ -18,6 +18,7 @@ import com.andeshub.ui.components.Product
 import androidx.compose.runtime.remember
 import androidx.navigation.compose.currentBackStackEntryAsState
 import com.andeshub.data.local.SessionManager
+import com.andeshub.ui.store.StoreScreen
 
 @Composable
 fun AppNavigation() {
@@ -92,6 +93,14 @@ fun AppNavigation() {
                         Product("Engineering Drawing Set", "$30"),
                         Product("Statistics Software", "$20")
                     )
+                )
+            }
+            composable(AppDestinations.Store.route) {
+                StoreScreen(
+                    storeName = "My Store",
+                    ownerName = "Sofía Ramirez",
+                    description = "Description here",
+                    onBack = { navController.popBackStack() }
                 )
             }
         }
