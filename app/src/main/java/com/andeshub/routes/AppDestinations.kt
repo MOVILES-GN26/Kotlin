@@ -9,4 +9,5 @@ sealed class AppDestinations(val route: String) {
     object Login     : AppDestinations("login")
     object Register  : AppDestinations("register")
     object Store : AppDestinations("store")
+    object CreateStore : AppDestinations("create_store")
 }
