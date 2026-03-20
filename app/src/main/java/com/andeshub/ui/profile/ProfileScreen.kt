@@ -47,6 +47,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.layout.ContentScale
 import coil.compose.AsyncImage
 import androidx.compose.foundation.clickable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 
 @Composable
@@ -58,8 +59,15 @@ fun ProfileScreen(
     viewModel: ProfileViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    LaunchedEffect(Unit) {
-        viewModel.refresh()
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+                viewModel.refresh()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
     Column(
         modifier = Modifier

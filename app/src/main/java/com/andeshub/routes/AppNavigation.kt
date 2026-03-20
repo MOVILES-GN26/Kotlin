@@ -32,6 +32,7 @@ import androidx.navigation.NavType
 import androidx.navigation.navArgument
 import com.andeshub.ui.settings.SettingsScreen
 import com.andeshub.ui.favorites.FavoritesViewModel
+import com.andeshub.ui.profile.EditProfileScreen
 
 @Composable
 fun AppNavigation() {
@@ -116,22 +117,26 @@ fun AppNavigation() {
                 LandingPageScreen(
                     viewModel = homeViewModel,
                     onProductClick = { product ->
-                        // Guarda en el backstack del ProductDetail, no del Home
-                        navController.navigate(AppDestinations.ProductDetail.createRoute(product.id))
-                        navController.getBackStackEntry(AppDestinations.ProductDetail.createRoute(product.id))
-                            .savedStateHandle["product"] = product
+                        val route = AppDestinations.ProductDetail.createRoute(product.id)
+                        navController.navigate(route)
+                        navController.getBackStackEntry(route).savedStateHandle["product"] = product
                     }
                 )
             }
             composable(AppDestinations.Catalog.route) {
                 CatalogScreen(
                     onProductClick = { product ->
-                        navController.currentBackStackEntry?.savedStateHandle?.set("product", product)
-                        navController.navigate(AppDestinations.ProductDetail.route.replace("{productId}", product.id))
+                        // USAMOS LA MISMA LÓGICA QUE EN HOME:
+                        val route = AppDestinations.ProductDetail.createRoute(product.id)
+                        navController.navigate(route)
+                        navController.getBackStackEntry(route).savedStateHandle["product"] = product
                     }
                 )
             }
-            composable(AppDestinations.ProductDetail.route) { backStackEntry ->
+            composable(
+                route = AppDestinations.ProductDetail.route,
+                arguments = listOf(navArgument("productId") { type = NavType.StringType })
+            ) { backStackEntry ->
                 val product = backStackEntry.savedStateHandle.get<Product>("product")
                 if (product != null) {
                     ProductDetailScreen(
@@ -159,9 +164,9 @@ fun AppNavigation() {
                 FavoritesScreen(
                     viewModel = favoritesViewModel,
                     onProductClick = { product ->
-                        navController.navigate(AppDestinations.ProductDetail.createRoute(product.id))
-                        navController.getBackStackEntry(AppDestinations.ProductDetail.createRoute(product.id))
-                            .savedStateHandle["product"] = product
+                        val route = AppDestinations.ProductDetail.createRoute(product.id)
+                        navController.navigate(route)
+                        navController.getBackStackEntry(route).savedStateHandle["product"] = product
                     }
                 )
             }
@@ -169,9 +174,9 @@ fun AppNavigation() {
                 ProfileScreen(
                     onSettingsClick = {navController.navigate(AppDestinations.Settings.route)},
                     onListingClick = { product ->
-                        navController.navigate(AppDestinations.ProductDetail.createRoute(product.id))
-                        navController.getBackStackEntry(AppDestinations.ProductDetail.createRoute(product.id))
-                            .savedStateHandle["product"] = product
+                        val route = AppDestinations.ProductDetail.createRoute(product.id)
+                        navController.navigate(route)
+                        navController.getBackStackEntry(route).savedStateHandle["product"] = product
                     },
                     onCreateStoreClick = {
                         navController.navigate(AppDestinations.CreateStore.route)
@@ -191,9 +196,9 @@ fun AppNavigation() {
                     storeId = storeId,
                     onBack = { navController.popBackStack() },
                     onProductClick = { product ->
-                        navController.navigate(AppDestinations.ProductDetail.createRoute(product.id))
-                        navController.getBackStackEntry(AppDestinations.ProductDetail.createRoute(product.id))
-                            .savedStateHandle["product"] = product
+                        val route = AppDestinations.ProductDetail.createRoute(product.id)
+                        navController.navigate(route)
+                        navController.getBackStackEntry(route).savedStateHandle["product"] = product
                     }
                 )
             }
@@ -207,12 +212,21 @@ fun AppNavigation() {
             composable(AppDestinations.Settings.route) {
                 SettingsScreen(
                     onBackClick = { navController.popBackStack() },
+                    onEditProfileClick = {
+                        navController.navigate(AppDestinations.EditProfile.route)
+                    },
                     onLogout = {
                         sessionManager.clearSession()
                         navController.navigate(AppDestinations.Login.route) {
                             popUpTo(0) { inclusive = true }
                         }
                     }
+                )
+            }
+            composable(AppDestinations.EditProfile.route) {
+                EditProfileScreen(
+                    onBackClick = { navController.popBackStack() },
+                    onSaveSuccess = { navController.popBackStack() }
                 )
             }
         }
