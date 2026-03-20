@@ -31,7 +31,7 @@ fun SearchBar(
             .fillMaxWidth()
             .height(50.dp)
             .clip(RoundedCornerShape(25.dp))
-            .background(SoftCream)
+            .background(MaterialTheme.colorScheme.surface)
             .padding(horizontal = 16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -41,25 +41,27 @@ fun SearchBar(
             modifier = Modifier.size(20.dp)
         )
         Spacer(modifier = Modifier.width(12.dp))
-        
+
         Box(modifier = Modifier.weight(1f)) {
             if (query.isEmpty()) {
                 Text(
                     text = "Search for items",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MutedOlive
+                    color = MaterialTheme.colorScheme.secondary
                 )
             }
             BasicTextField(
                 value = query,
                 onValueChange = onQueryChange,
-                textStyle = MaterialTheme.typography.bodyMedium.copy(color = Black),
-                cursorBrush = SolidColor(Black),
+                textStyle = MaterialTheme.typography.bodyMedium.copy(
+                    color = MaterialTheme.colorScheme.onSurface
+                ),
+                cursorBrush = SolidColor(MaterialTheme.colorScheme.onSurface),
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true
             )
         }
-        
+
         if (query.isNotEmpty()) {
             IconButton(
                 onClick = { onQueryChange("") },
@@ -69,7 +71,7 @@ fun SearchBar(
                     imageVector = Icons.Default.Close,
                     contentDescription = "Clear",
                     modifier = Modifier.size(16.dp),
-                    tint = MutedOlive
+                    tint = MaterialTheme.colorScheme.secondary
                 )
             }
         }

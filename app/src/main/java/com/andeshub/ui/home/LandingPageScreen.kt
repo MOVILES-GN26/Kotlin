@@ -45,12 +45,12 @@ fun LandingPageScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(SoftCream)
+            .background(MaterialTheme.colorScheme.background)
     ) {
         Text(
             text = "AndesHub",
             style = MaterialTheme.typography.titleLarge,
-            color = Black,
+            color = MaterialTheme.colorScheme.onBackground,
             modifier = Modifier
                 .align(Alignment.CenterHorizontally)
                 .padding(top = 16.dp, bottom = 8.dp)
@@ -99,7 +99,7 @@ fun LandingPageScreen(
         Text(
             text = "Trending Categories",
             style = MaterialTheme.typography.titleMedium,
-            color = Black,
+            color = MaterialTheme.colorScheme.onBackground,
             modifier = Modifier.padding(horizontal = 20.dp)
         )
         Spacer(modifier = Modifier.height(12.dp))
@@ -148,7 +148,7 @@ fun LandingPageScreen(
         Text(
             text = "Recently Added",
             style = MaterialTheme.typography.titleMedium,
-            color = Black,
+            color  = MaterialTheme.colorScheme.onBackground,
             modifier = Modifier.padding(horizontal = 20.dp)
         )
         Spacer(modifier = Modifier.height(12.dp))
@@ -161,7 +161,7 @@ fun LandingPageScreen(
                         .height(150.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    CircularProgressIndicator(color = Black)
+                    CircularProgressIndicator(color = MaterialTheme.colorScheme.onBackground)
                 }
             }
             is HomeUiState.Error -> {

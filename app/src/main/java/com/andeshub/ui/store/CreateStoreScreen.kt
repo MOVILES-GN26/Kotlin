@@ -72,10 +72,9 @@ fun CreateStoreScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(SoftCream)
+            .background(MaterialTheme.colorScheme.background)
             .verticalScroll(rememberScrollState())
     ) {
-        // Top bar
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -88,22 +87,21 @@ fun CreateStoreScreen(
                 Icon(
                     imageVector = Icons.Outlined.Close,
                     contentDescription = "Cerrar",
-                    tint = Black
+                    tint = MaterialTheme.colorScheme.onBackground
                 )
             }
             Text(
                 text = "Create Store",
                 style = MaterialTheme.typography.titleLarge,
-                color = Black,
+                color = MaterialTheme.colorScheme.onBackground,
                 modifier = Modifier.align(Alignment.Center)
             )
         }
 
-        // Logo
         Text(
             text = "Logo",
             style = MaterialTheme.typography.titleMedium,
-            color = Black,
+            color = MaterialTheme.colorScheme.onBackground,
             modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
         )
         Box(
@@ -111,8 +109,8 @@ fun CreateStoreScreen(
                 .size(140.dp)
                 .align(Alignment.CenterHorizontally)
                 .clip(CircleShape)
-                .background(LightNeutral)
-                .border(1.dp, MutedOlive.copy(alpha = 0.3f), CircleShape)
+                .background(MaterialTheme.colorScheme.surface)
+                .border(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.3f), CircleShape)
                 .clickable { galleryLauncher.launch("image/*") },
             contentAlignment = Alignment.Center
         ) {
@@ -127,7 +125,7 @@ fun CreateStoreScreen(
                 Icon(
                     imageVector = Icons.Outlined.AddAPhoto,
                     contentDescription = "Agregar logo",
-                    tint = MutedOlive,
+                    tint = MaterialTheme.colorScheme.secondary,
                     modifier = Modifier.size(36.dp)
                 )
             }
@@ -135,15 +133,13 @@ fun CreateStoreScreen(
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // Details
         Text(
             text = "Details",
             style = MaterialTheme.typography.titleMedium,
-            color = Black,
+            color = MaterialTheme.colorScheme.onBackground,
             modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
         )
 
-        // Nombre
         InputField(
             value = storeName,
             onValueChange = {
@@ -164,7 +160,6 @@ fun CreateStoreScreen(
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // Descripción
         InputField(
             value = description,
             onValueChange = {
@@ -187,7 +182,6 @@ fun CreateStoreScreen(
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // Category dropdown
         ExposedDropdownMenuBox(
             expanded = expanded,
             onExpandedChange = { expanded = !expanded },
@@ -203,7 +197,7 @@ fun CreateStoreScreen(
                     Text(
                         "Category",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MutedOlive
+                        color = MaterialTheme.colorScheme.secondary
                     )
                 },
                 trailingIcon = {
@@ -214,10 +208,10 @@ fun CreateStoreScreen(
                     .menuAnchor(),
                 shape = RoundedCornerShape(12.dp),
                 colors = OutlinedTextFieldDefaults.colors(
-                    unfocusedContainerColor = LightNeutral,
-                    focusedContainerColor = LightNeutral,
-                    unfocusedBorderColor = LightNeutral,
-                    focusedBorderColor = Yellow
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                    focusedContainerColor = MaterialTheme.colorScheme.surface,
+                    unfocusedBorderColor = MaterialTheme.colorScheme.surface,
+                    focusedBorderColor = MaterialTheme.colorScheme.primary
                 )
             )
             ExposedDropdownMenu(
@@ -240,10 +234,9 @@ fun CreateStoreScreen(
                 }
             }
         }
-//hellou
+
         Spacer(modifier = Modifier.height(32.dp))
 
-        // Error general
         if (uiState is StoreUiState.Error) {
             Text(
                 text = (uiState as StoreUiState.Error).message,
@@ -253,7 +246,6 @@ fun CreateStoreScreen(
             )
         }
 
-        // Button Create
         Button(
             onClick = {
                 viewModel.createStore(
@@ -273,15 +265,15 @@ fun CreateStoreScreen(
                 .padding(horizontal = 20.dp),
             shape = RoundedCornerShape(12.dp),
             colors = ButtonDefaults.buttonColors(
-                containerColor = Yellow,
-                contentColor = Black,
-                disabledContainerColor = Yellow.copy(alpha = 0.5f),
-                disabledContentColor = Black.copy(alpha = 0.5f)
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary,
+                disabledContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
+                disabledContentColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.5f)
             )
         ) {
             if (uiState is StoreUiState.Loading) {
                 CircularProgressIndicator(
-                    color = Black,
+                    color = MaterialTheme.colorScheme.onPrimary,
                     modifier = Modifier.size(20.dp)
                 )
             } else {
