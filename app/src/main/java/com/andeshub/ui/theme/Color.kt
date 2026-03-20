@@ -18,3 +18,5 @@ val MutedOlive = Color(0xFF878563)
 val Black = Color(0xFF1C1A0D)
 
 val White = Color(0xFFFFFFFF)
+
+val ErrorRed = Color(0xFFB00020)

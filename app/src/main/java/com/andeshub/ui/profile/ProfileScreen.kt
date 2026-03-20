@@ -32,18 +32,21 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.ui.text.style.TextAlign
-import com.andeshub.ui.components.Product
+import com.andeshub.data.model.Product
 import com.andeshub.ui.components.ProductCard
 import androidx.compose.ui.tooling.preview.Preview
 import com.andeshub.ui.theme.AndesHubTheme
-import androidx.compose.foundation.layout.Row
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 
 @Composable
 fun ProfileScreen(
     onSettingsClick: () -> Unit,
     onListingClick: (String) -> Unit,
-    listings: List<Product> = emptyList()
+    listings: List<Product> = emptyList(),
+    viewModel: ProfileViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
 ) {
+    val uiState by viewModel.uiState.collectAsState()
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -71,6 +74,7 @@ fun ProfileScreen(
                     tint = MaterialTheme.colorScheme.onBackground
                 )
             }
+
         }
         Spacer(modifier = Modifier.height(8.dp))
 
@@ -87,7 +91,7 @@ fun ProfileScreen(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = "M",
+                    text = uiState.firstName.firstOrNull()?.toString() ?: "?",
                     style = MaterialTheme.typography.displayMedium,
                     color = MaterialTheme.colorScheme.onBackground
                 )
@@ -97,14 +101,14 @@ fun ProfileScreen(
         Spacer(modifier = Modifier.height(12.dp))
 
         Text(
-            text = "Mariana Silva",
+            text = "${uiState.firstName} ${uiState.lastName}",
             style = MaterialTheme.typography.titleLarge,
             color = MaterialTheme.colorScheme.onBackground,
             textAlign = TextAlign.Center,
             modifier = Modifier.fillMaxWidth()
         )
         Text(
-            text = "Industrial Engineering",
+            text = uiState.major,
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.secondary,
             textAlign = TextAlign.Center,
@@ -133,7 +137,7 @@ fun ProfileScreen(
             InfoRow(
                 icon = Icons.Default.Email,
                 label = "Email",
-                value = "mariana.silva@uniandes.edu.co"
+                value = uiState.email
             )
             InfoRow(
                 icon = Icons.Default.Badge,
@@ -185,9 +189,28 @@ fun ProfileScreenPreview() {
             onSettingsClick = {},
             onListingClick = {},
             listings = listOf(
-                Product("Calculus Textbook", "$50"),
-                Product("Engineering Drawing Set", "$30"),
-                Product("Statistics Software", "$20")
+                Product(
+                    id = "1",
+                    title = "Calculus Textbook",
+                    description = "",
+                    category = "Books",
+                    building_location = "SD",
+                    price = 50.0,
+                    condition = "Used",
+                    image_urls = emptyList(),
+                    seller_id = ""
+                ),
+                Product(
+                    id = "2",
+                    title = "Engineering Drawing Set",
+                    description = "",
+                    category = "Books",
+                    building_location = "SD",
+                    price = 30.0,
+                    condition = "Used",
+                    image_urls = emptyList(),
+                    seller_id = ""
+                )
             )
         )
     }
