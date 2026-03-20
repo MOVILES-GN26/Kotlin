@@ -17,9 +17,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.andeshub.R
+import com.andeshub.data.model.Product
 import com.andeshub.ui.components.Category
 import com.andeshub.ui.components.CategoryChip
-import com.andeshub.ui.components.Product
 import com.andeshub.ui.components.ProductCard
 import com.andeshub.ui.components.SearchBar
 import com.andeshub.ui.theme.*
@@ -37,10 +37,50 @@ fun LandingPageScreen() {
     )
 
     val products = listOf(
-        Product("Calculus Textbook", "\$50"),
-        Product("MacBook Pro", "\$1200"),
-        Product("Apartment campus", "\$800/mo"),
-        Product("Physics Book", "\$30"),
+        Product(
+            id = "1",
+            title = "Calculus Textbook",
+            description = "",
+            category = "Books",
+            building_location = "SD",
+            price = 50.0,
+            condition = "Used",
+            image_urls = emptyList(),
+            seller_id = ""
+        ),
+        Product(
+            id = "2",
+            title = "MacBook Pro",
+            description = "",
+            category = "Tech",
+            building_location = "SD",
+            price = 1200.0,
+            condition = "Used",
+            image_urls = emptyList(),
+            seller_id = ""
+        ),
+        Product(
+            id = "3",
+            title = "Apartment campus",
+            description = "",
+            category = "Housing",
+            building_location = "SD",
+            price = 800.0,
+            condition = "New",
+            image_urls = emptyList(),
+            seller_id = ""
+        ),
+        Product(
+            id = "4",
+            title = "Physics Book",
+            description = "",
+            category = "Books",
+            building_location = "SD",
+            price = 30.0,
+            condition = "Used",
+            image_urls = emptyList(),
+            seller_id = ""
+        ),
     )
 
     Column(
@@ -48,7 +88,6 @@ fun LandingPageScreen() {
             .fillMaxSize()
             .background(SoftCream)
     ) {
-        // Título AndesHub
         Text(
             text = "AndesHub",
             style = MaterialTheme.typography.titleLarge,
@@ -58,7 +97,6 @@ fun LandingPageScreen() {
                 .padding(top = 16.dp, bottom = 8.dp)
         )
 
-        // Hero con imagen + texto encima
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -90,13 +128,10 @@ fun LandingPageScreen() {
                     textAlign = TextAlign.Center
                 )
                 Spacer(modifier = Modifier.height(16.dp))
-                SearchBar(
-                    onSearch = { /* TODO */ }
-                )
+                SearchBar(onSearch = { })
             }
         }
 
-        // Sección Categories
         Spacer(modifier = Modifier.height(24.dp))
         Text(
             text = "Categories",
@@ -118,7 +153,6 @@ fun LandingPageScreen() {
             Spacer(modifier = Modifier.height(8.dp))
         }
 
-        // Sección Recently Added
         Spacer(modifier = Modifier.height(24.dp))
         Text(
             text = "Recently Added",

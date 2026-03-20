@@ -30,4 +30,7 @@ class StoreRepository(private val context: Context) {
 
         return api.createStore(namePart, descriptionPart, categoryPart, logoPart)
     }
+    suspend fun getStore(id: String): Store {
+        return api.getStore(id)
+    }
 }

@@ -40,4 +40,16 @@ class StoreViewModel(context: Context) : ViewModel() {
             }
         }
     }
+
+    fun getStore(id: String) {
+        viewModelScope.launch {
+            _uiState.value = StoreUiState.Loading
+            try {
+                val store = repository.getStore(id)
+                _uiState.value = StoreUiState.Success(store)
+            } catch (e: Exception) {
+                _uiState.value = StoreUiState.Error(e.message ?: "Error desconocido")
+            }
+        }
+    }
 }
