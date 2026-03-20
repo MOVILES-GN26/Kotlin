@@ -14,7 +14,7 @@ import com.andeshub.ui.home.LandingPageScreen
 import com.andeshub.ui.navigation.AndesBottomNavBar
 import com.andeshub.ui.profile.ProfileScreen
 import com.andeshub.ui.theme.SoftCream
-import com.andeshub.ui.components.Product
+import com.andeshub.data.model.Product
 import androidx.compose.runtime.remember
 import androidx.navigation.compose.currentBackStackEntryAsState
 import com.andeshub.data.local.SessionManager
@@ -89,17 +89,33 @@ fun AppNavigation() {
                     onSettingsClick = {},
                     onListingClick = {},
                     listings = listOf(
-                        Product("Calculus Textbook", "$50"),
-                        Product("Engineering Drawing Set", "$30"),
-                        Product("Statistics Software", "$20")
+                        Product(
+                            id = "1",
+                            title = "Calculus Textbook",
+                            description = "",
+                            category = "Books",
+                            building_location = "SD",
+                            price = 50.0,
+                            condition = "Used",
+                            image_urls = emptyList(),
+                            seller_id = ""
+                        ),
+                        Product(
+                            id = "2",
+                            title = "Engineering Drawing Set",
+                            description = "",
+                            category = "Books",
+                            building_location = "SD",
+                            price = 30.0,
+                            condition = "Used",
+                            image_urls = emptyList(),
+                            seller_id = ""
+                        )
                     )
                 )
             }
             composable(AppDestinations.Store.route) {
                 StoreScreen(
-                    storeName = "My Store",
-                    ownerName = "Sofía Ramirez",
-                    description = "Description here",
                     onBack = { navController.popBackStack() }
                 )
             }
