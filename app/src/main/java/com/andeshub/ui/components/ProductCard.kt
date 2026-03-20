@@ -37,7 +37,7 @@ fun ProductCard(
         ) {
             if (product.image_urls.isNotEmpty()) {
                 AsyncImage(
-                    model = product.image_urls.first(),
+                    model = product.image_urls.first().replace("localhost", "10.0.2.2"),
                     contentDescription = product.title,
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize()
@@ -58,7 +58,7 @@ fun ProductCard(
             overflow = TextOverflow.Ellipsis
         )
         Text(
-            text = "$${product.price}",
+            text = "$${product.price.toInt()}",
             style = MaterialTheme.typography.labelMedium,
             color = MutedOlive
         )
