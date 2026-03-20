@@ -33,4 +33,7 @@ class StoreRepository(private val context: Context) {
     suspend fun getStore(id: String): Store {
         return api.getStore(id)
     }
+    suspend fun getMyStores(): List<Store> {
+        return api.getMyStores()
+    }
 }
