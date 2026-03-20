@@ -109,7 +109,9 @@ fun AppNavigation() {
                 )
             }
             composable(AppDestinations.Home.route) {
+                val homeViewModel: com.andeshub.ui.home.HomeViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
                 LandingPageScreen(
+                    viewModel = homeViewModel,
                     onProductClick = { product ->
                         navController.currentBackStackEntry?.savedStateHandle?.set("product", product)
                         navController.navigate(AppDestinations.ProductDetail.createRoute(product.id))
