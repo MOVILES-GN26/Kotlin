@@ -31,7 +31,15 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
             try {
                 val response = repository.login(email, password)
                 sessionManager.saveTokens(response.accessToken, response.refreshToken)
+                sessionManager.saveUser(
+                    id = response.user.id,
+                    email = response.user.email,
+                    firstName = response.user.firstName,
+                    lastName = response.user.lastName,
+                    major = response.user.major
+                )
                 android.util.Log.d("AuthViewModel", "Success: ${response.user.email}")
+                android.util.Log.d("AuthViewModel", "Saved user: ${response.user.email}")
                 _uiState.value = AuthUiState.Success(response)
             } catch (e: Exception) {
                 android.util.Log.e("AuthViewModel", "Error: ${e.message}")
@@ -52,6 +60,13 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
             try {
                 val response = repository.register(email, firstName, lastName, major, password)
                 sessionManager.saveTokens(response.accessToken, response.refreshToken)
+                sessionManager.saveUser(
+                    id = response.user.id,
+                    email = response.user.email,
+                    firstName = response.user.firstName,
+                    lastName = response.user.lastName,
+                    major = response.user.major
+                )
                 android.util.Log.d("AuthViewModel", "Success: ${response.user.email}")
                 _uiState.value = AuthUiState.Success(response)
             } catch (e: Exception) {
