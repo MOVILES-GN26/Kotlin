@@ -15,6 +15,7 @@ import com.andeshub.ui.navigation.AndesBottomNavBar
 import com.andeshub.ui.profile.ProfileScreen
 import com.andeshub.ui.theme.SoftCream
 import com.andeshub.ui.components.Product
+import com.andeshub.ui.store.StoreScreen
 
 @Composable
 fun AppNavigation() {
@@ -76,6 +77,14 @@ fun AppNavigation() {
                         Product("Engineering Drawing Set", "$30"),
                         Product("Statistics Software", "$20")
                     )
+                )
+            }
+            composable(AppDestinations.Store.route) {
+                StoreScreen(
+                    storeName = "My Store",
+                    ownerName = "Sofía Ramirez",
+                    description = "Description here",
+                    onBack = { navController.popBackStack() }
                 )
             }
         }
