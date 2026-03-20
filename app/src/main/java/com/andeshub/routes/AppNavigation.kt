@@ -30,6 +30,7 @@ import com.andeshub.ui.onboarding.OnboardingScreen
 import com.andeshub.ui.store.CreateStoreScreen
 import androidx.navigation.NavType
 import androidx.navigation.navArgument
+import com.andeshub.ui.settings.SettingsScreen
 import com.andeshub.ui.favorites.FavoritesViewModel
 
 @Composable
@@ -166,7 +167,7 @@ fun AppNavigation() {
             }
             composable(AppDestinations.Profile.route) {
                 ProfileScreen(
-                    onSettingsClick = {},
+                    onSettingsClick = {navController.navigate(AppDestinations.Settings.route)},
                     onListingClick = { product ->
                         navController.navigate(AppDestinations.ProductDetail.createRoute(product.id))
                         navController.getBackStackEntry(AppDestinations.ProductDetail.createRoute(product.id))
@@ -200,6 +201,18 @@ fun AppNavigation() {
             composable(AppDestinations.CreateStore.route) {
                 CreateStoreScreen(
                     onClose = { navController.popBackStack() }
+                )
+            }
+
+            composable(AppDestinations.Settings.route) {
+                SettingsScreen(
+                    onBackClick = { navController.popBackStack() },
+                    onLogout = {
+                        sessionManager.clearSession()
+                        navController.navigate(AppDestinations.Login.route) {
+                            popUpTo(0) { inclusive = true }
+                        }
+                    }
                 )
             }
         }

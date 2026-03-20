@@ -18,4 +18,6 @@ sealed class AppDestinations(val route: String) {
     object StoreDetail : AppDestinations("store/{storeId}") {
         fun createRoute(storeId: String) = "store/$storeId"
     }
+
+    object Settings : AppDestinations("settings")
 }
