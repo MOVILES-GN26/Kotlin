@@ -36,6 +36,7 @@ class StoreViewModel(context: Context) : ViewModel() {
                 val store = repository.createStore(name, description, category, logoUri)
                 _uiState.value = StoreUiState.Success(store)
             } catch (e: Exception) {
+                android.util.Log.e("StoreViewModel", "Error completo: ${e.message} ${e.cause}")
                 _uiState.value = StoreUiState.Error(e.message ?: "Error desconocido")
             }
         }
