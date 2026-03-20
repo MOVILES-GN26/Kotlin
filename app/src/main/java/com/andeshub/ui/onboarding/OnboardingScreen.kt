@@ -65,7 +65,7 @@ fun OnboardingScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(SoftCream)
+            .background(MaterialTheme.colorScheme.background)
     ) {
         HorizontalPager(
             state = pagerState,
@@ -78,7 +78,6 @@ fun OnboardingScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Pager Indicator
         Row(
             modifier = Modifier
                 .align(Alignment.CenterHorizontally)
@@ -86,7 +85,7 @@ fun OnboardingScreen(
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             repeat(pages.size) { iteration ->
-                val color = if (pagerState.currentPage == iteration) Yellow else Color.LightGray.copy(alpha = 0.5f)
+                val color = if (pagerState.currentPage == iteration) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary.copy(alpha = 0.5f)
                 Box(
                     modifier = Modifier
                         .size(if (pagerState.currentPage == iteration) 24.dp else 8.dp, 8.dp)
@@ -96,7 +95,6 @@ fun OnboardingScreen(
             }
         }
 
-        // Navigation Buttons
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -105,7 +103,6 @@ fun OnboardingScreen(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Back Button
             if (pagerState.currentPage > 0) {
                 TextButton(
                     onClick = {
@@ -116,7 +113,7 @@ fun OnboardingScreen(
                 ) {
                     Text(
                         text = "Back",
-                        color = Color.Gray,
+                        color = MaterialTheme.colorScheme.secondary,
                         fontSize = 16.sp
                     )
                 }
@@ -124,7 +121,6 @@ fun OnboardingScreen(
                 Spacer(modifier = Modifier.width(64.dp))
             }
 
-            // Next / Get Started Button
             Button(
                 onClick = {
                     if (pagerState.currentPage < pages.size - 1) {
@@ -135,7 +131,9 @@ fun OnboardingScreen(
                         onFinished()
                     }
                 },
-                colors = ButtonDefaults.buttonColors(containerColor = Yellow),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary
+                ),
                 shape = RoundedCornerShape(24.dp),
                 modifier = Modifier
                     .width(180.dp)
@@ -143,7 +141,7 @@ fun OnboardingScreen(
             ) {
                 Text(
                     text = if (pagerState.currentPage == pages.size - 1) "Get Started" else "Next",
-                    color = Color.Black,
+                    color = MaterialTheme.colorScheme.onPrimary,
                     fontWeight = FontWeight.Bold,
                     fontSize = 16.sp
                 )
@@ -158,12 +156,11 @@ fun OnboardingPageContent(page: OnboardingPage) {
         modifier = Modifier.fillMaxSize(),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Image
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .fillMaxHeight(0.6f)
-                .background(page.color),
+                .background(page.color),  // ← intencional, es el color de la página
             contentAlignment = Alignment.Center
         ) {
             Image(
@@ -180,7 +177,7 @@ fun OnboardingPageContent(page: OnboardingPage) {
             text = page.title,
             fontSize = 28.sp,
             fontWeight = FontWeight.Bold,
-            color = Color.Black,
+            color = MaterialTheme.colorScheme.onBackground,
             textAlign = TextAlign.Center,
             modifier = Modifier.padding(horizontal = 32.dp)
         )
@@ -190,7 +187,7 @@ fun OnboardingPageContent(page: OnboardingPage) {
         Text(
             text = page.description,
             fontSize = 16.sp,
-            color = Color.Gray,
+            color = MaterialTheme.colorScheme.secondary,
             textAlign = TextAlign.Center,
             modifier = Modifier.padding(horizontal = 48.dp)
         )

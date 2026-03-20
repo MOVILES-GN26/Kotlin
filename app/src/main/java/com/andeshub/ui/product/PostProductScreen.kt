@@ -63,8 +63,8 @@ fun PostProductScreen(
     var selectedStore by remember { mutableStateOf<Store?>(null) }
 
     val categories = listOf(
-        "Books & Supplies", "Clothing & Accessories", "Electronics", 
-        "Food & Drinks", "Furniture", "Sports & Outdoors", 
+        "Books & Supplies", "Clothing & Accessories", "Electronics",
+        "Food & Drinks", "Furniture", "Sports & Outdoors",
         "Tickets & Events", "Transportation", "Tutoring & Services", "Other"
     )
     val conditions = listOf("New", "Like New", "Good", "Fair")
@@ -81,7 +81,6 @@ fun PostProductScreen(
         }
     }
 
-    // Launcher para galería
     val galleryLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
@@ -91,7 +90,6 @@ fun PostProductScreen(
         }
     }
 
-    // Launcher para cámara
     val cameraLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.TakePicturePreview()
     ) { bitmap: Bitmap? ->
@@ -104,18 +102,29 @@ fun PostProductScreen(
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
-                title = { 
-                    Text("Post an Item", style = Typography.titleLarge, fontWeight = FontWeight.Bold) 
+                title = {
+                    Text(
+                        "Post an Item",
+                        style = Typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
                 },
                 navigationIcon = {
                     IconButton(onClick = onCloseClick) {
-                        Icon(Icons.Default.Close, contentDescription = "Close")
+                        Icon(
+                            Icons.Default.Close,
+                            contentDescription = "Close",
+                            tint = MaterialTheme.colorScheme.onBackground
+                        )
                     }
                 },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = White)
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background
+                )
             )
         },
-        containerColor = White
+        containerColor = MaterialTheme.colorScheme.background
     ) { innerPadding ->
         Column(
             modifier = Modifier
@@ -128,6 +137,7 @@ fun PostProductScreen(
                 text = "Photos",
                 style = Typography.titleMedium,
                 fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onBackground,
                 modifier = Modifier.padding(vertical = 12.dp)
             )
 
@@ -136,7 +146,7 @@ fun PostProductScreen(
                     .fillMaxWidth()
                     .height(200.dp)
                     .clip(RoundedCornerShape(16.dp))
-                    .background(Color(0xFFF9F5D7))
+                    .background(MaterialTheme.colorScheme.surface)
                     .clickable { showImageSourceOptions = true },
                 contentAlignment = Alignment.Center
             ) {
@@ -145,14 +155,14 @@ fun PostProductScreen(
                         Icon(
                             imageVector = Icons.Default.CameraAlt,
                             contentDescription = null,
-                            tint = MutedOlive,
+                            tint = MaterialTheme.colorScheme.secondary,
                             modifier = Modifier.size(48.dp)
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
                             text = "Tap to add a photo",
                             style = Typography.bodyMedium,
-                            color = MutedOlive
+                            color = MaterialTheme.colorScheme.secondary
                         )
                     }
                 } else {
@@ -169,6 +179,7 @@ fun PostProductScreen(
                 text = "Details",
                 style = Typography.titleMedium,
                 fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onBackground,
                 modifier = Modifier.padding(top = 24.dp, bottom = 12.dp)
             )
 
@@ -179,10 +190,10 @@ fun PostProductScreen(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
                 colors = OutlinedTextFieldDefaults.colors(
-                    unfocusedBorderColor = LightNeutral,
-                    focusedBorderColor = Yellow,
-                    unfocusedContainerColor = SoftCream,
-                    focusedContainerColor = SoftCream
+                    unfocusedBorderColor = MaterialTheme.colorScheme.surface,
+                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                    focusedContainerColor = MaterialTheme.colorScheme.surface
                 )
             )
 
@@ -197,10 +208,10 @@ fun PostProductScreen(
                     .height(120.dp),
                 shape = RoundedCornerShape(12.dp),
                 colors = OutlinedTextFieldDefaults.colors(
-                    unfocusedBorderColor = LightNeutral,
-                    focusedBorderColor = Yellow,
-                    unfocusedContainerColor = SoftCream,
-                    focusedContainerColor = SoftCream
+                    unfocusedBorderColor = MaterialTheme.colorScheme.surface,
+                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                    focusedContainerColor = MaterialTheme.colorScheme.surface
                 )
             )
 
@@ -219,10 +230,10 @@ fun PostProductScreen(
                     modifier = Modifier.menuAnchor().fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
                     colors = OutlinedTextFieldDefaults.colors(
-                        unfocusedBorderColor = LightNeutral,
-                        focusedBorderColor = Yellow,
-                        unfocusedContainerColor = SoftCream,
-                        focusedContainerColor = SoftCream
+                        unfocusedBorderColor = MaterialTheme.colorScheme.surface,
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                        focusedContainerColor = MaterialTheme.colorScheme.surface
                     )
                 )
                 ExposedDropdownMenu(
@@ -243,7 +254,11 @@ fun PostProductScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            Text("Condition", style = Typography.bodyMedium, color = MutedOlive)
+            Text(
+                "Condition",
+                style = Typography.bodyMedium,
+                color = MaterialTheme.colorScheme.secondary
+            )
             Spacer(modifier = Modifier.height(8.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -256,16 +271,16 @@ fun PostProductScreen(
                         onClick = { selectedCondition = condition },
                         label = { Text(condition) },
                         colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = Yellow,
-                            selectedLabelColor = Black,
-                            containerColor = SoftCream,
-                            labelColor = MutedOlive
+                            selectedContainerColor = MaterialTheme.colorScheme.primary,
+                            selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
+                            containerColor = MaterialTheme.colorScheme.surface,
+                            labelColor = MaterialTheme.colorScheme.secondary
                         ),
                         border = FilterChipDefaults.filterChipBorder(
                             enabled = true,
                             selected = isSelected,
-                            borderColor = LightNeutral,
-                            selectedBorderColor = Yellow,
+                            borderColor = MaterialTheme.colorScheme.surface,
+                            selectedBorderColor = MaterialTheme.colorScheme.primary,
                             borderWidth = 1.dp
                         ),
                         shape = RoundedCornerShape(20.dp)
@@ -288,10 +303,10 @@ fun PostProductScreen(
                     modifier = Modifier.menuAnchor().fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
                     colors = OutlinedTextFieldDefaults.colors(
-                        unfocusedBorderColor = LightNeutral,
-                        focusedBorderColor = Yellow,
-                        unfocusedContainerColor = SoftCream,
-                        focusedContainerColor = SoftCream
+                        unfocusedBorderColor = MaterialTheme.colorScheme.surface,
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                        focusedContainerColor = MaterialTheme.colorScheme.surface
                     )
                 )
                 ExposedDropdownMenu(
@@ -320,16 +335,20 @@ fun PostProductScreen(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
                 colors = OutlinedTextFieldDefaults.colors(
-                    unfocusedBorderColor = LightNeutral,
-                    focusedBorderColor = Yellow,
-                    unfocusedContainerColor = SoftCream,
-                    focusedContainerColor = SoftCream
+                    unfocusedBorderColor = MaterialTheme.colorScheme.surface,
+                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                    focusedContainerColor = MaterialTheme.colorScheme.surface
                 )
             )
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            Text("Post as", style = Typography.bodyMedium, color = MutedOlive)
+            Text(
+                "Post as",
+                style = Typography.bodyMedium,
+                color = MaterialTheme.colorScheme.secondary
+            )
             Spacer(modifier = Modifier.height(8.dp))
             ExposedDropdownMenuBox(
                 expanded = storeExpanded,
@@ -342,17 +361,18 @@ fun PostProductScreen(
                     leadingIcon = {
                         Icon(
                             if (selectedStore == null) Icons.Default.Person else Icons.Default.Store,
-                            contentDescription = null
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurface
                         )
                     },
                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = storeExpanded) },
                     modifier = Modifier.menuAnchor().fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
                     colors = OutlinedTextFieldDefaults.colors(
-                        unfocusedBorderColor = LightNeutral,
-                        focusedBorderColor = Yellow,
-                        unfocusedContainerColor = SoftCream,
-                        focusedContainerColor = SoftCream
+                        unfocusedBorderColor = MaterialTheme.colorScheme.surface,
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                        focusedContainerColor = MaterialTheme.colorScheme.surface
                     )
                 )
                 ExposedDropdownMenu(
@@ -405,17 +425,27 @@ fun PostProductScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp),
-                enabled = uiState !is ProductUiState.Loading && 
-                          title.isNotEmpty() && 
-                          price.isNotEmpty() && 
-                          (imageUri != null || imageBitmap != null),
+                enabled = uiState !is ProductUiState.Loading &&
+                        title.isNotEmpty() &&
+                        price.isNotEmpty() &&
+                        (imageUri != null || imageBitmap != null),
                 shape = RoundedCornerShape(16.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Yellow, contentColor = Black)
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
+                )
             ) {
                 if (uiState is ProductUiState.Loading) {
-                    CircularProgressIndicator(color = Black, modifier = Modifier.size(24.dp))
+                    CircularProgressIndicator(
+                        color = MaterialTheme.colorScheme.onPrimary,
+                        modifier = Modifier.size(24.dp)
+                    )
                 } else {
-                    Text("Post Item", style = Typography.titleMedium, fontWeight = FontWeight.Bold)
+                    Text(
+                        "Post Item",
+                        style = Typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
                 }
             }
 
@@ -428,19 +458,19 @@ fun PostProductScreen(
                 title = { Text("Select Photo Source") },
                 text = { Text("Choose how you want to add a photo of your item.") },
                 confirmButton = {
-                    TextButton(onClick = { 
+                    TextButton(onClick = {
                         cameraLauncher.launch()
-                        showImageSourceOptions = false 
+                        showImageSourceOptions = false
                     }) {
-                        Text("Camera", color = MutedOlive)
+                        Text("Camera", color = MaterialTheme.colorScheme.secondary)
                     }
                 },
                 dismissButton = {
-                    TextButton(onClick = { 
+                    TextButton(onClick = {
                         galleryLauncher.launch("image/*")
-                        showImageSourceOptions = false 
+                        showImageSourceOptions = false
                     }) {
-                        Text("Gallery", color = MutedOlive)
+                        Text("Gallery", color = MaterialTheme.colorScheme.secondary)
                     }
                 }
             )

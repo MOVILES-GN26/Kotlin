@@ -64,7 +64,7 @@ fun ProductDetailScreen(
                     Text(
                         text = "Product Details",
                         style = Typography.titleLarge,
-                        color = Black
+                        color = MaterialTheme.colorScheme.onBackground
                     )
                 },
                 navigationIcon = {
@@ -72,12 +72,12 @@ fun ProductDetailScreen(
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
-                            tint = Black
+                            tint = MaterialTheme.colorScheme.onBackground
                         )
                     }
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                    containerColor = White
+                    containerColor = MaterialTheme.colorScheme.background
                 )
             )
         },
@@ -85,42 +85,44 @@ fun ProductDetailScreen(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(White)
+                    .background(MaterialTheme.colorScheme.background)
                     .padding(horizontal = 24.dp, vertical = 16.dp)
                     .navigationBarsPadding()
             ) {
                 Button(
-                    onClick = { /* TODO: Buy Now action */ },
+                    onClick = { },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(50.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Yellow),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary
+                    ),
                     shape = RoundedCornerShape(12.dp)
                 ) {
                     Text(
                         text = "Buy Now",
                         style = Typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                        color = Black
+                        color = MaterialTheme.colorScheme.onPrimary
                     )
                 }
                 Spacer(modifier = Modifier.height(12.dp))
                 OutlinedButton(
-                    onClick = { /* TODO: WhatsApp action */ },
+                    onClick = { },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(50.dp),
                     shape = RoundedCornerShape(25.dp),
-                    border = BorderStroke(1.dp, LightNeutral)
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.surface)
                 ) {
                     Text(
                         text = "Contact Seller via WhatsApp",
                         style = Typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
-                        color = Black
+                        color = MaterialTheme.colorScheme.onBackground
                     )
                 }
             }
         },
-        containerColor = White
+        containerColor = MaterialTheme.colorScheme.background
     ) { innerPadding ->
         Column(
             modifier = Modifier
@@ -132,7 +134,7 @@ fun ProductDetailScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(300.dp)
-                    .background(Color(0xFFD9E8B6))
+                    .background(Color(0xFFD9E8B6))  // ← intencional, placeholder
             ) {
                 if (product.image_urls.isNotEmpty()) {
                     AsyncImage(
@@ -191,12 +193,12 @@ fun ProductDetailScreen(
                 Text(
                     text = product.title,
                     style = Typography.headlineLarge,
-                    color = Black
+                    color = MaterialTheme.colorScheme.onBackground
                 )
                 Text(
                     text = "$${product.price.toInt()}",
                     style = Typography.titleLarge,
-                    color = MutedOlive,
+                    color = MaterialTheme.colorScheme.secondary,
                     modifier = Modifier.padding(top = 4.dp)
                 )
 
@@ -211,18 +213,37 @@ fun ProductDetailScreen(
                         Text(
                             text = "Seller Information",
                             style = Typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
-                            color = Black
+                            color = MaterialTheme.colorScheme.onBackground
                         )
                         Text(
                             text = product.seller?.name ?: "Unknown Seller",
                             style = Typography.labelMedium,
-                            color = MutedOlive
+                            color = MaterialTheme.colorScheme.secondary
                         )
                         product.seller?.major?.let {
                             Text(
                                 text = "Major: $it",
                                 style = Typography.labelSmall,
-                                color = MutedOlive
+                                color = MaterialTheme.colorScheme.secondary
+                            )
+                        }
+
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(top = 8.dp)
+                        ) {
+                            Text(
+                                text = "View Profile",
+                                style = Typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                                color = MaterialTheme.colorScheme.onBackground
+                            )
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                                contentDescription = null,
+                                modifier = Modifier
+                                    .size(16.dp)
+                                    .padding(start = 4.dp),
+                                tint = MaterialTheme.colorScheme.onBackground
                             )
                         }
                     }
@@ -231,13 +252,13 @@ fun ProductDetailScreen(
                         modifier = Modifier
                             .size(64.dp)
                             .clip(CircleShape)
-                            .background(Color(0xFFF9F5D7)),
+                            .background(MaterialTheme.colorScheme.surface),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = Icons.Default.Person,
                             contentDescription = "Seller Avatar",
-                            tint = Color(0xFF5D5438),
+                            tint = MaterialTheme.colorScheme.secondary,
                             modifier = Modifier.size(32.dp)
                         )
                     }
@@ -249,14 +270,14 @@ fun ProductDetailScreen(
                     Icon(
                         imageVector = Icons.Default.LocationOn,
                         contentDescription = null,
-                        tint = MutedOlive,
+                        tint = MaterialTheme.colorScheme.secondary,
                         modifier = Modifier.size(18.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         text = product.building_location,
                         style = Typography.bodyMedium,
-                        color = MutedOlive
+                        color = MaterialTheme.colorScheme.secondary
                     )
                 }
 
@@ -265,18 +286,43 @@ fun ProductDetailScreen(
                 Text(
                     text = "Description",
                     style = Typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
-                    color = Black
+                    color = MaterialTheme.colorScheme.onBackground
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     text = product.description,
                     style = Typography.bodyMedium,
-                    color = MutedOlive,
+                    color = MaterialTheme.colorScheme.secondary,
                     lineHeight = 20.sp
                 )
-                
+
                 Spacer(modifier = Modifier.height(120.dp))
             }
         }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun ProductDetailPreview() {
+    AndesHubTheme {
+        ProductDetailScreen(
+            product = Product(
+                id = "1",
+                title = "Tomi verde",
+                description = "Verde verde",
+                category = "Other",
+                building_location = "Biblioteca General",
+                price = 15000.0,
+                condition = "NEW",
+                image_urls = emptyList(),
+                seller_id = "s1",
+                seller = UserProfile(
+                    id = "s1",
+                    name = "Sofia Rozo",
+                    major = "Ingeniería de Sistemas y Computación"
+                )
+            )
+        )
     }
 }

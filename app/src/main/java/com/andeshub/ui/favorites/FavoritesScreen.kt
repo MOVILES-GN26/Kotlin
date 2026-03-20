@@ -29,12 +29,12 @@ fun FavoritesScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(SoftCream)
+            .background(MaterialTheme.colorScheme.background)
     ) {
         Text(
             text = "My Favorites",
             style = MaterialTheme.typography.titleLarge,
-            color = Black,
+            color = MaterialTheme.colorScheme.onBackground,
             modifier = Modifier
                 .align(Alignment.CenterHorizontally)
                 .padding(top = 16.dp, bottom = 16.dp)
@@ -46,7 +46,7 @@ fun FavoritesScreen(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
-                    CircularProgressIndicator(color = Black)
+                    CircularProgressIndicator(color = MaterialTheme.colorScheme.onBackground)
                 }
             }
             is FavoritesUiState.Error -> {
@@ -71,7 +71,7 @@ fun FavoritesScreen(
                         Text(
                             text = "No favorites yet",
                             style = MaterialTheme.typography.bodyMedium,
-                            color = MutedOlive
+                            color = MaterialTheme.colorScheme.secondary
                         )
                     }
                 } else {
