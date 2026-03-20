@@ -7,11 +7,13 @@ import androidx.compose.ui.Modifier
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.andeshub.ui.catalog.CatalogScreen
 import com.andeshub.ui.auth.LoginScreen
 import com.andeshub.ui.auth.RegisterScreen
 import com.andeshub.ui.favorites.FavoritesScreen
 import com.andeshub.ui.home.LandingPageScreen
 import com.andeshub.ui.navigation.AndesBottomNavBar
+import com.andeshub.ui.product.PostProductScreen
 import com.andeshub.ui.profile.ProfileScreen
 import com.andeshub.ui.theme.SoftCream
 import com.andeshub.data.model.Product
@@ -76,10 +78,10 @@ fun AppNavigation() {
                 LandingPageScreen()
             }
             composable(AppDestinations.Catalog.route) {
-                // TODO: CatalogScreen()
+                CatalogScreen()
             }
             composable(AppDestinations.Post.route) {
-                // TODO: PostScreen()
+                PostProductScreen()
             }
             composable(AppDestinations.Favorites.route) {
                 FavoritesScreen()
