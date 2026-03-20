@@ -58,7 +58,7 @@ fun ProductDetailScreen(
     val favoritesCount by productViewModel.favoritesCount.collectAsState()
 
     LaunchedEffect(product.id) {
-        productViewModel.recordProductView(product.id, product.seller_id)
+        productViewModel.recordProductView(product)
         productViewModel.checkIfFavorited(product.id)
         productViewModel.loadFavoritesCount(product.id)
     }
