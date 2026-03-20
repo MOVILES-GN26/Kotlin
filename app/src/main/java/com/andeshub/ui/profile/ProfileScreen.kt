@@ -36,14 +36,17 @@ import com.andeshub.ui.components.Product
 import com.andeshub.ui.components.ProductCard
 import androidx.compose.ui.tooling.preview.Preview
 import com.andeshub.ui.theme.AndesHubTheme
-import androidx.compose.foundation.layout.Row
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 
 @Composable
 fun ProfileScreen(
     onSettingsClick: () -> Unit,
     onListingClick: (String) -> Unit,
-    listings: List<Product> = emptyList()
+    listings: List<Product> = emptyList(),
+    viewModel: ProfileViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
 ) {
+    val uiState by viewModel.uiState.collectAsState()
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -71,6 +74,7 @@ fun ProfileScreen(
                     tint = MaterialTheme.colorScheme.onBackground
                 )
             }
+
         }
         Spacer(modifier = Modifier.height(8.dp))
 
@@ -87,7 +91,7 @@ fun ProfileScreen(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = "M",
+                    text = uiState.firstName.firstOrNull()?.toString() ?: "?",
                     style = MaterialTheme.typography.displayMedium,
                     color = MaterialTheme.colorScheme.onBackground
                 )
@@ -97,14 +101,14 @@ fun ProfileScreen(
         Spacer(modifier = Modifier.height(12.dp))
 
         Text(
-            text = "Mariana Silva",
+            text = "${uiState.firstName} ${uiState.lastName}",
             style = MaterialTheme.typography.titleLarge,
             color = MaterialTheme.colorScheme.onBackground,
             textAlign = TextAlign.Center,
             modifier = Modifier.fillMaxWidth()
         )
         Text(
-            text = "Industrial Engineering",
+            text = uiState.major,
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.secondary,
             textAlign = TextAlign.Center,
@@ -133,7 +137,7 @@ fun ProfileScreen(
             InfoRow(
                 icon = Icons.Default.Email,
                 label = "Email",
-                value = "mariana.silva@uniandes.edu.co"
+                value = uiState.email
             )
             InfoRow(
                 icon = Icons.Default.Badge,

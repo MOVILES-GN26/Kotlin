@@ -12,7 +12,7 @@ class SessionManager(context: Context) {
         .build()
 
     private val prefs = EncryptedSharedPreferences.create(
-        context,
+        context.applicationContext,
         "andeshub_secure_prefs",
         masterKey,
         EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
@@ -35,4 +35,20 @@ class SessionManager(context: Context) {
     }
 
     fun isLoggedIn(): Boolean = getAccessToken() != null
+
+    fun saveUser(id: String, email: String, firstName: String, lastName: String, major: String) {
+        prefs.edit {
+            putString("user_id", id)
+            putString("user_email", email)
+            putString("user_first_name", firstName)
+            putString("user_last_name", lastName)
+            putString("user_major", major)
+        }
+    }
+
+    fun getUserEmail(): String? = prefs.getString("user_email", null)
+    fun getUserFirstName(): String? = prefs.getString("user_first_name", null)
+    fun getUserLastName(): String? = prefs.getString("user_last_name", null)
+    fun getUserMajor(): String? = prefs.getString("user_major", null)
+    fun getUserId(): String? = prefs.getString("user_id", null)
 }
