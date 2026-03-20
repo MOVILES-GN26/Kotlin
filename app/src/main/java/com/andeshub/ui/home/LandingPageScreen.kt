@@ -6,11 +6,14 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.DirectionsBike
+import androidx.compose.material.icons.automirrored.outlined.MenuBook
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
@@ -32,14 +35,11 @@ fun LandingPageScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
 
-    val categories = listOf(
-        Category("Books",    Icons.Outlined.MenuBook),
-        Category("Tech",     Icons.Outlined.Laptop),
-        Category("Housing",  Icons.Outlined.Home),
-        Category("Services", Icons.Outlined.Build),
-        Category("Events",   Icons.Outlined.Event),
-        Category("Other",    Icons.Outlined.MoreHoriz)
-    )
+    // ACTUALIZACIÓN INSTANTÁNEA: 
+    // Al entrar a la pantalla (o volver a ella), refrescamos los datos del backend.
+    LaunchedEffect(Unit) {
+        viewModel.loadData()
+    }
 
     Column(
         modifier = Modifier
@@ -102,17 +102,44 @@ fun LandingPageScreen(
             modifier = Modifier.padding(horizontal = 20.dp)
         )
         Spacer(modifier = Modifier.height(12.dp))
-        val rows = categories.chunked(3)
-        rows.forEach { row ->
-            Row(
-                modifier = Modifier.padding(horizontal = 20.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                row.forEach { category ->
-                    CategoryChip(category = category)
+
+        // Sección de Trending Categories Dinámica
+        when (uiState) {
+            is HomeUiState.Success -> {
+                val trending = (uiState as HomeUiState.Success).trendingCategories
+                if (trending.isNotEmpty()) {
+                    val trendingList = trending.map { tc ->
+                        Category(tc.category, getIconForCategory(tc.category))
+                    }
+                    val rows = trendingList.chunked(3)
+                    rows.forEach { row ->
+                        Row(
+                            modifier = Modifier.padding(horizontal = 20.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            row.forEach { category ->
+                                CategoryChip(category = category)
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                    }
+                } else {
+                    Text(
+                        text = "No hay tendencias aún",
+                        modifier = Modifier.padding(horizontal = 20.dp),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MutedOlive
+                    )
                 }
             }
-            Spacer(modifier = Modifier.height(8.dp))
+            else -> {
+                Text(
+                    text = "Cargando tendencias...",
+                    modifier = Modifier.padding(horizontal = 20.dp),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MutedOlive
+                )
+            }
         }
 
         Spacer(modifier = Modifier.height(24.dp))
@@ -161,6 +188,24 @@ fun LandingPageScreen(
             }
             else -> {}
         }
+    }
+}
+
+// SINCRONIZACIÓN DE ICONOS:
+// Se mapean exactamente las categorías del Catálogo con sus iconos correspondientes.
+fun getIconForCategory(category: String): ImageVector {
+    return when (category) {
+        "Books & Supplies" -> Icons.AutoMirrored.Outlined.MenuBook
+        "Clothing & Accessories" -> Icons.Outlined.Checkroom
+        "Electronics" -> Icons.Outlined.Laptop
+        "Food & Drinks" -> Icons.Outlined.Restaurant
+        "Furniture" -> Icons.Outlined.Chair
+        "Sports & Outdoors" -> Icons.Outlined.SportsSoccer
+        "Tickets & Events" -> Icons.Outlined.ConfirmationNumber
+        "Transportation" -> Icons.AutoMirrored.Outlined.DirectionsBike
+        "Tutoring & Services" -> Icons.Outlined.EditNote
+        "Other" -> Icons.Outlined.MoreHoriz
+        else -> Icons.Outlined.MoreHoriz
     }
 }
 

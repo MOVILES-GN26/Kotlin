@@ -23,6 +23,10 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import com.andeshub.data.local.SessionManager
 import com.andeshub.data.remote.RetrofitClient
 import com.andeshub.ui.store.StoreScreen
+import com.andeshub.data.model.UserProfile
+import com.andeshub.ui.product.ProductDetailScreen
+import androidx.compose.runtime.getValue
+import com.andeshub.ui.onboarding.OnboardingScreen
 import com.andeshub.ui.store.CreateStoreScreen
 import androidx.navigation.NavType
 import androidx.navigation.navArgument
@@ -32,13 +36,16 @@ fun AppNavigation() {
     val navController = rememberNavController()
     val context = androidx.compose.ui.platform.LocalContext.current
     val sessionManager = remember { SessionManager(context) }
+    
     LaunchedEffect(Unit) {
         sessionManager.getAccessToken()?.let {
             RetrofitClient.setToken(it)
         }
     }
 
-    val startDestination = if (sessionManager.isLoggedIn()) {
+    val startDestination = if (!sessionManager.isOnboardingCompleted()) {
+        AppDestinations.Onboarding.route
+    } else if (sessionManager.isLoggedIn()) {
         AppDestinations.Home.route
     } else {
         AppDestinations.Login.route
@@ -49,8 +56,11 @@ fun AppNavigation() {
     Scaffold(
         containerColor = SoftCream,
         bottomBar = {
-            if (currentRoute != AppDestinations.Login.route &&
-                currentRoute != AppDestinations.Register.route) {
+            if (currentRoute != null && 
+                currentRoute != AppDestinations.Login.route &&
+                currentRoute != AppDestinations.Register.route &&
+                currentRoute != AppDestinations.Onboarding.route &&
+                !currentRoute.startsWith("product_detail")) {
                 AndesBottomNavBar(navController = navController)
             }
         }
@@ -60,10 +70,22 @@ fun AppNavigation() {
             startDestination = startDestination,
             modifier = Modifier.padding(innerPadding)
         ) {
+            composable(AppDestinations.Onboarding.route) {
+                OnboardingScreen(
+                    onFinished = {
+                        sessionManager.setOnboardingCompleted()
+                        navController.navigate(AppDestinations.Login.route) {
+                            popUpTo(AppDestinations.Onboarding.route) { inclusive = true }
+                        }
+                    }
+                )
+            }
             composable(AppDestinations.Login.route) {
                 LoginScreen(
                     onLoginClick = { _, _ ->
-                        navController.navigate(AppDestinations.Home.route)
+                        navController.navigate(AppDestinations.Home.route) {
+                            popUpTo(AppDestinations.Login.route) { inclusive = true }
+                        }
                     },
                     onSignUpClick = {
                         navController.navigate(AppDestinations.Register.route)
@@ -77,7 +99,9 @@ fun AppNavigation() {
                         navController.popBackStack()
                     },
                     onRegisterClick = { _, _, _, _ ->
-                        navController.navigate(AppDestinations.Home.route)
+                        navController.navigate(AppDestinations.Home.route) {
+                            popUpTo(AppDestinations.Register.route) { inclusive = true }
+                        }
                     },
                     onLoginClick = {
                         navController.popBackStack()
@@ -88,10 +112,36 @@ fun AppNavigation() {
                 LandingPageScreen()
             }
             composable(AppDestinations.Catalog.route) {
-                CatalogScreen()
+                CatalogScreen(
+                    onProductClick = { product ->
+                        navController.currentBackStackEntry?.savedStateHandle?.set("product", product)
+                        navController.navigate(AppDestinations.ProductDetail.route.replace("{productId}", product.id))
+                    }
+                )
+            }
+            composable(AppDestinations.ProductDetail.route) { backStackEntry ->
+                val product = navController.previousBackStackEntry?.savedStateHandle?.get<Product>("product")
+                
+                if (product != null) {
+                    ProductDetailScreen(
+                        product = product,
+                        onBackClick = { navController.popBackStack() }
+                    )
+                } else {
+                    LaunchedEffect(Unit) { navController.popBackStack() }
+                }
             }
             composable(AppDestinations.Post.route) {
-                PostProductScreen()
+                val userProfile = UserProfile(
+                    id = sessionManager.getUserId() ?: "",
+                    name = "${sessionManager.getUserFirstName()} ${sessionManager.getUserLastName()}",
+                    email = sessionManager.getUserEmail() ?: "",
+                    major = sessionManager.getUserMajor() ?: ""
+                )
+                PostProductScreen(
+                    currentUser = userProfile,
+                    onCloseClick = { navController.popBackStack() }
+                )
             }
             composable(AppDestinations.Favorites.route) {
                 FavoritesScreen()
@@ -99,7 +149,7 @@ fun AppNavigation() {
             composable(AppDestinations.Profile.route) {
                 ProfileScreen(
                     onSettingsClick = {},
-                    onListingClick = {},
+                    onListingClick = { _: String -> },
                     onCreateStoreClick = {
                         navController.navigate(AppDestinations.CreateStore.route)
                     },

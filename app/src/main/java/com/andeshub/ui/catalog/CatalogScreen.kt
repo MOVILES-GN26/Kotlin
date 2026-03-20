@@ -13,6 +13,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.DirectionsBike
 import androidx.compose.material.icons.automirrored.outlined.MenuBook
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.KeyboardArrowDown
@@ -24,13 +25,18 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.andeshub.data.model.Product
-import com.andeshub.data.model.UserProfile
 import com.andeshub.ui.components.SearchBar
+import com.andeshub.ui.product.ProductUiState
+import com.andeshub.ui.product.ProductViewModel
 import com.andeshub.ui.theme.*
 import kotlinx.coroutines.launch
 
@@ -39,116 +45,58 @@ import kotlinx.coroutines.launch
 fun CatalogScreen(
     onProductClick: (Product) -> Unit = {}
 ) {
+    val context = LocalContext.current
+    val productViewModel: ProductViewModel = viewModel(
+        factory = object : ViewModelProvider.Factory {
+            override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                return ProductViewModel(context) as T
+            }
+        }
+    )
+
+    val uiState by productViewModel.uiState.collectAsState()
+
     var searchQuery by remember { mutableStateOf("") }
     var selectedCategory by remember { mutableStateOf<String?>(null) }
     var selectedCondition by remember { mutableStateOf<String?>(null) }
-    var selectedSort by remember { mutableStateOf<String?>(null) } // "Lowest", "Highest"
+    var selectedSort by remember { mutableStateOf<String?>(null) } 
 
     val sheetState = rememberModalBottomSheetState()
     val scope = rememberCoroutineScope()
     var showFilterSheet by remember { mutableStateOf(false) }
-    var sheetType by remember { mutableStateOf("all") } // "all", "sort", "condition"
+    var sheetType by remember { mutableStateOf("all") }
 
-    val products = listOf(
-        Product(
-            id = "1",
-            title = "Scientific Calculator",
-            description = "Casio FX-991ES Plus",
-            category = "Electronics",
-            building_location = "Edificio Mario Laserna",
-            price = 25000.0,
-            condition = "Used",
-            image_urls = listOf(),
-            seller_id = "s1",
-            seller = UserProfile("s1", "Juan Perez", "Ingeniería Mecánica")
-        ),
-        Product(
-            id = "2",
-            title = "Smartphone Case",
-            description = "Silicone case for iPhone 13",
-            category = "Electronics",
-            building_location = "Centro del Japón",
-            price = 10000.0,
-            condition = "New",
-            image_urls = listOf(),
-            seller_id = "s2",
-            seller = UserProfile("s2", "Maria Garcia", "Diseño")
-        ),
-        Product(
-            id = "3",
-            title = "AirPods Pro",
-            description = "Excellent condition, original",
-            category = "Electronics",
-            building_location = "Biblioteca General",
-            price = 450000.0,
-            condition = "Like New",
-            image_urls = listOf(),
-            seller_id = "s3",
-            seller = UserProfile("s3", "Andres Felipe", "Administración")
-        ),
-        Product(
-            id = "4",
-            title = "Engineering Book",
-            description = "Thermodynamics 8th Edition",
-            category = "Books & Supplies",
-            building_location = "Edificio Santo Domingo",
-            price = 35000.0,
-            condition = "Good",
-            image_urls = listOf(),
-            seller_id = "s4",
-            seller = UserProfile("s4", "Laura Torres", "Ingeniería Química")
-        ),
-        Product(
-            id = "5",
-            title = "Tomi verde",
-            description = "Verde verde",
-            category = "Other",
-            building_location = "Biblioteca General",
-            price = 15000.0,
-            condition = "New",
-            image_urls = listOf(),
-            seller_id = "s5",
-            seller = UserProfile("s5", "Sofia Rozo", "Ingeniería de Sistemas")
-        ),
-        Product(
-            id = "6",
-            title = "Laptop Stand",
-            description = "Aluminum foldable stand",
-            category = "Electronics",
-            building_location = "Cafetería Central",
-            price = 20000.0,
-            condition = "Fair",
-            image_urls = listOf(),
-            seller_id = "s6",
-            seller = UserProfile("s6", "Carlos Ruiz", "Arquitectura")
-        )
-    )
-
-    val filteredAndSortedProducts = products
-        .filter { 
-            searchQuery.isEmpty() || 
-            it.title.contains(searchQuery, ignoreCase = true) || 
-            it.description.contains(searchQuery, ignoreCase = true) 
-        }
-        .filter { selectedCategory == null || it.category.equals(selectedCategory, ignoreCase = true) }
-        .filter { selectedCondition == null || it.condition.equals(selectedCondition, ignoreCase = true) }
-        .let { list ->
-            when (selectedSort) {
-                "Lowest Price" -> list.sortedBy { it.price }
-                "Highest Price" -> list.sortedByDescending { it.price }
-                else -> list
+    LaunchedEffect(searchQuery, selectedCategory, selectedCondition, selectedSort) {
+        productViewModel.getProducts(
+            search = searchQuery.ifEmpty { null },
+            category = selectedCategory,
+            condition = selectedCondition,
+            priceSort = when(selectedSort) {
+                "Lowest Price" -> "asc"
+                "Highest Price" -> "desc"
+                else -> null
             }
-        }
+        )
+    }
+
+    val products = if (uiState is ProductUiState.Success) {
+        (uiState as ProductUiState.Success).products
+    } else {
+        emptyList()
+    }
+
+    // TENDENCIAS: Obtenemos el ranking del backend para ordenar las categorías
+    val trendingRanking = if (uiState is ProductUiState.Success) {
+        (uiState as ProductUiState.Success).trendingCategories.map { it.category }
+    } else {
+        emptyList()
+    }
 
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
                 title = {
-                    Text(
-                        text = "AndesHub",
-                        style = Typography.titleLarge,
-                        color = Black
-                    )
+                    Text(text = "AndesHub", style = Typography.titleLarge, color = Black)
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = White)
             )
@@ -166,7 +114,6 @@ fun CatalogScreen(
                 modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)
             )
 
-            // Filter Chips
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -204,7 +151,8 @@ fun CatalogScreen(
                 )
             }
 
-            // Categories - Now Scrollable (LazyRow)
+            // ORDENACIÓN DINÁMICA DE CATEGORÍAS:
+            // Las que más se buscan aparecen primero en la lista horizontal.
             LazyRow(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -212,7 +160,7 @@ fun CatalogScreen(
                 contentPadding = PaddingValues(horizontal = 24.dp),
                 horizontalArrangement = Arrangement.spacedBy(24.dp)
             ) {
-                val scrollableCategories = listOf(
+                val originalCategories = listOf(
                     "Books & Supplies" to Icons.AutoMirrored.Outlined.MenuBook,
                     "Clothing & Accessories" to Icons.Outlined.Checkroom,
                     "Electronics" to Icons.Outlined.Laptop,
@@ -220,12 +168,18 @@ fun CatalogScreen(
                     "Furniture" to Icons.Outlined.Chair,
                     "Sports & Outdoors" to Icons.Outlined.SportsSoccer,
                     "Tickets & Events" to Icons.Outlined.ConfirmationNumber,
-                    "Transportation" to Icons.Outlined.DirectionsBike,
+                    "Transportation" to Icons.AutoMirrored.Outlined.DirectionsBike,
                     "Tutoring & Services" to Icons.Outlined.EditNote,
                     "Other" to Icons.Outlined.MoreHoriz
                 )
 
-                items(scrollableCategories) { (label, icon) ->
+                // Ordenamos: si está en trendingRanking, su índice es su posición; si no, va al final.
+                val sortedCategories = originalCategories.sortedBy { (label, _) ->
+                    val index = trendingRanking.indexOf(label)
+                    if (index != -1) index else 100
+                }
+
+                items(sortedCategories) { (label, icon) ->
                     CategoryIconItem(
                         label = label,
                         icon = icon,
@@ -237,16 +191,42 @@ fun CatalogScreen(
                 }
             }
 
-            // Products Grid
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(2),
-                contentPadding = PaddingValues(24.dp),
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-                verticalArrangement = Arrangement.spacedBy(24.dp),
-                modifier = Modifier.fillMaxSize()
-            ) {
-                items(filteredAndSortedProducts) { product ->
-                    CatalogProductItem(product = product, onClick = { onProductClick(product) })
+            when (uiState) {
+                is ProductUiState.Loading -> {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(color = Yellow)
+                    }
+                }
+                is ProductUiState.Error -> {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(text = "Error: " + (uiState as ProductUiState.Error).message, color = Color.Red)
+                            Button(onClick = { 
+                                productViewModel.getProducts(searchQuery, selectedCategory, selectedCondition, selectedSort) 
+                            }, colors = ButtonDefaults.buttonColors(containerColor = Yellow)) {
+                                Text("Retry", color = Black)
+                            }
+                        }
+                    }
+                }
+                else -> {
+                    if (products.isEmpty()) {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Text("No products found", color = MutedOlive)
+                        }
+                    } else {
+                        LazyVerticalGrid(
+                            columns = GridCells.Fixed(2),
+                            contentPadding = PaddingValues(24.dp),
+                            horizontalArrangement = Arrangement.spacedBy(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(24.dp),
+                            modifier = Modifier.fillMaxSize()
+                        ) {
+                            items(products) { product ->
+                                CatalogProductItem(product = product, onClick = { onProductClick(product) })
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -479,7 +459,7 @@ fun CategoryIconItem(
         }
         Spacer(modifier = Modifier.height(4.dp))
         Text(
-            text = label.split(" ")[0], // Use first word for a cleaner look in the scroll bar
+            text = label.split(" ")[0], 
             style = Typography.labelSmall,
             color = if (isSelected) Black else MutedOlive,
             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
@@ -501,13 +481,22 @@ fun CatalogProductItem(product: Product, onClick: () -> Unit) {
                 .clip(RoundedCornerShape(12.dp))
                 .background(Color(0xFFD9E8B6))
         ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth(0.6f)
-                    .fillMaxHeight(0.7f)
-                    .align(Alignment.BottomEnd)
-                    .background(Color(0xFF6DA025).copy(alpha = 0.6f))
-            )
+            if (product.image_urls.isNotEmpty()) {
+                coil.compose.AsyncImage(
+                    model = product.image_urls.first().replace("localhost", "10.0.2.2"),
+                    contentDescription = product.title,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                )
+            } else {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth(0.6f)
+                        .fillMaxHeight(0.7f)
+                        .align(Alignment.BottomEnd)
+                        .background(Color(0xFF6DA025).copy(alpha = 0.6f))
+                )
+            }
         }
         Spacer(modifier = Modifier.height(8.dp))
         Text(
@@ -521,13 +510,5 @@ fun CatalogProductItem(product: Product, onClick: () -> Unit) {
             style = Typography.labelMedium,
             color = MutedOlive
         )
-    }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun CatalogPreview() {
-    AndesHubTheme {
-        CatalogScreen()
     }
 }

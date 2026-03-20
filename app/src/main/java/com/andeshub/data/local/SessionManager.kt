@@ -11,13 +11,17 @@ class SessionManager(context: Context) {
         .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
         .build()
 
-    private val prefs = EncryptedSharedPreferences.create(
-        context.applicationContext,
-        "andeshub_secure_prefs",
-        masterKey,
-        EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-        EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
-    )
+    private val prefs = try {
+        EncryptedSharedPreferences.create(
+            context.applicationContext,
+            "andeshub_secure_prefs",
+            masterKey,
+            EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+        )
+    } catch (e: Exception) {
+        context.getSharedPreferences("andeshub_prefs", Context.MODE_PRIVATE)
+    }
 
     fun saveTokens(accessToken: String, refreshToken: String) {
         prefs.edit {
@@ -35,6 +39,12 @@ class SessionManager(context: Context) {
     }
 
     fun isLoggedIn(): Boolean = getAccessToken() != null
+
+    fun setOnboardingCompleted() {
+        prefs.edit { putBoolean("onboarding_completed", true) }
+    }
+
+    fun isOnboardingCompleted(): Boolean = prefs.getBoolean("onboarding_completed", false)
 
     fun saveUser(id: String, email: String, firstName: String, lastName: String, major: String) {
         prefs.edit {

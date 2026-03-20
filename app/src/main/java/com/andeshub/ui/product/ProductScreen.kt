@@ -18,10 +18,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
 import com.andeshub.data.model.Product
 import com.andeshub.data.model.UserProfile
 import com.andeshub.ui.theme.*
@@ -103,29 +105,37 @@ fun ProductDetailScreen(
                 .padding(innerPadding)
                 .verticalScroll(rememberScrollState())
         ) {
-            // Imagen del producto (Placeholder dinámico)
+            // Imagen del producto
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(300.dp)
-                    .background(Color(0xFFD9E8B6)) // Fondo base
+                    .background(Color(0xFFD9E8B6))
             ) {
-                // Si product.imageUrl fuera real usaríamos AsyncImage de Coil aquí
-                // Por ahora mantenemos el estilo artístico del placeholder
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth(0.6f)
-                        .fillMaxHeight(0.7f)
-                        .align(Alignment.BottomEnd)
-                        .background(Color(0xFF6DA025).copy(alpha = 0.8f))
-                )
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth(0.8f)
-                        .height(100.dp)
-                        .align(Alignment.Center)
-                        .background(Color(0xFF5D5438).copy(alpha = 0.7f))
-                )
+                if (product.image_urls.isNotEmpty()) {
+                    AsyncImage(
+                        model = product.image_urls.first().replace("localhost", "10.0.2.2"),
+                        contentDescription = product.title,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    // Fallback placeholder artistic style
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth(0.6f)
+                            .fillMaxHeight(0.7f)
+                            .align(Alignment.BottomEnd)
+                            .background(Color(0xFF6DA025).copy(alpha = 0.8f))
+                    )
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth(0.8f)
+                            .height(100.dp)
+                            .align(Alignment.Center)
+                            .background(Color(0xFF5D5438).copy(alpha = 0.7f))
+                    )
+                }
             }
 
             Column(

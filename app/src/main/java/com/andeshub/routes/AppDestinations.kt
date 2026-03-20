@@ -1,6 +1,7 @@
 package com.andeshub.routes
 
 sealed class AppDestinations(val route: String) {
+    object Onboarding : AppDestinations("onboarding")
     object Home      : AppDestinations("home")
     object Catalog   : AppDestinations("catalog")
     object Post      : AppDestinations("post")
@@ -14,4 +15,5 @@ sealed class AppDestinations(val route: String) {
     object StoreDetail : AppDestinations("store/{storeId}") {
         fun createRoute(storeId: String) = "store/$storeId"
     }
+    object ProductDetail : AppDestinations("product_detail/{productId}")
 }

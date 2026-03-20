@@ -1,6 +1,7 @@
 package com.andeshub.ui.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
@@ -22,7 +23,9 @@ fun ProductCard(
     onClick: () -> Unit = {}
 ) {
     Column(
-        modifier = Modifier.width(150.dp)
+        modifier = Modifier
+            .width(150.dp)
+            .clickable(onClick = onClick)
     ) {
         Box(
             modifier = Modifier
@@ -75,8 +78,7 @@ fun ProductCardPreview() {
                 building_location = "SD",
                 price = 50.0,
                 condition = "Used",
-                image_urls = emptyList(),
-                seller_id = "123"
+                image_urls = emptyList()
             )
         )
     }
