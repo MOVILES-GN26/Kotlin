@@ -10,4 +10,8 @@ sealed class AppDestinations(val route: String) {
     object Register  : AppDestinations("register")
     object Store : AppDestinations("store")
     object CreateStore : AppDestinations("create_store")
+
+    object StoreDetail : AppDestinations("store/{storeId}") {
+        fun createRoute(storeId: String) = "store/$storeId"
+    }
 }

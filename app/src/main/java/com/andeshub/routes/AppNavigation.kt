@@ -24,6 +24,8 @@ import com.andeshub.data.local.SessionManager
 import com.andeshub.data.remote.RetrofitClient
 import com.andeshub.ui.store.StoreScreen
 import com.andeshub.ui.store.CreateStoreScreen
+import androidx.navigation.NavType
+import androidx.navigation.navArgument
 
 @Composable
 fun AppNavigation() {
@@ -101,6 +103,9 @@ fun AppNavigation() {
                     onCreateStoreClick = {
                         navController.navigate(AppDestinations.CreateStore.route)
                     },
+                    onStoreClick = { storeId ->
+                        navController.navigate(AppDestinations.StoreDetail.createRoute(storeId))
+                    },
                     listings = listOf(
                         Product(
                             id = "1",
@@ -127,11 +132,17 @@ fun AppNavigation() {
                     )
                 )
             }
-            composable(AppDestinations.Store.route) {
+            composable(
+                route = AppDestinations.StoreDetail.route,
+                arguments = listOf(navArgument("storeId") { type = NavType.StringType })
+            ) { backStackEntry ->
+                val storeId = backStackEntry.arguments?.getString("storeId") ?: ""
                 StoreScreen(
+                    storeId = storeId,
                     onBack = { navController.popBackStack() }
                 )
             }
+
             composable(AppDestinations.CreateStore.route) {
                 CreateStoreScreen(
                     onClose = { navController.popBackStack() }

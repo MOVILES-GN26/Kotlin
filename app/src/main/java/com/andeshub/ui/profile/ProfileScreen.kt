@@ -42,12 +42,18 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.layout.ContentScale
+import coil.compose.AsyncImage
+import androidx.compose.foundation.clickable
 
 @Composable
 fun ProfileScreen(
     onSettingsClick: () -> Unit,
     onListingClick: (String) -> Unit,
     onCreateStoreClick: () -> Unit,
+    onStoreClick: (String) -> Unit,
     listings: List<Product> = emptyList(),
     viewModel: ProfileViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
 ) {
@@ -151,6 +157,85 @@ fun ProfileScreen(
             )
         }
 
+
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        Text(
+            text = "My Stores",
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onBackground,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp)
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        if (uiState.stores.isEmpty()) {
+            Text(
+                text = "No stores yet",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.secondary,
+                modifier = Modifier.padding(horizontal = 20.dp)
+            )
+        } else {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                uiState.stores.forEach { store ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(MaterialTheme.colorScheme.surface)
+                            .clickable { onStoreClick(store.id) }
+                            .padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(48.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.background),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (store.logo_url != null) {
+                                AsyncImage(
+                                    model = store.logo_url,
+                                    contentDescription = store.name,
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentScale = ContentScale.Crop
+                                )
+                            } else {
+                                Text(
+                                    text = store.name.first().toString(),
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = MaterialTheme.colorScheme.onBackground
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column {
+                            Text(
+                                text = store.name,
+                                style = MaterialTheme.typography.titleSmall,
+                                color = MaterialTheme.colorScheme.onBackground
+                            )
+                            Text(
+                                text = store.category,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.secondary
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
         Spacer(modifier = Modifier.height(16.dp))
 
         Button(
@@ -214,6 +299,7 @@ fun ProfileScreenPreview() {
             onSettingsClick = {},
             onListingClick = {},
             onCreateStoreClick = {},
+            onStoreClick = {},
             listings = listOf(
                 Product(
                     id = "1",
