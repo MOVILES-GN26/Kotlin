@@ -21,6 +21,7 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
     val uiState: StateFlow<ProfileUiState> = _uiState
 
     init {
+
         loadProfile()
     }
 
