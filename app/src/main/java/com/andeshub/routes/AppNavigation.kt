@@ -15,21 +15,37 @@ import com.andeshub.ui.navigation.AndesBottomNavBar
 import com.andeshub.ui.profile.ProfileScreen
 import com.andeshub.ui.theme.SoftCream
 import com.andeshub.ui.components.Product
+import androidx.compose.runtime.remember
+import androidx.navigation.compose.currentBackStackEntryAsState
+import com.andeshub.data.local.SessionManager
 import com.andeshub.ui.store.StoreScreen
 
 @Composable
 fun AppNavigation() {
     val navController = rememberNavController()
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val sessionManager = remember { SessionManager(context) }
+
+    val startDestination = if (sessionManager.isLoggedIn()) {
+        AppDestinations.Home.route
+    } else {
+        AppDestinations.Login.route
+    }
+
+    val currentRoute = navController.currentBackStackEntryAsState().value?.destination?.route
 
     Scaffold(
         containerColor = SoftCream,
         bottomBar = {
-            AndesBottomNavBar(navController = navController)
+            if (currentRoute != AppDestinations.Login.route &&
+                currentRoute != AppDestinations.Register.route) {
+                AndesBottomNavBar(navController = navController)
+            }
         }
     ) { innerPadding ->
         NavHost(
             navController = navController,
-            startDestination = AppDestinations.Login.route,
+            startDestination = startDestination,
             modifier = Modifier.padding(innerPadding)
         ) {
             composable(AppDestinations.Login.route) {
