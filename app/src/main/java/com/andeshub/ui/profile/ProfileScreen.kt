@@ -55,7 +55,6 @@ fun ProfileScreen(
     onListingClick: (String) -> Unit,
     onCreateStoreClick: () -> Unit,
     onStoreClick: (String) -> Unit,
-    listings: List<Product> = emptyList(),
     viewModel: ProfileViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -273,20 +272,50 @@ fun ProfileScreen(
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        LazyVerticalGrid(
-            columns = GridCells.Fixed(2),
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp)
-                .heightIn(max = 600.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            items(listings) { listing ->
-                ProductCard(
-                    product = listing,
-                    onClick = { onListingClick(listing.title) }
+        when {
+            uiState.isLoadingListings -> {
+                Box(
+                    modifier = Modifier.fillMaxWidth().padding(16.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    androidx.compose.material3.CircularProgressIndicator(
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+            uiState.listingsError != null -> {
+                Text(
+                    text = uiState.listingsError!!,
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(horizontal = 20.dp)
                 )
+            }
+            uiState.listings.isEmpty() -> {
+                Text(
+                    text = "No tienes productos publicados aún.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.secondary,
+                    modifier = Modifier.padding(horizontal = 20.dp)
+                )
+            }
+            else -> {
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(2),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp)
+                        .heightIn(max = 600.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    items(uiState.listings) { listing ->   // ← desde uiState
+                        ProductCard(
+                            product = listing,
+                            onClick = { onListingClick(listing.title) }
+                        )
+                    }
+                }
             }
         }
 
@@ -303,31 +332,7 @@ fun ProfileScreenPreview() {
             onSettingsClick = {},
             onListingClick = {},
             onCreateStoreClick = {},
-            onStoreClick = {},
-            listings = listOf(
-                Product(
-                    id = "1",
-                    title = "Calculus Textbook",
-                    description = "",
-                    category = "Books",
-                    building_location = "SD",
-                    price = 50.0,
-                    condition = "Used",
-                    image_urls = emptyList(),
-                    seller_id = ""
-                ),
-                Product(
-                    id = "2",
-                    title = "Engineering Drawing Set",
-                    description = "",
-                    category = "Books",
-                    building_location = "SD",
-                    price = 30.0,
-                    condition = "Used",
-                    image_urls = emptyList(),
-                    seller_id = ""
-                )
-            )
+            onStoreClick = {}
         )
     }
 }

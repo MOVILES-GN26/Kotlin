@@ -160,31 +160,7 @@ fun AppNavigation() {
                     },
                     onStoreClick = { storeId ->
                         navController.navigate(AppDestinations.StoreDetail.createRoute(storeId))
-                    },
-                    listings = listOf(
-                        Product(
-                            id = "1",
-                            title = "Calculus Textbook",
-                            description = "",
-                            category = "Books",
-                            building_location = "SD",
-                            price = 50.0,
-                            condition = "Used",
-                            image_urls = emptyList(),
-                            seller_id = ""
-                        ),
-                        Product(
-                            id = "2",
-                            title = "Engineering Drawing Set",
-                            description = "",
-                            category = "Books",
-                            building_location = "SD",
-                            price = 30.0,
-                            condition = "Used",
-                            image_urls = emptyList(),
-                            seller_id = ""
-                        )
-                    )
+                    }
                 )
             }
             composable(
