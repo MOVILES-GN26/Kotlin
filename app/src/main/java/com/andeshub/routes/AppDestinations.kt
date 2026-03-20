@@ -20,4 +20,6 @@ sealed class AppDestinations(val route: String) {
     }
 
     object Settings : AppDestinations("settings")
+
+    object EditProfile : AppDestinations("edit_profile")
 }

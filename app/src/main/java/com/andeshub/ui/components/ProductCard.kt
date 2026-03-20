@@ -41,7 +41,7 @@ fun ProductCard(
                 .fillMaxWidth()
                 .height(130.dp)
                 .clip(RoundedCornerShape(12.dp))
-                .background(LightNeutral),
+                .background(MaterialTheme.colorScheme.surface),
             contentAlignment = Alignment.Center
         ) {
             if (product.image_urls.isNotEmpty()) {
@@ -114,6 +114,17 @@ fun ProductCard(
             text = "$${product.price.toInt()}",
             style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
             color = MutedOlive
+        Text(
+            text = product.title,
+            style = MaterialTheme.typography.titleSmall,
+            color = MaterialTheme.colorScheme.onBackground,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis
+        )
+        Text(
+            text = "$${product.price.toInt()}",
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.secondary
         )
     }
 }

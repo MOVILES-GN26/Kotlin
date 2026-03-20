@@ -27,6 +27,7 @@ import com.andeshub.ui.theme.ErrorRed
 @Composable
 fun SettingsScreen(
     onBackClick: () -> Unit,
+    onEditProfileClick: () -> Unit,
     onLogout: () -> Unit,
     viewModel: SettingsViewModel = viewModel()
 ) {
@@ -81,7 +82,7 @@ fun SettingsScreen(
                 .padding(horizontal = 20.dp)
                 .clip(RoundedCornerShape(12.dp))
                 .background(MaterialTheme.colorScheme.surface)
-                .clickable { /* TODO: navegar a EditProfile */ }
+                .clickable {  onEditProfileClick() }
                 .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween

@@ -28,7 +28,7 @@ import com.andeshub.ui.theme.*
 fun StoreScreen(
     storeId: String = "",
     onBack: () -> Unit = {},
-    onProductClick: (com.andeshub.data.model.Product) -> Unit = {}  // ← nuevo
+    onProductClick: (com.andeshub.data.model.Product) -> Unit = {}
 ) {
     val context = LocalContext.current
     val viewModel: StoreViewModel = viewModel(
@@ -50,9 +50,8 @@ fun StoreScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(SoftCream)
+            .background(MaterialTheme.colorScheme.background)
     ) {
-        // Top bar
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -65,7 +64,7 @@ fun StoreScreen(
                 Icon(
                     imageVector = Icons.Outlined.ArrowBack,
                     contentDescription = "Volver",
-                    tint = Black
+                    tint = MaterialTheme.colorScheme.onBackground
                 )
             }
             Text(
@@ -73,7 +72,7 @@ fun StoreScreen(
                     (uiState as StoreUiState.Success).store.name
                 else "Store",
                 style = MaterialTheme.typography.titleLarge,
-                color = Black,
+                color = MaterialTheme.colorScheme.onBackground,
                 modifier = Modifier.align(Alignment.Center)
             )
         }
@@ -84,7 +83,7 @@ fun StoreScreen(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
-                    CircularProgressIndicator(color = Black)
+                    CircularProgressIndicator(color = MaterialTheme.colorScheme.onBackground)
                 }
             }
             is StoreUiState.Error -> {
@@ -109,7 +108,6 @@ fun StoreScreen(
                     item {
                         Spacer(modifier = Modifier.height(24.dp))
 
-                        // Logo
                         Box(
                             modifier = Modifier.fillMaxWidth(),
                             contentAlignment = Alignment.Center
@@ -118,7 +116,7 @@ fun StoreScreen(
                                 modifier = Modifier
                                     .size(100.dp)
                                     .clip(CircleShape)
-                                    .background(LightNeutral),
+                                    .background(MaterialTheme.colorScheme.surface),
                                 contentAlignment = Alignment.Center
                             ) {
                                 if (store.logo_url != null) {
@@ -139,39 +137,36 @@ fun StoreScreen(
 
                         Spacer(modifier = Modifier.height(12.dp))
 
-                        // Nombre
                         Text(
                             text = store.name,
                             style = MaterialTheme.typography.titleLarge,
-                            color = Black,
+                            color = MaterialTheme.colorScheme.onBackground,
                             modifier = Modifier.fillMaxWidth(),
                             textAlign = TextAlign.Center
                         )
 
-                        // Dueño
                         Text(
                             text = store.owner?.let {
                                 "${it.firstName} ${it.lastName}"
                             } ?: "",
                             style = MaterialTheme.typography.bodyMedium,
-                            color = MutedOlive,
+                            color = MaterialTheme.colorScheme.secondary,
                             modifier = Modifier.fillMaxWidth(),
                             textAlign = TextAlign.Center
                         )
 
                         Spacer(modifier = Modifier.height(24.dp))
 
-                        // Descripción
                         Text(
                             text = "Description",
                             style = MaterialTheme.typography.titleSmall,
-                            color = Black,
+                            color = MaterialTheme.colorScheme.onBackground,
                             modifier = Modifier.padding(horizontal = 20.dp)
                         )
                         Text(
                             text = store.description,
                             style = MaterialTheme.typography.bodyMedium,
-                            color = Black,
+                            color = MaterialTheme.colorScheme.onBackground,
                             modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp)
                         )
 
@@ -180,7 +175,7 @@ fun StoreScreen(
                         Text(
                             text = "Products",
                             style = MaterialTheme.typography.titleSmall,
-                            color = Black,
+                            color = MaterialTheme.colorScheme.onBackground,
                             modifier = Modifier.padding(horizontal = 20.dp)
                         )
 
@@ -199,7 +194,7 @@ fun StoreScreen(
                                 Box(modifier = Modifier.weight(1f)) {
                                     ProductCard(
                                         product = product,
-                                        onClick = { onProductClick(product) }  // ← agrega esto
+                                        onClick = { onProductClick(product) }
                                     )
                                 }
                             }

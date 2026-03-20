@@ -20,3 +20,8 @@ val Black = Color(0xFF1C1A0D)
 val White = Color(0xFFFFFFFF)
 
 val ErrorRed = Color(0xFFB00020)
+
+// Dark mode colors
+val DarkBackground = Color(0xFF1C1A0D)
+val DarkSurface = Color(0xFF2A2820)
+val DarkNeutral = Color(0xFF3A3828)

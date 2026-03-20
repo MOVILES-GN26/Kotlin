@@ -26,7 +26,7 @@ fun CategoryChip(
     Surface(
         onClick = onClick,
         shape = RoundedCornerShape(8.dp),
-        color = LightNeutral
+        color = MaterialTheme.colorScheme.surface
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
@@ -36,13 +36,13 @@ fun CategoryChip(
             Icon(
                 imageVector = category.icon,
                 contentDescription = category.label,
-                tint = Black,
+                tint = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.size(16.dp)
             )
             Text(
                 text = category.label,
                 style = MaterialTheme.typography.bodyMedium,
-                color = Black
+                color = MaterialTheme.colorScheme.onSurface
             )
         }
     }
@@ -57,4 +57,3 @@ fun CategoryChipPreview() {
         )
     }
 }
-
