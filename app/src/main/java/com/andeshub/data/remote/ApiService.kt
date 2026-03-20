@@ -1,9 +1,10 @@
 package com.andeshub.data.remote
 
-import ProductsResponse
 import com.andeshub.data.model.Product
 import com.andeshub.data.model.Store
 import com.andeshub.data.model.TrendingCategory
+import com.andeshub.data.model.RecordInteractionRequest
+import com.andeshub.data.model.ProductStats
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
 import retrofit2.http.GET
@@ -94,4 +95,9 @@ interface ApiService {
     ): UserResponse
 }
 
+    @POST("interactions/view")
+    suspend fun recordInteraction(@Body request: RecordInteractionRequest): Response<Unit>
 
+    @GET("interactions/product/{id}/stats")
+    suspend fun getProductStats(@Path("id") productId: String): ProductStats
+}
