@@ -23,4 +23,8 @@ interface ApiService {
 
     @GET("stores/{id}")
     suspend fun getStore(@Path("id") id: String): Store
+
+    @GET("stores/my-stores")
+    suspend fun getMyStores(): List<Store>
 }
+
