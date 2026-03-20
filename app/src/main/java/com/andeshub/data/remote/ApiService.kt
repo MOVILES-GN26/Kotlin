@@ -1,5 +1,6 @@
 package com.andeshub.data.remote
 
+import ProductsResponse
 import com.andeshub.data.model.Product
 import com.andeshub.data.model.Store
 import okhttp3.MultipartBody
@@ -10,6 +11,7 @@ import retrofit2.http.POST
 import retrofit2.http.Part
 import retrofit2.http.Path
 import retrofit2.http.DELETE
+import retrofit2.http.Query
 
 
 interface ApiService {
@@ -34,4 +36,12 @@ interface ApiService {
 
     @DELETE("users/me/favorites/{productId}")
     suspend fun removeFavorite(@Path("productId") productId: String)
+
+    @GET("products")
+    suspend fun getProducts(
+        @Query("search") search: String? = null,
+        @Query("category") category: String? = null,
+        @Query("condition") condition: String? = null,
+        @Query("price_sort") priceSort: String? = null
+    ): ProductsResponse
 }
