@@ -74,6 +74,11 @@ interface ApiService {
 
     @GET("trending/categories")
     suspend fun getTrendingCategories(): List<TrendingCategory>
+
+    @GET("users/{userId}/products")
+    suspend fun getProductsByUser(
+        @Path("userId") userId: String
+    ): ProductsResponse
 }
 
 

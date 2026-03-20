@@ -75,4 +75,13 @@ class ProductRepository(private val context: Context) {
             imagePart
         )
     }
+
+    suspend fun getProductsByUser(userId: String): Result<List<Product>> {
+        return try {
+            val response = api.getProductsByUser(userId)
+            Result.success(response.items ?: emptyList())
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
 }
