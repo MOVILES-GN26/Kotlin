@@ -84,4 +84,13 @@ class ProductRepository(private val context: Context) {
             Result.failure(e)
         }
     }
+
+    suspend fun deleteProduct(productId: String): Result<Unit> {
+        return try {
+            api.deleteProduct(productId)
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
 }

@@ -92,6 +92,9 @@ interface ApiService {
     suspend fun updateAvatar(
         @Part avatar: MultipartBody.Part
     ): UserResponse
+
+    @DELETE("posts/{id}")
+    suspend fun deleteProduct(@Path("id") productId: String)
 }
 
 

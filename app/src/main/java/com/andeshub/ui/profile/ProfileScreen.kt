@@ -161,11 +161,6 @@ fun ProfileScreen(
                 label = "Email",
                 value = uiState.email
             )
-            InfoRow(
-                icon = Icons.Default.Badge,
-                label = "Student ID",
-                value = "202112345"
-            )
         }
 
 

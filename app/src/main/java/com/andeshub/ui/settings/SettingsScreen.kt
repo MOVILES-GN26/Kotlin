@@ -22,7 +22,14 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.andeshub.ui.components.ProductCard
+import com.andeshub.ui.theme.MutedOlive
 import com.andeshub.ui.theme.ErrorRed
+import com.andeshub.ui.theme.Yellow
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.foundation.lazy.grid.items
 
 @Composable
 fun SettingsScreen(
@@ -39,7 +46,7 @@ fun SettingsScreen(
             .background(MaterialTheme.colorScheme.background)
             .verticalScroll(rememberScrollState())
     ) {
-        // Top bar
+
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -65,7 +72,6 @@ fun SettingsScreen(
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // Account Settings
         Text(
             text = "Account Settings",
             style = MaterialTheme.typography.titleMedium,
@@ -74,8 +80,6 @@ fun SettingsScreen(
         )
 
         Spacer(modifier = Modifier.height(12.dp))
-
-        // Edit Profile row
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -162,25 +166,71 @@ fun SettingsScreen(
                 )
             }
             else -> {
-                Column(
+                var productToDelete by remember { mutableStateOf<String?>(null) }
+
+                if (productToDelete != null) {
+                    AlertDialog(
+                        onDismissRequest = { productToDelete = null },
+                        title = { Text("Delete product") },
+                        text = { Text("Are you sure you want to delete this product? This action cannot be undone") },
+                        confirmButton = {
+                            TextButton(
+                                onClick = {
+                                    viewModel.deleteProduct(productToDelete!!)
+                                    productToDelete = null
+                                }
+                            ) {
+                                Text("Delete", color = ErrorRed)
+                            }
+                        },
+                        dismissButton = {
+                            TextButton(onClick = { productToDelete = null }) {
+                                Text("Cancel")
+                            }
+                        }
+                    )
+                }
+
+                androidx.compose.foundation.lazy.grid.LazyVerticalGrid(
+                    columns = androidx.compose.foundation.lazy.grid.GridCells.Fixed(2),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 20.dp),
+                        .padding(horizontal = 20.dp)
+                        .heightIn(max = 600.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    uiState.listings.forEach { product ->
-                        ProductCard(
-                            product = product,
-                            onClick = { }
-                        )
+                    items(uiState.listings) { product ->
+                        Box {
+                            ProductCard(
+                                product = product,
+                                onClick = { }
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .align(Alignment.TopEnd)
+                                    .padding(6.dp)
+                                    .size(28.dp)
+                                    .clip(CircleShape)
+                                    .background(MutedOlive)
+                                    .clickable { productToDelete = product.id },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Delete,
+                                    contentDescription = "Delete",
+                                    tint = MaterialTheme.colorScheme.surface,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+                        }
                     }
                 }
             }
+
         }
 
         Spacer(modifier = Modifier.height(32.dp))
-
-        // Logout
         Button(
             onClick = {
                 viewModel.logout()
@@ -192,7 +242,7 @@ fun SettingsScreen(
                 .padding(horizontal = 20.dp),
             shape = RoundedCornerShape(30.dp),
             colors = ButtonDefaults.buttonColors(
-                containerColor = ErrorRed
+                containerColor = Yellow
             )
         ) {
             Text(
