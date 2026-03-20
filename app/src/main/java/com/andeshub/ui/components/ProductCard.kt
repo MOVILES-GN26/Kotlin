@@ -12,11 +12,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.andeshub.ui.theme.*
-
-data class Product(
-    val title: String,
-    val price: String
-)
+import com.andeshub.data.model.Product
 
 @Composable
 fun ProductCard(
@@ -50,7 +46,7 @@ fun ProductCard(
             overflow = TextOverflow.Ellipsis
         )
         Text(
-            text = product.price,
+            text = "$${product.price}",
             style = MaterialTheme.typography.labelMedium,
             color = MutedOlive
         )
@@ -62,8 +58,17 @@ fun ProductCard(
 fun ProductCardPreview() {
     AndesHubTheme {
         ProductCard(
-            product = Product("Calculus Textbook", "$50")
+            product = Product(
+                id = "1",
+                title = "Calculus Textbook",
+                description = "Good condition",
+                category = "Books",
+                building_location = "SD",
+                price = 50.0,
+                condition = "Used",
+                image_urls = emptyList(),
+                seller_id = "123"
+            )
         )
     }
 }
-
