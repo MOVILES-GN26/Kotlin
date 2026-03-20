@@ -2,6 +2,7 @@ package com.andeshub.data.remote
 
 import com.andeshub.data.model.Product
 import com.andeshub.data.model.Store
+import com.andeshub.data.model.TrendingCategory
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
 import retrofit2.Response
@@ -58,4 +59,7 @@ interface ApiService {
         @Query("condition") condition: String? = null,
         @Query("price_sort") priceSort: String? = null
     ): ProductsResponse
+
+    @GET("trending/categories")
+    suspend fun getTrendingCategories(): List<TrendingCategory>
 }
