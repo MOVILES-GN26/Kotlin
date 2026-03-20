@@ -27,6 +27,8 @@ import com.andeshub.ui.theme.*
 @Composable
 fun LandingPageScreen() {
 
+    var searchQuery by remember { mutableStateOf("") }
+
     val categories = listOf(
         Category("Books",    Icons.Outlined.MenuBook),
         Category("Tech",     Icons.Outlined.Laptop),
@@ -37,10 +39,10 @@ fun LandingPageScreen() {
     )
 
     val products = listOf(
-        Product("Calculus Textbook", "\$50"),
-        Product("MacBook Pro", "\$1200"),
-        Product("Apartment campus", "\$800/mo"),
-        Product("Physics Book", "\$30"),
+        Product("Calculus Textbook", "$50"),
+        Product("MacBook Pro", "$1200"),
+        Product("Apartment campus", "$800/mo"),
+        Product("Physics Book", "$30"),
     )
 
     Column(
@@ -91,6 +93,8 @@ fun LandingPageScreen() {
                 )
                 Spacer(modifier = Modifier.height(16.dp))
                 SearchBar(
+                    query = searchQuery,
+                    onQueryChange = { searchQuery = it },
                     onSearch = { /* TODO */ }
                 )
             }
