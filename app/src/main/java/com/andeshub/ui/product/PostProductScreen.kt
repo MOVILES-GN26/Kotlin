@@ -21,10 +21,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.andeshub.data.model.Store
 import com.andeshub.data.model.UserProfile
@@ -33,19 +37,21 @@ import com.andeshub.ui.theme.*
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PostProductScreen(
-    currentUser: UserProfile? = UserProfile(id = "current_user_id", name = "Mariana Silva", email = "mariana.silva@uniandes.edu.co", major = "Industrial Engineering"),
-    userStores: List<Store> = listOf(
-        Store(
-            id = "store_1",
-            name = "Mariana's Shop",
-            description = "My personal store",
-            category = "Clothing",
-            logo_url = null,
-            owner_id = "current_user_id"
-        )
-    ),
+    currentUser: UserProfile? = null,
+    userStores: List<Store> = emptyList(),
     onCloseClick: () -> Unit = {}
 ) {
+    val context = LocalContext.current
+    val productViewModel: ProductViewModel = viewModel(
+        factory = object : ViewModelProvider.Factory {
+            override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                return ProductViewModel(context) as T
+            }
+        }
+    )
+
+    val uiState by productViewModel.uiState.collectAsState()
+
     var title by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
     var price by remember { mutableStateOf("") }
@@ -68,6 +74,12 @@ fun PostProductScreen(
     var buildingExpanded by remember { mutableStateOf(false) }
     var storeExpanded by remember { mutableStateOf(false) }
     var showImageSourceOptions by remember { mutableStateOf(false) }
+
+    LaunchedEffect(uiState) {
+        if (uiState is ProductUiState.Created) {
+            onCloseClick()
+        }
+    }
 
     // Launcher para galería
     val galleryLauncher = rememberLauncherForActivityResult(
@@ -119,7 +131,6 @@ fun PostProductScreen(
                 modifier = Modifier.padding(vertical = 12.dp)
             )
 
-            // Photo Placeholder / Selector
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -161,7 +172,6 @@ fun PostProductScreen(
                 modifier = Modifier.padding(top = 24.dp, bottom = 12.dp)
             )
 
-            // Title
             OutlinedTextField(
                 value = title,
                 onValueChange = { title = it },
@@ -178,7 +188,6 @@ fun PostProductScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Description
             OutlinedTextField(
                 value = description,
                 onValueChange = { description = it },
@@ -197,7 +206,6 @@ fun PostProductScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Category Dropdown
             ExposedDropdownMenuBox(
                 expanded = categoryExpanded,
                 onExpandedChange = { categoryExpanded = !categoryExpanded }
@@ -235,7 +243,6 @@ fun PostProductScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Condition Selection
             Text("Condition", style = Typography.bodyMedium, color = MutedOlive)
             Spacer(modifier = Modifier.height(8.dp))
             Row(
@@ -268,7 +275,6 @@ fun PostProductScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Building Location Dropdown
             ExposedDropdownMenuBox(
                 expanded = buildingExpanded,
                 onExpandedChange = { buildingExpanded = !buildingExpanded }
@@ -306,7 +312,6 @@ fun PostProductScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Price
             OutlinedTextField(
                 value = price,
                 onValueChange = { price = it },
@@ -324,7 +329,6 @@ fun PostProductScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Store Selection
             Text("Post as", style = Typography.bodyMedium, color = MutedOlive)
             Spacer(modifier = Modifier.height(8.dp))
             ExposedDropdownMenuBox(
@@ -356,7 +360,7 @@ fun PostProductScreen(
                     onDismissRequest = { storeExpanded = false }
                 ) {
                     DropdownMenuItem(
-                        text = { Text("Personal Profile (${currentUser?.name})") },
+                        text = { Text("Personal Profile (${currentUser?.name ?: "User"})") },
                         onClick = {
                             selectedStore = null
                             storeExpanded = false
@@ -376,22 +380,48 @@ fun PostProductScreen(
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            // Post Button
+            if (uiState is ProductUiState.Error) {
+                Text(
+                    text = (uiState as ProductUiState.Error).message,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+            }
+
             Button(
-                onClick = { /* TODO: Implement post logic */ },
+                onClick = {
+                    productViewModel.createProduct(
+                        title = title,
+                        description = description,
+                        category = selectedCategory,
+                        location = buildingLocation,
+                        price = price.toDoubleOrNull() ?: 0.0,
+                        condition = selectedCondition,
+                        storeId = selectedStore?.id,
+                        imageUri = imageUri,
+                        imageBitmap = imageBitmap
+                    )
+                },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp),
+                enabled = uiState !is ProductUiState.Loading && 
+                          title.isNotEmpty() && 
+                          price.isNotEmpty() && 
+                          (imageUri != null || imageBitmap != null),
                 shape = RoundedCornerShape(16.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = Yellow, contentColor = Black)
             ) {
-                Text("Post Item", style = Typography.titleMedium, fontWeight = FontWeight.Bold)
+                if (uiState is ProductUiState.Loading) {
+                    CircularProgressIndicator(color = Black, modifier = Modifier.size(24.dp))
+                } else {
+                    Text("Post Item", style = Typography.titleMedium, fontWeight = FontWeight.Bold)
+                }
             }
 
             Spacer(modifier = Modifier.height(48.dp))
         }
 
-        // Image Source Dialog
         if (showImageSourceOptions) {
             AlertDialog(
                 onDismissRequest = { showImageSourceOptions = false },

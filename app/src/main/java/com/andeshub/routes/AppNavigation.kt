@@ -21,6 +21,10 @@ import androidx.compose.runtime.remember
 import androidx.navigation.compose.currentBackStackEntryAsState
 import com.andeshub.data.local.SessionManager
 import com.andeshub.ui.store.StoreScreen
+import com.andeshub.data.model.UserProfile
+import com.andeshub.ui.product.ProductDetailScreen
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
 
 @Composable
 fun AppNavigation() {
@@ -39,8 +43,10 @@ fun AppNavigation() {
     Scaffold(
         containerColor = SoftCream,
         bottomBar = {
-            if (currentRoute != AppDestinations.Login.route &&
-                currentRoute != AppDestinations.Register.route) {
+            if (currentRoute != null && 
+                currentRoute != AppDestinations.Login.route &&
+                currentRoute != AppDestinations.Register.route &&
+                !currentRoute.startsWith("product_detail")) {
                 AndesBottomNavBar(navController = navController)
             }
         }
@@ -78,10 +84,39 @@ fun AppNavigation() {
                 LandingPageScreen()
             }
             composable(AppDestinations.Catalog.route) {
-                CatalogScreen()
+                CatalogScreen(
+                    onProductClick = { product ->
+                        // Pasamos el objeto completo a través del savedStateHandle
+                        navController.currentBackStackEntry?.savedStateHandle?.set("product", product)
+                        navController.navigate(AppDestinations.ProductDetail.route.replace("{productId}", product.id))
+                    }
+                )
+            }
+            composable(AppDestinations.ProductDetail.route) { backStackEntry ->
+                // Recuperamos el producto del savedStateHandle de la entrada anterior
+                val product = navController.previousBackStackEntry?.savedStateHandle?.get<Product>("product")
+                
+                if (product != null) {
+                    ProductDetailScreen(
+                        product = product,
+                        onBackClick = { navController.popBackStack() }
+                    )
+                } else {
+                    // Si por alguna razón es nulo, volvemos atrás
+                    LaunchedEffect(Unit) { navController.popBackStack() }
+                }
             }
             composable(AppDestinations.Post.route) {
-                PostProductScreen()
+                val userProfile = UserProfile(
+                    id = sessionManager.getUserId() ?: "",
+                    name = "${sessionManager.getUserFirstName()} ${sessionManager.getUserLastName()}",
+                    email = sessionManager.getUserEmail() ?: "",
+                    major = sessionManager.getUserMajor() ?: ""
+                )
+                PostProductScreen(
+                    currentUser = userProfile,
+                    onCloseClick = { navController.popBackStack() }
+                )
             }
             composable(AppDestinations.Favorites.route) {
                 FavoritesScreen()
@@ -90,30 +125,7 @@ fun AppNavigation() {
                 ProfileScreen(
                     onSettingsClick = {},
                     onListingClick = {},
-                    listings = listOf(
-                        Product(
-                            id = "1",
-                            title = "Calculus Textbook",
-                            description = "",
-                            category = "Books",
-                            building_location = "SD",
-                            price = 50.0,
-                            condition = "Used",
-                            image_urls = emptyList(),
-                            seller_id = ""
-                        ),
-                        Product(
-                            id = "2",
-                            title = "Engineering Drawing Set",
-                            description = "",
-                            category = "Books",
-                            building_location = "SD",
-                            price = 30.0,
-                            condition = "Used",
-                            image_urls = emptyList(),
-                            seller_id = ""
-                        )
-                    )
+                    listings = emptyList()
                 )
             }
             composable(AppDestinations.Store.route) {

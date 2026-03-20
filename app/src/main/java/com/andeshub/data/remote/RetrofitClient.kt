@@ -5,7 +5,7 @@ import retrofit2.converter.gson.GsonConverterFactory
 import com.andeshub.data.remote.ApiService
 
 object RetrofitClient {
-    private const val BASE_URL = "http://192.168.1.76:3000/"
+    private const val BASE_URL = "http://10.0.2.2:3000/"
 
     private val retrofit by lazy {
         Retrofit.Builder()
