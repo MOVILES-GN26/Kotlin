@@ -38,11 +38,16 @@ import androidx.compose.ui.tooling.preview.Preview
 import com.andeshub.ui.theme.AndesHubTheme
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.Row
 
 @Composable
 fun ProfileScreen(
     onSettingsClick: () -> Unit,
     onListingClick: (String) -> Unit,
+    onCreateStoreClick: () -> Unit,
     listings: List<Product> = emptyList(),
     viewModel: ProfileViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
 ) {
@@ -146,6 +151,26 @@ fun ProfileScreen(
             )
         }
 
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Button(
+            onClick = onCreateStoreClick,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(52.dp)
+                .padding(horizontal = 20.dp),
+            shape = RoundedCornerShape(30.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.primary
+            )
+        ) {
+            Text(
+                text = "Create Store",
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.onPrimary
+            )
+        }
+
         Spacer(modifier = Modifier.height(24.dp))
 
         Text(
@@ -188,6 +213,7 @@ fun ProfileScreenPreview() {
         ProfileScreen(
             onSettingsClick = {},
             onListingClick = {},
+            onCreateStoreClick = {},
             listings = listOf(
                 Product(
                     id = "1",

@@ -9,6 +9,7 @@ import kotlinx.coroutines.launch
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import com.andeshub.data.local.SessionManager
+import com.andeshub.data.remote.RetrofitClient
 
 sealed class AuthUiState {
     object Idle : AuthUiState()
@@ -31,6 +32,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
             try {
                 val response = repository.login(email, password)
                 sessionManager.saveTokens(response.accessToken, response.refreshToken)
+                RetrofitClient.setToken(response.accessToken)
                 sessionManager.saveUser(
                     id = response.user.id,
                     email = response.user.email,
@@ -60,6 +62,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
             try {
                 val response = repository.register(email, firstName, lastName, major, password)
                 sessionManager.saveTokens(response.accessToken, response.refreshToken)
+                RetrofitClient.setToken(response.accessToken)
                 sessionManager.saveUser(
                     id = response.user.id,
                     email = response.user.email,

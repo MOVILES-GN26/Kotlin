@@ -18,15 +18,16 @@ class StoreRepository(private val context: Context) {
         category: String,
         logoUri: Uri?
     ): Store {
-        val namePart        = name.toRequestBody("text/plain".toMediaType())
-        val descriptionPart = description.toRequestBody("text/plain".toMediaType())
-        val categoryPart    = category.toRequestBody("text/plain".toMediaType())
+        val namePart = name.toRequestBody("text/plain; charset=utf-8".toMediaType())
+        val descriptionPart = description.toRequestBody("text/plain; charset=utf-8".toMediaType())
+        val categoryPart = category.toRequestBody("text/plain; charset=utf-8".toMediaType())
 
         val logoPart = logoUri?.let {
             val bytes = context.contentResolver.openInputStream(it)?.readBytes() ?: return@let null
             val requestBody = bytes.toRequestBody("image/*".toMediaType())
             MultipartBody.Part.createFormData("logo", "logo.jpg", requestBody)
         }
+        android.util.Log.d("StoreRepository", "name: $name, description: $description, category: $category, logoUri: $logoUri")
 
         return api.createStore(namePart, descriptionPart, categoryPart, logoPart)
     }
