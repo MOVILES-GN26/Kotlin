@@ -35,7 +35,11 @@ class HomeViewModel : ViewModel() {
 
     fun loadData() {
         viewModelScope.launch {
-            _uiState.value = HomeUiState.Loading
+            // Solo muestra Loading si no hay datos previos
+            val currentState = _uiState.value
+            if (currentState !is HomeUiState.Success) {
+                _uiState.value = HomeUiState.Loading
+            }
             try {
                 val productsResponse = api.getProducts()
                 val trendingResponse = try {
@@ -43,7 +47,7 @@ class HomeViewModel : ViewModel() {
                 } catch (e: Exception) {
                     emptyList<TrendingCategory>()
                 }
-                
+
                 _uiState.value = HomeUiState.Success(
                     products = productsResponse.items ?: emptyList(),
                     trendingCategories = trendingResponse
