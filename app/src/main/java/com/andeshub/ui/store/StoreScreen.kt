@@ -27,7 +27,8 @@ import com.andeshub.ui.theme.*
 @Composable
 fun StoreScreen(
     storeId: String = "",
-    onBack: () -> Unit = {}
+    onBack: () -> Unit = {},
+    onProductClick: (com.andeshub.data.model.Product) -> Unit = {}  // ← nuevo
 ) {
     val context = LocalContext.current
     val viewModel: StoreViewModel = viewModel(
@@ -196,7 +197,10 @@ fun StoreScreen(
                         ) {
                             row.forEach { product ->
                                 Box(modifier = Modifier.weight(1f)) {
-                                    ProductCard(product = product)
+                                    ProductCard(
+                                        product = product,
+                                        onClick = { onProductClick(product) }  // ← agrega esto
+                                    )
                                 }
                             }
                             if (row.size == 1) {
