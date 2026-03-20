@@ -137,13 +137,16 @@ class ProductViewModel(context: Context) : ViewModel() {
         }
     }
 
-    fun recordProductView(productId: String, sellerId: String?) {
+    fun recordProductView(product: Product) {
         viewModelScope.launch {
             try {
-                val currentUserId = sessionManager.getUserId()
-                loadProductStats(productId)
-                if (currentUserId != null && currentUserId != sellerId) {
-                    api.recordInteraction(RecordInteractionRequest(productId, sellerId))
+                loadProductStats(product.id)
+                
+                // No contar la interacción si el usuario es el dueño
+                if (!isOwner(product)) {
+                    api.recordInteraction(RecordInteractionRequest(product.id, product.seller_id))
+                } else {
+                    Log.d("ProductViewModel", "Interaction not recorded: User is owner (by ID or Name)")
                 }
             } catch (e: Exception) {
                 Log.e("ProductViewModel", "Error recording view", e)
