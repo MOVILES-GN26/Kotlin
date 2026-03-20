@@ -16,8 +16,9 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.andeshub.R
-import com.andeshub.data.model.Product
 import com.andeshub.ui.components.Category
 import com.andeshub.ui.components.CategoryChip
 import com.andeshub.ui.components.ProductCard
@@ -25,9 +26,11 @@ import com.andeshub.ui.components.SearchBar
 import com.andeshub.ui.theme.*
 
 @Composable
-fun LandingPageScreen() {
-
-    var searchQuery by remember { mutableStateOf("") }
+fun LandingPageScreen(
+    viewModel: HomeViewModel = viewModel()
+) {
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
 
     val categories = listOf(
         Category("Books",    Icons.Outlined.MenuBook),
@@ -36,53 +39,6 @@ fun LandingPageScreen() {
         Category("Services", Icons.Outlined.Build),
         Category("Events",   Icons.Outlined.Event),
         Category("Other",    Icons.Outlined.MoreHoriz)
-    )
-
-    val products = listOf(
-        Product(
-            id = "1",
-            title = "Calculus Textbook",
-            description = "A comprehensive guide to calculus.",
-            category = "Books",
-            building_location = "SD",
-            price = 50.0,
-            condition = "Used",
-            image_urls = emptyList(),
-            seller_id = ""
-        ),
-        Product(
-            id = "2",
-            title = "MacBook Pro",
-            description = "Powerful laptop for all your needs.",
-            category = "Tech",
-            building_location = "SD",
-            price = 1200.0,
-            condition = "Used",
-            image_urls = emptyList(),
-            seller_id = ""
-        ),
-        Product(
-            id = "3",
-            title = "Apartment campus",
-            description = "Convenient housing near campus.",
-            category = "Housing",
-            building_location = "SD",
-            price = 800.0,
-            condition = "New",
-            image_urls = emptyList(),
-            seller_id = ""
-        ),
-        Product(
-            id = "4",
-            title = "Physics Book",
-            description = "Essential textbook for physics students.",
-            category = "Books",
-            building_location = "SD",
-            price = 30.0,
-            condition = "Used",
-            image_urls = emptyList(),
-            seller_id = ""
-        ),
     )
 
     Column(
@@ -132,15 +88,15 @@ fun LandingPageScreen() {
                 Spacer(modifier = Modifier.height(16.dp))
                 SearchBar(
                     query = searchQuery,
-                    onQueryChange = { searchQuery = it },
-                    onSearch = { /* TODO */ }
+                    onQueryChange = { viewModel.onSearchQueryChange(it) },
+                    onSearch = { viewModel.search() }
                 )
             }
         }
 
         Spacer(modifier = Modifier.height(24.dp))
         Text(
-            text = "Categories",
+            text = "Trending Categories",
             style = MaterialTheme.typography.titleMedium,
             color = Black,
             modifier = Modifier.padding(horizontal = 20.dp)
@@ -167,13 +123,43 @@ fun LandingPageScreen() {
             modifier = Modifier.padding(horizontal = 20.dp)
         )
         Spacer(modifier = Modifier.height(12.dp))
-        LazyRow(
-            contentPadding = PaddingValues(horizontal = 20.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            items(products) { product ->
-                ProductCard(product = product)
+
+        when (uiState) {
+            is HomeUiState.Loading -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(150.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator(color = Black)
+                }
             }
+            is HomeUiState.Error -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(150.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = (uiState as HomeUiState.Error).message,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+            }
+            is HomeUiState.Success -> {
+                val products = (uiState as HomeUiState.Success).products
+                LazyRow(
+                    contentPadding = PaddingValues(horizontal = 20.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    items(products) { product ->
+                        ProductCard(product = product)
+                    }
+                }
+            }
+            else -> {}
         }
     }
 }
