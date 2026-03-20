@@ -28,7 +28,10 @@ class FavoritesViewModel : ViewModel() {
 
     fun getFavorites() {
         viewModelScope.launch {
-            _uiState.value = FavoritesUiState.Loading
+            val currentState = _uiState.value
+            if (currentState !is FavoritesUiState.Success) {
+                _uiState.value = FavoritesUiState.Loading
+            }
             try {
                 val favorites = repository.getFavorites()
                 _uiState.value = FavoritesUiState.Success(favorites)
