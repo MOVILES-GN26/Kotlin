@@ -66,13 +66,12 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
     }
 
     private fun loadListings() {
-        val token    = sessionManager.getAccessToken()   ?: return
         val sellerId = sessionManager.getUserId()  ?: return
 
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoadingListings = true, listingsError = null)
 
-            productRepository.getProductsBySeller(token, sellerId)
+            productRepository.getProductsByUser( sellerId)
                 .onSuccess { products ->
                     _uiState.value = _uiState.value.copy(
                         listings = products,
