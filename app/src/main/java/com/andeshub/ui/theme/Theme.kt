@@ -35,7 +35,7 @@ private val DarkColorScheme = darkColorScheme(
 
 fun isNightTime(): Boolean {
     val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
-    return hour >= 19 || hour < 6  // 7pm a 6am
+    return hour >= 22 || hour < 6  // 7pm a 6am
 }
 
 
