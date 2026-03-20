@@ -5,6 +5,11 @@ import com.andeshub.data.model.Product
 import com.andeshub.data.model.Store
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
+import retrofit2.http.*
+
+data class ProductsResponse(
+    val items: List<Product>? = emptyList()
+)
 import retrofit2.http.GET
 import retrofit2.http.Multipart
 import retrofit2.http.POST
@@ -29,6 +34,23 @@ interface ApiService {
     @GET("stores/{id}")
     suspend fun getStore(@Path("id") id: String): Store
 
+    @GET("products")
+    suspend fun getProducts(): ProductsResponse
+
+    @Multipart
+    @POST("posts")
+    suspend fun createProduct(
+        @Header("Authorization") token: String,
+        @Part("title") title: RequestBody,
+        @Part("description") description: RequestBody,
+        @Part("category") category: RequestBody,
+        @Part("building_location") location: RequestBody,
+        @Part("price") price: RequestBody,
+        @Part("condition") condition: RequestBody,
+        @Part("store_id") storeId: RequestBody?,
+        @Part images: MultipartBody.Part?
+    ): Product
+}
     @GET("users/me/favorites")
     suspend fun getFavorites(): List<Product>
 
