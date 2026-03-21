@@ -34,18 +34,25 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                 sessionManager.saveTokens(response.accessToken, response.refreshToken)
                 RetrofitClient.setToken(response.accessToken)
                 sessionManager.saveUser(
-                    id = response.user.id,
-                    email = response.user.email,
+                    id        = response.user.id,
+                    email     = response.user.email,
                     firstName = response.user.firstName,
-                    lastName = response.user.lastName,
-                    major = response.user.major
+                    lastName  = response.user.lastName,
+                    major     = response.user.major
                 )
-                android.util.Log.d("AuthViewModel", "Success: ${response.user.email}")
-                android.util.Log.d("AuthViewModel", "Saved user: ${response.user.email}")
                 _uiState.value = AuthUiState.Success(response)
+            } catch (e: retrofit2.HttpException) {
+
+                val errorBody = e.response()?.errorBody()?.string()
+                val message = try {
+                    val json = org.json.JSONObject(errorBody ?: "")
+                    json.optString("message", "Incorrect email or password.")
+                } catch (_: Exception) {
+                    "Incorrect email or password."
+                }
+                _uiState.value = AuthUiState.Error(message)
             } catch (e: Exception) {
-                android.util.Log.e("AuthViewModel", "Error: ${e.message}")
-                _uiState.value = AuthUiState.Error(e.message ?: "Unknown error")
+                _uiState.value = AuthUiState.Error("Connection error. Check your network.")
             }
         }
     }
@@ -72,10 +79,16 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                 )
                 android.util.Log.d("AuthViewModel", "Success: ${response.user.email}")
                 _uiState.value = AuthUiState.Success(response)
-            } catch (e: Exception) {
-                android.util.Log.e("AuthViewModel", "Error: ${e.message}")
-                _uiState.value = AuthUiState.Error(e.message ?: "Unknown error")
+            } catch (e: retrofit2.HttpException) {
+            val errorBody = e.response()?.errorBody()?.string()
+            val message = try {
+                val json = org.json.JSONObject(errorBody ?: "")
+                json.optString("message", "This email is already registered.")
+            } catch (_: Exception) {
+                "This email is already registered."
             }
+            _uiState.value = AuthUiState.Error(message)
+        }
         }
     }
 

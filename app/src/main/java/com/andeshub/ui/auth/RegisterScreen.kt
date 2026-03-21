@@ -250,6 +250,15 @@ fun RegisterScreen(
                 color = MaterialTheme.colorScheme.onPrimary
             )
         }
+        if (uiState is AuthUiState.Error) {
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = (uiState as AuthUiState.Error).message,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.error,
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
 
         Spacer(modifier = Modifier.height(16.dp))
 
