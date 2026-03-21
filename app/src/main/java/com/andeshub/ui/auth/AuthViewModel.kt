@@ -38,7 +38,8 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                     email     = response.user.email,
                     firstName = response.user.firstName,
                     lastName  = response.user.lastName,
-                    major     = response.user.major
+                    major     = response.user.major,
+                    phoneNumber = response.user.phoneNumber
                 )
                 _uiState.value = AuthUiState.Success(response)
             } catch (e: retrofit2.HttpException) {
@@ -76,7 +77,8 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                     email = response.user.email,
                     firstName = response.user.firstName,
                     lastName = response.user.lastName,
-                    major = response.user.major
+                    major = response.user.major,
+                    phoneNumber = response.user.phoneNumber
                 )
                 android.util.Log.d("AuthViewModel", "Success: ${response.user.email}")
                 _uiState.value = AuthUiState.Success(response)
@@ -105,7 +107,8 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                     email     = response.user.email,
                     firstName = response.user.firstName,
                     lastName  = response.user.lastName,
-                    major     = response.user.major
+                    major     = response.user.major,
+                    phoneNumber = response.user.phoneNumber
                 )
                 _uiState.value = AuthUiState.Success(response)
             } catch (e: Exception) {

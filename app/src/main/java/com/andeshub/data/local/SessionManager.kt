@@ -43,6 +43,7 @@ class SessionManager(context: Context) {
             remove("user_first_name")
             remove("user_last_name")
             remove("user_major")
+            remove("user_phone")
         }
     }
 
