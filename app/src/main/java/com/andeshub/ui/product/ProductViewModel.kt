@@ -176,6 +176,24 @@ class ProductViewModel(context: Context) : ViewModel() {
         }
     }
 
+    fun getWhatsAppContactUrl(productId: String, onUrlReady: (String) -> Unit, onError: (String) -> Unit) {
+        viewModelScope.launch {
+            try {
+                val response = api.getWhatsAppContactUrl(productId)
+                Log.d("ProductViewModel", "WhatsApp URL: ${response.url}")
+                onUrlReady(response.url)
+            } catch (e: Exception) {
+                Log.e("ProductViewModel", "Error getting WhatsApp URL", e)
+                val errorMessage = if (e is retrofit2.HttpException && e.code() == 404) {
+                    "Seller phone number not available or product not found"
+                } else {
+                    "Error connecting to server"
+                }
+                onError(errorMessage)
+            }
+        }
+    }
+
     fun createProduct(title: String, description: String, category: String, location: String, price: Double, condition: String, storeId: String?, imageUri: Uri?, imageBitmap: Bitmap? = null) {
         val token = sessionManager.getAccessToken() ?: ""
         if (token.isEmpty()) {

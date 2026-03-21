@@ -1,5 +1,8 @@
 package com.andeshub.ui.product
 
+import android.content.Intent
+import android.net.Uri
+import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -113,7 +116,22 @@ fun ProductDetailScreen(
                 }
                 Spacer(modifier = Modifier.height(12.dp))
                 OutlinedButton(
-                    onClick = { },
+                    onClick = {
+                        productViewModel.getWhatsAppContactUrl(
+                            productId = product.id,
+                            onUrlReady = { url ->
+                                try {
+                                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                                    context.startActivity(intent)
+                                } catch (e: Exception) {
+                                    Toast.makeText(context, "WhatsApp is not installed", Toast.LENGTH_SHORT).show()
+                                }
+                            },
+                            onError = { message ->
+                                Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+                            }
+                        )
+                    },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(50.dp),
