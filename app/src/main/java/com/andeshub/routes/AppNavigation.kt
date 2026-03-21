@@ -33,13 +33,17 @@ import androidx.navigation.navArgument
 import com.andeshub.ui.settings.SettingsScreen
 import com.andeshub.ui.favorites.FavoritesViewModel
 import com.andeshub.ui.profile.EditProfileScreen
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import androidx.compose.runtime.collectAsState
+import com.andeshub.MainActivity
 
 @Composable
-fun AppNavigation() {
+fun AppNavigation(nfcCredentials: StateFlow<Pair<String, String>?> = MutableStateFlow(null)) {
     val navController = rememberNavController()
     val context = androidx.compose.ui.platform.LocalContext.current
     val sessionManager = remember { SessionManager(context) }
-    
+
     LaunchedEffect(Unit) {
         sessionManager.getAccessToken()?.let {
             RetrofitClient.setToken(it)
@@ -59,7 +63,7 @@ fun AppNavigation() {
     Scaffold(
         containerColor = SoftCream,
         bottomBar = {
-            if (currentRoute != null && 
+            if (currentRoute != null &&
                 currentRoute != AppDestinations.Login.route &&
                 currentRoute != AppDestinations.Register.route &&
                 currentRoute != AppDestinations.Onboarding.route &&
@@ -84,31 +88,44 @@ fun AppNavigation() {
                 )
             }
             composable(AppDestinations.Login.route) {
-                LoginScreen(
-                    onLoginClick = { _, _ ->
+                val credentials by nfcCredentials.collectAsState()
+                val authViewModel: com.andeshub.ui.auth.AuthViewModel =
+                    androidx.lifecycle.viewmodel.compose.viewModel()
+
+                val uiState by authViewModel.uiState.collectAsState()
+
+                LaunchedEffect(credentials) {
+                    credentials?.let { (email, password) ->
+                        authViewModel.login(email, password)
+                    }
+                }
+
+                LaunchedEffect(uiState) {
+                    if (uiState is com.andeshub.ui.auth.AuthUiState.Success) {
+                        (context as? MainActivity)?.clearNfcCredentials()
                         navController.navigate(AppDestinations.Home.route) {
                             popUpTo(AppDestinations.Login.route) { inclusive = true }
                         }
-                    },
+                    }
+                }
+
+                LoginScreen(
                     onSignUpClick = {
                         navController.navigate(AppDestinations.Register.route)
                     },
-                    onForgotPasswordClick = {}
+                    onForgotPasswordClick = {},
+                    viewModel = authViewModel
                 )
             }
             composable(AppDestinations.Register.route) {
                 RegisterScreen(
-                    onBackClick = {
-                        navController.popBackStack()
-                    },
+                    onBackClick = { navController.popBackStack() },
                     onRegisterClick = { _, _, _, _ ->
                         navController.navigate(AppDestinations.Home.route) {
                             popUpTo(AppDestinations.Register.route) { inclusive = true }
                         }
                     },
-                    onLoginClick = {
-                        navController.popBackStack()
-                    }
+                    onLoginClick = { navController.popBackStack() }
                 )
             }
             composable(AppDestinations.Home.route) {
@@ -126,7 +143,6 @@ fun AppNavigation() {
             composable(AppDestinations.Catalog.route) {
                 CatalogScreen(
                     onProductClick = { product ->
-                        // USAMOS LA MISMA LÓGICA QUE EN HOME:
                         val route = AppDestinations.ProductDetail.createRoute(product.id)
                         navController.navigate(route)
                         navController.getBackStackEntry(route).savedStateHandle["product"] = product
@@ -160,7 +176,8 @@ fun AppNavigation() {
                 )
             }
             composable(AppDestinations.Favorites.route) {
-                val favoritesViewModel: FavoritesViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
+                val favoritesViewModel: FavoritesViewModel =
+                    androidx.lifecycle.viewmodel.compose.viewModel()
                 FavoritesScreen(
                     viewModel = favoritesViewModel,
                     onProductClick = { product ->
@@ -172,7 +189,7 @@ fun AppNavigation() {
             }
             composable(AppDestinations.Profile.route) {
                 ProfileScreen(
-                    onSettingsClick = {navController.navigate(AppDestinations.Settings.route)},
+                    onSettingsClick = { navController.navigate(AppDestinations.Settings.route) },
                     onListingClick = { product ->
                         val route = AppDestinations.ProductDetail.createRoute(product.id)
                         navController.navigate(route)
@@ -186,7 +203,6 @@ fun AppNavigation() {
                     }
                 )
             }
-
             composable(
                 route = AppDestinations.StoreDetail.route,
                 arguments = listOf(navArgument("storeId") { type = NavType.StringType })
@@ -202,13 +218,11 @@ fun AppNavigation() {
                     }
                 )
             }
-
             composable(AppDestinations.CreateStore.route) {
                 CreateStoreScreen(
                     onClose = { navController.popBackStack() }
                 )
             }
-
             composable(AppDestinations.Settings.route) {
                 SettingsScreen(
                     onBackClick = { navController.popBackStack() },

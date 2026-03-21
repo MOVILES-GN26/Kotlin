@@ -1,40 +1,39 @@
 package com.andeshub.ui.auth
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
-import com.andeshub.ui.theme.AndesHubTheme
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.ui.text.input.KeyboardType
-import com.andeshub.ui.components.InputField
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
+import com.andeshub.ui.components.InputField
+import com.andeshub.ui.theme.AndesHubTheme
 
 @Composable
 fun LoginScreen(
-    onLoginClick:(email: String, password: String) -> Unit,
     onSignUpClick: () -> Unit,
     onForgotPasswordClick: () -> Unit,
     viewModel: AuthViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
@@ -43,18 +42,12 @@ fun LoginScreen(
     var password by remember { mutableStateOf("") }
     val uiState by viewModel.uiState.collectAsState()
 
-    LaunchedEffect(uiState) {
-        if (uiState is AuthUiState.Success) {
-            onLoginClick(email, password)
-        }
-    }
-
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
             .padding(horizontal = 24.dp)
-    )  {
+    ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -110,16 +103,30 @@ fun LoginScreen(
                 shape = RoundedCornerShape(30.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.primary
-                )
+                ),
+                enabled = uiState !is AuthUiState.Loading
             ) {
+                if (uiState is AuthUiState.Loading) {
+                    CircularProgressIndicator()
+                } else {
+                    Text(
+                        text = "Login",
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.onPrimary
+                    )
+                }
+            }
+
+            if (uiState is AuthUiState.Error) {
+                Spacer(modifier = Modifier.height(16.dp))
                 Text(
-                    text = "Login",
-                    style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.onPrimary
+                    text = (uiState as AuthUiState.Error).message,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.error
                 )
             }
         }
-        
+
         Row(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
@@ -139,16 +146,15 @@ fun LoginScreen(
             )
         }
     }
-
 }
+
 @Preview(showBackground = true)
 @Composable
 fun LoginScreenPreview() {
     AndesHubTheme {
         LoginScreen(
-            onLoginClick = { _, _ -> },
-            onSignUpClick = { },
-            onForgotPasswordClick = { }
+            onSignUpClick = {},
+            onForgotPasswordClick = {}
         )
     }
 }

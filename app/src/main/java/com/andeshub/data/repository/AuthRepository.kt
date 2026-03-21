@@ -4,6 +4,7 @@ import com.andeshub.data.model.AuthResponse
 import com.andeshub.data.model.LoginRequest
 import com.andeshub.data.model.RegisterRequest
 import com.andeshub.data.remote.RetrofitClient
+import com.andeshub.data.model.NfcLoginRequest
 
 class AuthRepository {
     private val authService = RetrofitClient.authService
@@ -28,5 +29,8 @@ class AuthRepository {
                 password = password
             )
         )
+    }
+    suspend fun nfcLogin(userId: String): AuthResponse {
+        return authService.nfcLogin(NfcLoginRequest(userId))
     }
 }

@@ -79,5 +79,27 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun nfcLogin(userId: String) {
+        viewModelScope.launch {
+            _uiState.value = AuthUiState.Loading
+            try {
+                val response = repository.nfcLogin(userId)
+                sessionManager.saveTokens(response.accessToken, response.refreshToken)
+                RetrofitClient.setToken(response.accessToken)
+                sessionManager.saveUser(
+                    id        = response.user.id,
+                    email     = response.user.email,
+                    firstName = response.user.firstName,
+                    lastName  = response.user.lastName,
+                    major     = response.user.major
+                )
+                _uiState.value = AuthUiState.Success(response)
+            } catch (e: Exception) {
+                android.util.Log.e("AuthViewModel", "NFC Error: ${e.message}")
+                _uiState.value = AuthUiState.Error("NFC login failed: ${e.message}")
+            }
+        }
+    }
+
     fun isLoggedIn(): Boolean = sessionManager.isLoggedIn()
 }
