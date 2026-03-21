@@ -61,8 +61,25 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                     )
                 }
         }
-    }
 
+    }
+    fun deleteProduct(productId: String) {
+        viewModelScope.launch {
+            productRepository.deleteProduct(productId)
+                .onSuccess {
+                    _uiState.value = _uiState.value.copy(
+                        listings = _uiState.value.listings.filter { it.id != productId }
+                    )
+                }
+                .onFailure { error ->
+                    android.util.Log.e("SettingsViewModel", "Error deleting: ${error.message}")
+                }
+        }
+    }
+    fun refresh() {
+        loadProfile()
+        loadListings()
+    }
     fun logout() {
         sessionManager.clearSession()
     }

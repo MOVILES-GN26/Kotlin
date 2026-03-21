@@ -35,7 +35,15 @@ class SessionManager(context: Context) {
     fun getRefreshToken(): String? = prefs.getString("refresh_token", null)
 
     fun clearSession() {
-        prefs.edit { clear() }
+        prefs.edit {
+            remove("access_token")
+            remove("refresh_token")
+            remove("user_id")
+            remove("user_email")
+            remove("user_first_name")
+            remove("user_last_name")
+            remove("user_major")
+        }
     }
 
     fun isLoggedIn(): Boolean = getAccessToken() != null

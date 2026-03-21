@@ -36,3 +36,7 @@ data class UpdateProfileRequest(
     val major: String? = null,
     val password: String? = null
 )
+
+data class NfcLoginRequest(
+    @SerializedName("userId") val userId: String
+)
