@@ -19,6 +19,7 @@ class UserRepository(private val context: Context) {
         firstName: String? = null,
         lastName: String? = null,
         major: String? = null,
+        phoneNumber: String? = null,
         password: String? = null
     ): Result<UserResponse> {
         return try {
@@ -27,6 +28,7 @@ class UserRepository(private val context: Context) {
                     firstName = firstName,
                     lastName  = lastName,
                     major      = major,
+                    phoneNumber = phoneNumber,
                     password   = if (password.isNullOrBlank()) null else password
                 )
             )
@@ -35,7 +37,8 @@ class UserRepository(private val context: Context) {
                 email     = response.email,
                 firstName = response.firstName,
                 lastName  = response.lastName,
-                major     = response.major
+                major     = response.major,
+                phoneNumber = response.phoneNumber
             )
             Result.success(response)
         } catch (e: Exception) {
@@ -59,7 +62,8 @@ class UserRepository(private val context: Context) {
                 email     = response.email,
                 firstName = response.firstName,
                 lastName  = response.lastName,
-                major     = response.major
+                major     = response.major,
+                phoneNumber = response.phoneNumber
             )
             Result.success(response)
         } catch (e: Exception) {

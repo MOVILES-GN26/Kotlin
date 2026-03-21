@@ -62,12 +62,13 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         firstName: String,
         lastName: String,
         major: String,
-        password: String
+        password: String,
+        phoneNumber: String
     ) {
         viewModelScope.launch {
             _uiState.value = AuthUiState.Loading
             try {
-                val response = repository.register(email, firstName, lastName, major, password)
+                val response = repository.register(email, firstName, lastName, major, password, phoneNumber)
                 sessionManager.saveTokens(response.accessToken, response.refreshToken)
                 RetrofitClient.setToken(response.accessToken)
                 sessionManager.saveUser(

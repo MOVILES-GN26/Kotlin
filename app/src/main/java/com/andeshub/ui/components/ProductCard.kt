@@ -86,7 +86,7 @@ fun ProductCard(
             Text(
                 text = product.title,
                 style = MaterialTheme.typography.titleSmall,
-                color = Black,
+                color = MaterialTheme.colorScheme.onSurface,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f)
