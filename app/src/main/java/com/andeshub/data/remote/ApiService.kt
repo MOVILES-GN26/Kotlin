@@ -97,7 +97,7 @@ interface ApiService {
 
     @DELETE("posts/{id}")
     suspend fun deleteProduct(@Path("id") productId: String)
-}
+
 
     @POST("interactions/view")
     suspend fun recordInteraction(@Body request: RecordInteractionRequest): Response<Unit>

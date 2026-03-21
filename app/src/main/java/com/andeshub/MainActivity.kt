@@ -63,13 +63,13 @@ class MainActivity : ComponentActivity() {
     private fun handleNfcIntent(intent: Intent?) {
         Log.d("NFC", "handleNfcIntent: ${intent?.action}")
 
-        // Leer desde EXTRA_NDEF_MESSAGES (el más confiable con foreground dispatch)
+
         val rawMessages = intent?.getParcelableArrayExtra(NfcAdapter.EXTRA_NDEF_MESSAGES)
         if (!rawMessages.isNullOrEmpty()) {
             try {
                 val message = rawMessages[0] as NdefMessage
                 val payload = message.records.firstOrNull()?.payload ?: return
-                // MIME type records: payload es directamente el contenido sin metadata
+
                 val content = String(payload, Charsets.UTF_8)
                 Log.d("NFC", "payload raw: $content")
                 parseCredentials(content)
@@ -79,7 +79,7 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-        // Fallback: leer desde el Tag directamente
+
         val tag = intent?.getParcelableExtra<Tag>(NfcAdapter.EXTRA_TAG) ?: return
         val ndef = Ndef.get(tag) ?: return
 
@@ -100,7 +100,7 @@ class MainActivity : ComponentActivity() {
         val parts = content.split(":")
         if (parts.size >= 2) {
             val email = parts[0].trim()
-            val password = parts.drop(1).joinToString(":").trim() // por si el password tiene ':'
+            val password = parts.drop(1).joinToString(":").trim()
             Log.d("NFC", "email: $email, password: $password")
             _nfcCredentials.value = Pair(email, password)
         } else {
