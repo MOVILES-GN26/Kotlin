@@ -14,6 +14,7 @@ data class EditProfileUiState(
     val firstName: String = "",
     val lastName: String = "",
     val major: String = "",
+    val phoneNumber: String = "",
     val avatarUrl: String? = null,
     val isSaving: Boolean = false,
     val saveSuccess: Boolean = false,
@@ -36,8 +37,13 @@ class EditProfileViewModel(application: Application) : AndroidViewModel(applicat
         _uiState.value = _uiState.value.copy(
             firstName = sessionManager.getUserFirstName() ?: "",
             lastName  = sessionManager.getUserLastName()  ?: "",
-            major     = sessionManager.getUserMajor()     ?: ""
+            major     = sessionManager.getUserMajor()     ?: "",
+            phoneNumber = sessionManager.getUserPhone()     ?: ""
         )
+    }
+
+    fun onPhoneNumberChange(value: String) {
+        _uiState.value = _uiState.value.copy(phoneNumber = value, errorMessage = null)
     }
 
     fun onFirstNameChange(value: String) {
@@ -60,6 +66,7 @@ class EditProfileViewModel(application: Application) : AndroidViewModel(applicat
                 firstName = _uiState.value.firstName.takeIf { it.isNotBlank() },
                 lastName  = _uiState.value.lastName.takeIf { it.isNotBlank() },
                 major     = _uiState.value.major.takeIf { it.isNotBlank() },
+                phoneNumber = _uiState.value.phoneNumber.takeIf { it.isNotBlank() },
                 password  = password?.takeIf { it.isNotBlank() }
             ).onSuccess {
                 _uiState.value = _uiState.value.copy(isSaving = false, saveSuccess = true)

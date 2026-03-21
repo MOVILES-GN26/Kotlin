@@ -18,7 +18,8 @@ class AuthRepository {
         firstName: String,
         lastName: String,
         major: String,
-        password: String
+        password: String,
+        phoneNumber: String
     ): AuthResponse {
         return authService.register(
             RegisterRequest(
@@ -26,7 +27,8 @@ class AuthRepository {
                 firstName = firstName,
                 lastName = lastName,
                 major = major,
-                password = password
+                password = password,
+                phoneNumber = phoneNumber
             )
         )
     }

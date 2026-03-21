@@ -8,6 +8,7 @@ data class UserResponse(
     @SerializedName("first_name") val firstName: String,
     @SerializedName("last_name") val lastName: String,
     val major: String,
+    @SerializedName("phone_number") val phoneNumber: String? = null,
     @SerializedName("avatar_url") val avatarUrl: String? = null
 )
 
@@ -27,13 +28,15 @@ data class RegisterRequest(
     @SerializedName("first_name") val firstName: String,
     @SerializedName("last_name") val lastName: String,
     val major: String,
-    val password: String
+    val password: String,
+    @SerializedName("phone_number") val phoneNumber: String
 )
 
 data class UpdateProfileRequest(
     @SerializedName("first_name") val firstName: String? = null,
     @SerializedName("last_name") val lastName: String? = null,
     val major: String? = null,
+    @SerializedName("phone_number") val phoneNumber: String? = null,
     val password: String? = null
 )
 

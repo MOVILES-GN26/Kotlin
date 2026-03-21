@@ -54,13 +54,14 @@ class SessionManager(context: Context) {
 
     fun isOnboardingCompleted(): Boolean = prefs.getBoolean("onboarding_completed", false)
 
-    fun saveUser(id: String, email: String, firstName: String, lastName: String, major: String) {
+    fun saveUser(id: String, email: String, firstName: String, lastName: String, major: String, phoneNumber: String? = null) {
         prefs.edit {
             putString("user_id", id)
             putString("user_email", email)
             putString("user_first_name", firstName)
             putString("user_last_name", lastName)
             putString("user_major", major)
+            phoneNumber?.let { putString("user_phone", it) }
         }
     }
 
@@ -69,4 +70,5 @@ class SessionManager(context: Context) {
     fun getUserLastName(): String? = prefs.getString("user_last_name", null)
     fun getUserMajor(): String? = prefs.getString("user_major", null)
     fun getUserId(): String? = prefs.getString("user_id", null)
+    fun getUserPhone(): String? = prefs.getString("user_phone", null)
 }

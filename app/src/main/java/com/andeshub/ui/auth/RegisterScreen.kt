@@ -49,6 +49,7 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import com.andeshub.data.ALLOWED_MAJORS
 import androidx.compose.material3.ExperimentalMaterial3Api
 import com.andeshub.data.*
+import androidx.compose.foundation.layout.width
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -69,6 +70,8 @@ fun RegisterScreen(
     var emailError by remember { mutableStateOf<String?>(null) }
     var majorError by remember { mutableStateOf<String?>(null) }
     var passwordError by remember { mutableStateOf<String?>(null) }
+    var phoneNumber by remember { mutableStateOf("") }
+    var phoneError by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(uiState) {
         when (uiState) {
@@ -210,6 +213,37 @@ fun RegisterScreen(
             modifier = Modifier.padding(top = 4.dp, start = 4.dp)
         )
         Spacer(modifier = Modifier.height(12.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.Top
+        ) {
+            Box(
+                modifier = Modifier
+                    .height(56.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(MaterialTheme.colorScheme.surface)
+                    .padding(horizontal = 12.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "+57",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+            }
+            Spacer(modifier = Modifier.width(8.dp))
+            Box(modifier = Modifier.weight(1f)) {
+                InputField(
+                    value = phoneNumber,
+                    onValueChange = { phoneNumber = it },
+                    placeholder = "Phone Number Ej. 3101234567",
+                    keyboardType = KeyboardType.Phone,
+                    errorMessage = phoneError
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
 
         InputField(
             value = password,
@@ -227,13 +261,16 @@ fun RegisterScreen(
                 emailError = validateEmail(email)
                 majorError = validateMajor(major)
                 passwordError = validatePassword(password)
+                phoneError = if (phoneNumber.isBlank()) "Phone number is required"
+                else if (!phoneNumber.matches(Regex("\\d{7,20}"))) "Only digits, 7-20 characters"
+                else null
 
                 if (fullNameError == null && emailError == null &&
-                    majorError == null && passwordError == null) {
+                    majorError == null && passwordError == null && phoneError == null) {
                     val nameParts = fullName.trim().split(" ")
                     val firstName = nameParts.firstOrNull() ?: ""
                     val lastName = nameParts.drop(1).joinToString(" ")
-                    viewModel.register(email, firstName, lastName, major, password)
+                    viewModel.register(email, firstName, lastName, major, password, phoneNumber)
                 }
             },
             modifier = Modifier

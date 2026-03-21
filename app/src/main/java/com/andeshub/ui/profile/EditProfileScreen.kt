@@ -18,6 +18,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
@@ -108,7 +109,6 @@ fun EditProfileScreen(
                     )
                 }
 
-                // Overlay de cámara
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
@@ -157,7 +157,7 @@ fun EditProfileScreen(
                 placeholder = "Enter your last name"
             )
 
-            // Major dropdown
+
             ExposedDropdownMenuBox(
                 expanded = majorExpanded,
                 onExpandedChange = { majorExpanded = it }
@@ -194,6 +194,34 @@ fun EditProfileScreen(
                             )
                         }
                     }
+                }
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.Top
+            ) {
+                Box(
+                    modifier = Modifier
+                        .height(56.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(MaterialTheme.colorScheme.surface)
+                        .padding(horizontal = 12.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "+57",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
+                }
+                Spacer(modifier = Modifier.width(8.dp))
+                Box(modifier = Modifier.weight(1f)) {
+                    InputField(
+                        value = uiState.phoneNumber,
+                        onValueChange = { viewModel.onPhoneNumberChange(it) },
+                        placeholder = "3001234567",
+                        keyboardType = KeyboardType.Phone
+                    )
                 }
             }
 
