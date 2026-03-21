@@ -10,19 +10,29 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.andeshub.data.model.Product
 import com.andeshub.data.model.UserProfile
@@ -34,6 +44,25 @@ fun ProductDetailScreen(
     product: Product,
     onBackClick: () -> Unit = {}
 ) {
+    val context = LocalContext.current
+    val productViewModel: ProductViewModel = viewModel(
+        factory = object : ViewModelProvider.Factory {
+            override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                return ProductViewModel(context) as T
+            }
+        }
+    )
+
+    val stats by productViewModel.productStats.collectAsState()
+    val isFavorited by productViewModel.isFavorited.collectAsState()
+    val favoritesCount by productViewModel.favoritesCount.collectAsState()
+
+    LaunchedEffect(product.id) {
+        productViewModel.recordProductView(product)
+        productViewModel.checkIfFavorited(product.id)
+        productViewModel.loadFavoritesCount(product.id)
+    }
+
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
@@ -111,7 +140,7 @@ fun ProductDetailScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(300.dp)
-                    .background(Color(0xFFD9E8B6))  // ← intencional, placeholder
+                    .background(Color(0xFFD9E8B6))
             ) {
                 if (product.image_urls.isNotEmpty()) {
                     AsyncImage(
@@ -128,13 +157,37 @@ fun ProductDetailScreen(
                             .align(Alignment.BottomEnd)
                             .background(Color(0xFF6DA025).copy(alpha = 0.8f))
                     )
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth(0.8f)
-                            .height(100.dp)
-                            .align(Alignment.Center)
-                            .background(Color(0xFF5D5438).copy(alpha = 0.7f))
-                    )
+                }
+
+                // Vistas para el dueño
+                if (productViewModel.isOwner(product)) {
+                    stats?.let { statsData ->
+                        Surface(
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                .padding(16.dp),
+                            color = Color.Black.copy(alpha = 0.6f),
+                            shape = RoundedCornerShape(16.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Visibility,
+                                    contentDescription = null,
+                                    tint = Color.White,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "${statsData.views} views",
+                                    color = Color.White,
+                                    style = Typography.labelMedium
+                                )
+                            }
+                        }
+                    }
                 }
             }
 
@@ -143,17 +196,61 @@ fun ProductDetailScreen(
                     .fillMaxWidth()
                     .padding(24.dp)
             ) {
-                Text(
-                    text = product.title,
-                    style = Typography.headlineLarge,
-                    color = MaterialTheme.colorScheme.onBackground
-                )
-                Text(
-                    text = "$${product.price.toInt()}",
-                    style = Typography.titleLarge,
-                    color = MaterialTheme.colorScheme.secondary,
-                    modifier = Modifier.padding(top = 4.dp)
-                )
+                // Título + precio + corazón
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.Top
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = product.title,
+                            style = Typography.headlineLarge,
+                            color = MaterialTheme.colorScheme.onBackground
+                        )
+                        Text(
+                            text = "$${product.price.toInt()}",
+                            style = Typography.titleLarge,
+                            color = MaterialTheme.colorScheme.secondary,
+                            modifier = Modifier.padding(top = 4.dp)
+                        )
+                    }
+
+                    // Botón corazón para no dueños, contador para el dueño
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier.padding(top = 4.dp)
+                    ) {
+                        if (!productViewModel.isOwner(product)) {
+                            IconButton(onClick = { productViewModel.toggleFavorite(product.id) }) {
+                                Icon(
+                                    imageVector = if (isFavorited) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                                    contentDescription = "Favorite",
+                                    tint = if (isFavorited) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary,
+                                    modifier = Modifier.size(28.dp)
+                                )
+                            }
+                            Text(
+                                text = "$favoritesCount",
+                                style = Typography.labelSmall,
+                                color = MaterialTheme.colorScheme.secondary
+                            )
+                        } else {
+                            // El dueño ve el contador de favoritos
+                            Icon(
+                                imageVector = Icons.Default.Favorite,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.secondary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Text(
+                                text = "$favoritesCount saved",
+                                style = Typography.labelSmall,
+                                color = MaterialTheme.colorScheme.secondary
+                            )
+                        }
+                    }
+                }
 
                 Spacer(modifier = Modifier.height(24.dp))
 
@@ -180,7 +277,6 @@ fun ProductDetailScreen(
                                 color = MaterialTheme.colorScheme.secondary
                             )
                         }
-
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier.padding(top = 8.dp)

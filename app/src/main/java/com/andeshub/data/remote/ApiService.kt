@@ -1,9 +1,11 @@
 package com.andeshub.data.remote
 
-import ProductsResponse
+import com.andeshub.data.model.FavoritesCount
 import com.andeshub.data.model.Product
 import com.andeshub.data.model.Store
 import com.andeshub.data.model.TrendingCategory
+import com.andeshub.data.model.RecordInteractionRequest
+import com.andeshub.data.model.ProductStats
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
 import retrofit2.http.GET
@@ -58,10 +60,10 @@ interface ApiService {
     suspend fun getFavorites(): List<Product>
 
     @POST("users/me/favorites/{productId}")
-    suspend fun addFavorite(@Path("productId") productId: String)
+    suspend fun addFavorite(@Path("productId") productId: String): Response<Unit>
 
     @DELETE("users/me/favorites/{productId}")
-    suspend fun removeFavorite(@Path("productId") productId: String)
+    suspend fun removeFavorite(@Path("productId") productId: String): Response<Unit>
 
     @GET("products")
     suspend fun getProducts(
@@ -97,4 +99,12 @@ interface ApiService {
     suspend fun deleteProduct(@Path("id") productId: String)
 }
 
+    @POST("interactions/view")
+    suspend fun recordInteraction(@Body request: RecordInteractionRequest): Response<Unit>
 
+    @GET("interactions/product/{id}/stats")
+    suspend fun getProductStats(@Path("id") productId: String): ProductStats
+
+    @GET("products/{id}/favorites/count")
+    suspend fun getFavoritesCount(@Path("id") productId: String): FavoritesCount
+}

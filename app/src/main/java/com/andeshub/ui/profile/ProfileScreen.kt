@@ -43,7 +43,6 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.layout.ContentScale
 import coil.compose.AsyncImage
 import androidx.compose.foundation.clickable
@@ -312,9 +311,10 @@ fun ProfileScreen(
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    items(uiState.listings) { listing ->   // ← desde uiState
+                    items(uiState.listings) { listing ->
                         ProductCard(
                             product = listing,
+                            stats = uiState.productStats[listing.id],
                             onClick = { onListingClick(listing) }
                         )
                     }
