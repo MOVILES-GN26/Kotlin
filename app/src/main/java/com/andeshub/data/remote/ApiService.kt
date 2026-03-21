@@ -25,6 +25,10 @@ data class ProductsResponse(
     val items: List<Product>? = emptyList()
 )
 
+data class WhatsAppContactResponse(
+    val url: String
+)
+
 interface ApiService {
 
     @Multipart
@@ -107,4 +111,10 @@ interface ApiService {
 
     @GET("products/{id}/favorites/count")
     suspend fun getFavoritesCount(@Path("id") productId: String): FavoritesCount
+
+    @GET("products/{id}/contact-whatsapp")
+    suspend fun getWhatsAppContactUrl(
+        @Path("id") productId: String,
+        @Query("redirect") redirect: String = "false"
+    ): WhatsAppContactResponse
 }
