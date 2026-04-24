@@ -20,7 +20,9 @@ data class AuthResponse(
 
 data class LoginRequest(
     val email: String,
-    val password: String
+    val password: String,
+    @SerializedName("login_type") val loginType: String = "email_password"
+
 )
 
 data class RegisterRequest(
