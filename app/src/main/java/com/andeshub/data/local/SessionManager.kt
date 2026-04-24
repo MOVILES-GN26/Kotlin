@@ -44,7 +44,6 @@ class SessionManager(context: Context) {
             remove("user_last_name")
             remove("user_major")
             remove("user_phone")
-            // No borramos biometric_enabled para que sepa que este dispositivo lo soporta
         }
     }
 
@@ -73,10 +72,4 @@ class SessionManager(context: Context) {
     fun getUserMajor(): String? = prefs.getString("user_major", null)
     fun getUserId(): String? = prefs.getString("user_id", null)
     fun getUserPhone(): String? = prefs.getString("user_phone", null)
-
-    fun setBiometricEnabled(enabled: Boolean) {
-        prefs.edit { putBoolean("biometric_enabled", enabled) }
-    }
-
-    fun isBiometricEnabled(): Boolean = prefs.getBoolean("biometric_enabled", false)
 }

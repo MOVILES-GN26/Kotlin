@@ -21,8 +21,8 @@ sealed class AuthUiState {
 
 class AuthViewModel(application: Application) : AndroidViewModel(application) {
 
-    private val repository = AuthRepository()
     private val sessionManager = SessionManager(application)
+    private val repository = AuthRepository(sessionManager)
 
     private val _uiState = MutableStateFlow<AuthUiState>(AuthUiState.Idle)
     val uiState: StateFlow<AuthUiState> = _uiState
