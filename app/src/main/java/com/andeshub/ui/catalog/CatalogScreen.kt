@@ -35,6 +35,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.andeshub.data.getRecommendedCategories
 import com.andeshub.data.local.SessionManager
 import com.andeshub.data.model.Product
+import com.andeshub.data.remote.RetrofitClient
 import com.andeshub.ui.components.SearchBar
 import com.andeshub.ui.product.ProductUiState
 import com.andeshub.ui.product.ProductViewModel
@@ -487,8 +488,18 @@ fun CatalogProductItem(product: Product, onClick: () -> Unit) {
                 .background(Color(0xFFD9E8B6))
         ) {
             if (product.image_urls.isNotEmpty()) {
+                val baseUrl = RetrofitClient.getBaseUrl().removeSuffix("/")
+                val hostPort = baseUrl.split("//").last()
+                val rawUrl = product.image_urls.first()
+                
+                val imageUrl = rawUrl
+                    .replace("localhost:3000", hostPort)
+                    .replace("127.0.0.1:3000", hostPort)
+                    .replace("157.253.225.221:3000", hostPort)
+                    .replace("localhost", hostPort.split(":").first())
+
                 coil.compose.AsyncImage(
-                    model = product.image_urls.first().replace("localhost", "10.0.2.2"),
+                    model = imageUrl,
                     contentDescription = product.title,
                     modifier = Modifier.fillMaxSize(),
                     contentScale = androidx.compose.ui.layout.ContentScale.Crop
