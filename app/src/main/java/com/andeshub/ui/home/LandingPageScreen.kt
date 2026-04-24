@@ -23,12 +23,12 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.andeshub.R
+import com.andeshub.data.model.Product
 import com.andeshub.ui.components.Category
 import com.andeshub.ui.components.CategoryChip
 import com.andeshub.ui.components.ProductCard
 import com.andeshub.ui.components.SearchBar
 import com.andeshub.ui.theme.*
-import com.andeshub.data.model.Product
 
 @Composable
 fun LandingPageScreen(
@@ -38,9 +38,11 @@ fun LandingPageScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
     val selectedCategory by viewModel.selectedCategory.collectAsStateWithLifecycle()
+    val viewedTimestamps by viewModel.viewedTimestamps.collectAsStateWithLifecycle()
 
     LaunchedEffect(Unit) {
         viewModel.loadData()
+        viewModel.loadViewedTimestamps()
     }
 
     // LazyVerticalGrid no puede tener contenido scrollable dentro de Column,
@@ -241,6 +243,7 @@ fun LandingPageScreen(
                         Box(modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)) {
                             ProductCard(
                                 product = product,
+                                showStats = false, // Mantenemos tu cambio de ocultar stats en catálogo
                                 onClick = { onProductClick(product) }
                             )
                         }
@@ -270,7 +273,7 @@ fun getIconForCategory(category: String): ImageVector {
 
 @Preview(showBackground = true)
 @Composable
-fun LandingPageScreenPreview() {
+fun LandingPagePreview() {
     AndesHubTheme {
         LandingPageScreen()
     }
