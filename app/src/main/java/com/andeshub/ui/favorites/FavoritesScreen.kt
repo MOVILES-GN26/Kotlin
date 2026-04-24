@@ -23,9 +23,9 @@ fun FavoritesScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
-    LaunchedEffect(Unit) {
+    """LaunchedEffect(Unit) {
         viewModel.getFavorites()
-    }
+    }"""
     Column(
         modifier = Modifier
             .fillMaxSize()
