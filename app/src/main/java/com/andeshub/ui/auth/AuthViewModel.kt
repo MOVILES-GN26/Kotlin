@@ -12,6 +12,7 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import com.andeshub.data.local.SessionManager
 import com.andeshub.data.remote.RetrofitClient
+import com.andeshub.data.model.UserResponse
 
 sealed class AuthUiState {
     object Idle : AuthUiState()
@@ -45,6 +46,10 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                     major = response.user.major,
                     phoneNumber = response.user.phoneNumber
                 )
+
+                // Habilitamos biometría para la próxima vez tras un login exitoso
+                sessionManager.setBiometricEnabled(true)
+
                 _uiState.value = AuthUiState.Success(response)
             } catch (e: retrofit2.HttpException) {
                 val errorBody = e.response()?.errorBody()?.string()
@@ -56,6 +61,27 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
             } catch (e: Exception) {
                 _uiState.value = AuthUiState.Error("Connection error. Check your network.")
             }
+        }
+    }
+
+    fun loginWithBiometric() {
+        if (sessionManager.isLoggedIn()) {
+            _uiState.value = AuthUiState.Success(
+                AuthResponse(
+                    accessToken = sessionManager.getAccessToken() ?: "",
+                    refreshToken = sessionManager.getRefreshToken() ?: "",
+                    user = UserResponse(
+                        id = sessionManager.getUserId() ?: "",
+                        email = sessionManager.getUserEmail() ?: "",
+                        firstName = sessionManager.getUserFirstName() ?: "",
+                        lastName = sessionManager.getUserLastName() ?: "",
+                        major = sessionManager.getUserMajor() ?: "",
+                        phoneNumber = sessionManager.getUserPhone()
+                    )
+                )
+            )
+        } else {
+            _uiState.value = AuthUiState.Error("Please login with password first")
         }
     }
 
@@ -83,16 +109,17 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                     major = response.user.major,
                     phoneNumber = response.user.phoneNumber
                 )
+                android.util.Log.d("AuthViewModel", "Success: ${response.user.email}")
                 _uiState.value = AuthUiState.Success(response)
             } catch (e: retrofit2.HttpException) {
                 val errorBody = e.response()?.errorBody()?.string()
                 val message = try {
                     val json = org.json.JSONObject(errorBody ?: "")
                     json.optString("message", "This email is already registered.")
-                } catch (_: Exception) { "This email is already registered." }
+                } catch (_: Exception) {
+                    "This email is already registered."
+                }
                 _uiState.value = AuthUiState.Error(message)
-            } catch (e: Exception) {
-                _uiState.value = AuthUiState.Error("Connection error. Check your network.")
             }
         }
     }
@@ -123,4 +150,5 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun isLoggedIn(): Boolean = sessionManager.isLoggedIn()
+    fun isBiometricEnabled(): Boolean = sessionManager.isBiometricEnabled()
 }

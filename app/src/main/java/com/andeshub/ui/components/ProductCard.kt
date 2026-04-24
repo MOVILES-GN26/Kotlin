@@ -21,6 +21,7 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.andeshub.data.model.Product
 import com.andeshub.data.model.ProductStats
+import com.andeshub.data.remote.RetrofitClient
 import com.andeshub.ui.theme.*
 import java.text.SimpleDateFormat
 import java.util.*
@@ -45,8 +46,18 @@ fun ProductCard(
             contentAlignment = Alignment.Center
         ) {
             if (product.image_urls.isNotEmpty()) {
+                val baseUrl = RetrofitClient.getBaseUrl().removeSuffix("/")
+                val hostPort = baseUrl.split("//").last()
+                val rawUrl = product.image_urls.first()
+                
+                val imageUrl = rawUrl
+                    .replace("localhost:3000", hostPort)
+                    .replace("127.0.0.1:3000", hostPort)
+                    .replace("157.253.225.221:3000", hostPort)
+                    .replace("localhost", hostPort.split(":").first())
+
                 AsyncImage(
-                    model = product.image_urls.first().replace("localhost", "10.0.2.2"),
+                    model = imageUrl,
                     contentDescription = product.title,
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize()
