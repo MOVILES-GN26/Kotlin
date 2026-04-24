@@ -11,8 +11,11 @@ import kotlinx.coroutines.withContext
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import com.andeshub.data.local.SessionManager
+import com.andeshub.data.model.CachedUser
 import com.andeshub.data.remote.RetrofitClient
 import com.andeshub.data.model.UserResponse
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 
 sealed class AuthUiState {
     object Idle : AuthUiState()
@@ -30,11 +33,16 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
     val uiState: StateFlow<AuthUiState> = _uiState
 
     fun login(email: String, password: String) {
-        viewModelScope.launch { // Main — actualiza UI
+        viewModelScope.launch { // Main
             _uiState.value = AuthUiState.Loading
             try {
-                val response = withContext(Dispatchers.IO) { // IO — llamada de red
-                    repository.login(email, password)
+                val response = withContext(Dispatchers.IO) { // IO  llamada de red
+                    coroutineScope {
+                        val loginDeferred = async { repository.login(email, password) }
+                        val cacheDeferred = async { sessionManager.getCachedUser() }
+                        cacheDeferred.await()
+                        loginDeferred.await()
+                    }
                 }
                 sessionManager.saveTokens(response.accessToken, response.refreshToken)
                 RetrofitClient.setToken(response.accessToken)
@@ -49,6 +57,16 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
 
                 // Habilitamos biometría para la próxima vez tras un login exitoso
                 sessionManager.setBiometricEnabled(true)
+                repository.cacheUser(
+                    CachedUser(
+                        id = response.user.id,
+                        email = response.user.email,
+                        firstName = response.user.firstName,
+                        lastName = response.user.lastName,
+                        major = response.user.major,
+                        phoneNumber = response.user.phoneNumber
+                    )
+                )
 
                 _uiState.value = AuthUiState.Success(response)
             } catch (e: retrofit2.HttpException) {
@@ -110,6 +128,16 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                     phoneNumber = response.user.phoneNumber
                 )
                 android.util.Log.d("AuthViewModel", "Success: ${response.user.email}")
+                repository.cacheUser(
+                    CachedUser(
+                        id = response.user.id,
+                        email = response.user.email,
+                        firstName = response.user.firstName,
+                        lastName = response.user.lastName,
+                        major = response.user.major,
+                        phoneNumber = response.user.phoneNumber
+                    )
+                )
                 _uiState.value = AuthUiState.Success(response)
             } catch (e: retrofit2.HttpException) {
                 val errorBody = e.response()?.errorBody()?.string()
@@ -129,7 +157,12 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
             _uiState.value = AuthUiState.Loading
             try {
                 val response = withContext(Dispatchers.IO) { // IO — llamada de red
-                    repository.nfcLogin(userId)
+                    coroutineScope {
+                        val loginDeferred = async { repository.nfcLogin(userId) }
+                        val cacheDeferred = async { sessionManager.getCachedUser() }
+                        cacheDeferred.await()
+                        loginDeferred.await()
+                    }
                 }
                 sessionManager.saveTokens(response.accessToken, response.refreshToken)
                 RetrofitClient.setToken(response.accessToken)
@@ -141,10 +174,40 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                     major = response.user.major,
                     phoneNumber = response.user.phoneNumber
                 )
+                repository.cacheUser(
+                    CachedUser(
+                        id = response.user.id,
+                        email = response.user.email,
+                        firstName = response.user.firstName,
+                        lastName = response.user.lastName,
+                        major = response.user.major,
+                        phoneNumber = response.user.phoneNumber
+                    )
+                )
                 _uiState.value = AuthUiState.Success(response)
             } catch (e: Exception) {
-                android.util.Log.e("AuthViewModel", "NFC Error: ${e.message}")
-                _uiState.value = AuthUiState.Error("NFC login failed: ${e.message}")
+                // Eventual connectivity — si falla la red, usar cache local
+                val cached = sessionManager.getCachedUser()
+                if (cached != null && sessionManager.isLoggedIn()) {
+                    android.util.Log.d("AuthViewModel", "Sin red — usando usuario cacheado: ${cached.email}")
+                    _uiState.value = AuthUiState.Success(
+                        AuthResponse(
+                            accessToken = sessionManager.getAccessToken() ?: "",
+                            refreshToken = sessionManager.getRefreshToken() ?: "",
+                            user = UserResponse(
+                                id = cached.id,
+                                email = cached.email,
+                                firstName = cached.firstName,
+                                lastName = cached.lastName,
+                                major = cached.major,
+                                phoneNumber = cached.phoneNumber
+                            )
+                        )
+                    )
+                } else {
+                    android.util.Log.e("AuthViewModel", "NFC Error: ${e.message}")
+                    _uiState.value = AuthUiState.Error("NFC login failed: ${e.message}")
+                }
             }
         }
     }
