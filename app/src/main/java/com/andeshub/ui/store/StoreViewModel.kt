@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.andeshub.data.local.StoreLogger
 import com.andeshub.data.model.Store
 import com.andeshub.data.repository.StoreRepository
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -17,7 +18,7 @@ sealed class StoreUiState {
     data class Error(val message: String) : StoreUiState()
 }
 
-class StoreViewModel(context: Context) : ViewModel() {
+class StoreViewModel(private val context: Context) : ViewModel() {
 
     private val repository = StoreRepository(context)
 
@@ -34,9 +35,12 @@ class StoreViewModel(context: Context) : ViewModel() {
             _uiState.value = StoreUiState.Loading
             try {
                 val store = repository.createStore(name, description, category, logoUri)
+
+                // Guarda el log local
+                StoreLogger.logCreatedStore(context, store)
+
                 _uiState.value = StoreUiState.Success(store)
             } catch (e: Exception) {
-                android.util.Log.e("StoreViewModel", "Error completo: ${e.message} ${e.cause}")
                 _uiState.value = StoreUiState.Error(e.message ?: "Error desconocido")
             }
         }
