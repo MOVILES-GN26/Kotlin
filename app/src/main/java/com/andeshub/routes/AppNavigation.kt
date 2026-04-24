@@ -37,6 +37,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import androidx.compose.runtime.collectAsState
 import com.andeshub.MainActivity
+import com.andeshub.ui.product.CheckoutScreen
 
 @Composable
 fun AppNavigation(nfcCredentials: StateFlow<Pair<String, String>?> = MutableStateFlow(null)) {
@@ -67,7 +68,8 @@ fun AppNavigation(nfcCredentials: StateFlow<Pair<String, String>?> = MutableStat
                 currentRoute != AppDestinations.Login.route &&
                 currentRoute != AppDestinations.Register.route &&
                 currentRoute != AppDestinations.Onboarding.route &&
-                !currentRoute.startsWith("product_detail")) {
+                !currentRoute.startsWith("product_detail") &&
+                !currentRoute.startsWith("checkout")) {
                 AndesBottomNavBar(navController = navController)
             }
         }
@@ -157,7 +159,30 @@ fun AppNavigation(nfcCredentials: StateFlow<Pair<String, String>?> = MutableStat
                 if (product != null) {
                     ProductDetailScreen(
                         product = product,
-                        onBackClick = { navController.popBackStack() }
+                        onBackClick = { navController.popBackStack() },
+                        onBuyClick = { selectedProduct ->
+                            val route = AppDestinations.Checkout.createRoute(selectedProduct.id)
+                            navController.navigate(route)
+                            navController.getBackStackEntry(route).savedStateHandle["product"] = selectedProduct
+                        }
+                    )
+                } else {
+                    LaunchedEffect(Unit) { navController.popBackStack() }
+                }
+            }
+            composable(
+                route = AppDestinations.Checkout.route,
+                arguments = listOf(navArgument("productId") { type = NavType.StringType })
+            ) { backStackEntry ->
+                val product = backStackEntry.savedStateHandle.get<Product>("product")
+                if (product != null) {
+                    CheckoutScreen(
+                        product = product,
+                        onBackClick = { navController.popBackStack() },
+                        onSubmitProof = { uri ->
+                            // Here you would handle the submission to the server
+                            navController.popBackStack(AppDestinations.Home.route, false)
+                        }
                     )
                 } else {
                     LaunchedEffect(Unit) { navController.popBackStack() }

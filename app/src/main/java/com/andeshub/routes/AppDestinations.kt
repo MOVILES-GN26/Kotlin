@@ -22,4 +22,8 @@ sealed class AppDestinations(val route: String) {
     object Settings : AppDestinations("settings")
 
     object EditProfile : AppDestinations("edit_profile")
+
+    object Checkout : AppDestinations("checkout/{productId}") {
+        fun createRoute(productId: String) = "checkout/$productId"
+    }
 }
