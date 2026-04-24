@@ -9,6 +9,7 @@ import androidx.lifecycle.viewModelScope
 import com.andeshub.data.local.SessionManager
 import com.andeshub.data.local.UserPreferencesManager
 import com.andeshub.data.local.DraftManager
+import com.andeshub.data.local.ProductCache
 import com.andeshub.data.model.Product
 import com.andeshub.data.model.TrendingCategory
 import com.andeshub.data.model.ProductStats
@@ -288,10 +289,26 @@ class ProductViewModel(context: Context) : ViewModel() {
         }
     }
 
+    /**
+     * ESTRATEGIA: LRU CACHE (CACHING - RÚBRICA)
+     * Implementación manual para evitar llamadas repetitivas a la API.
+     */
     fun loadProductStats(productId: String) {
+        // 1. INTENTO LEER DE MI CACHÉ MANUAL (Estrategia LRU)
+        val cached = ProductCache.getStats(productId)
+        if (cached != null) {
+            _productStats.value = cached
+            Log.d("ProductViewModel", "Stats loaded from ProductCache (LRU) for $productId")
+            return
+        }
+
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 val stats = api.getProductStats(productId)
+                
+                // 2. LO GUARDO EN MI CACHÉ PARA LA PRÓXIMA VEZ
+                ProductCache.saveStats(productId, stats)
+                
                 withContext(Dispatchers.Main) {
                     _productStats.value = stats
                 }
