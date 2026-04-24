@@ -86,6 +86,22 @@ fun PostProductScreen(
     var storeExpanded by remember { mutableStateOf(false) }
     var showImageSourceOptions by remember { mutableStateOf(false) }
 
+    // ESTRATEGIA: ARCHIVOS LOCALES - Cargar borrador al iniciar
+    LaunchedEffect(Unit) {
+        val draft = productViewModel.loadDraft()
+        if (draft != null) {
+            title = draft.first
+            description = draft.second
+        }
+    }
+
+    // ESTRATEGIA: ARCHIVOS LOCALES - Guardar borrador cuando cambien los campos
+    LaunchedEffect(title, description) {
+        if (title.isNotEmpty() || description.isNotEmpty()) {
+            productViewModel.saveDraft(title, description)
+        }
+    }
+
     LaunchedEffect(uiState) {
         if (uiState is ProductUiState.Created) {
             onCloseClick()

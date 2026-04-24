@@ -35,6 +35,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.andeshub.data.getRecommendedCategories
 import com.andeshub.data.local.SessionManager
+import com.andeshub.data.local.UserPreferencesManager
 import com.andeshub.data.model.Product
 import com.andeshub.data.remote.RetrofitClient
 import com.andeshub.ui.components.SearchBar
@@ -57,11 +58,15 @@ fun CatalogScreen(
         }
     )
 
+    // ESTRATEGIA: PREFERENCES (5 pts)
+    val userPrefs = remember { UserPreferencesManager(context) }
+    
     val uiState by productViewModel.uiState.collectAsStateWithLifecycle()
     val viewedTimestamps by productViewModel.viewedTimestamps.collectAsStateWithLifecycle()
 
     var searchQuery by remember { mutableStateOf("") }
-    var selectedCategory by remember { mutableStateOf<String?>(null) }
+    // Cargamos la última categoría persistida al iniciar
+    var selectedCategory by remember { mutableStateOf<String?>(userPrefs.getLastCategory()) }
     var selectedCondition by remember { mutableStateOf<String?>(null) }
     var selectedSort by remember { mutableStateOf<String?>(null) }
 
@@ -71,6 +76,9 @@ fun CatalogScreen(
     var sheetType by remember { mutableStateOf("all") }
 
     LaunchedEffect(searchQuery, selectedCategory, selectedCondition, selectedSort) {
+        // Persistimos la categoría cada vez que cambie
+        userPrefs.saveLastCategory(selectedCategory)
+
         productViewModel.getProducts(
             search = searchQuery.ifEmpty { null },
             category = selectedCategory,

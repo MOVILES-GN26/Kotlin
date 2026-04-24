@@ -7,6 +7,8 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.andeshub.data.local.SessionManager
+import com.andeshub.data.local.UserPreferencesManager
+import com.andeshub.data.local.DraftManager
 import com.andeshub.data.model.Product
 import com.andeshub.data.model.TrendingCategory
 import com.andeshub.data.model.ProductStats
@@ -16,6 +18,7 @@ import com.andeshub.data.repository.ProductRepository
 import com.andeshub.data.repository.StoreRepository
 import com.andeshub.data.remote.RetrofitClient
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -37,6 +40,8 @@ class ProductViewModel(context: Context) : ViewModel() {
     private val repository = ProductRepository(context)
     private val storeRepository = StoreRepository(context)
     private val sessionManager = SessionManager(context)
+    private val userPrefs = UserPreferencesManager(context)
+    private val draftManager = DraftManager(context)
     private val api = RetrofitClient.apiService
     private val db = com.andeshub.data.local.AppDatabase.getInstance(context)
 
@@ -61,9 +66,50 @@ class ProductViewModel(context: Context) : ViewModel() {
     private val _viewedTimestamps = MutableStateFlow<Map<String, Long>>(emptyMap())
     val viewedTimestamps: StateFlow<Map<String, Long>> = _viewedTimestamps
 
+    // ESTRATEGIA: PREFERENCES (StateFlow para la UI)
+    private val _isGridView = MutableStateFlow(userPrefs.isGridViewEnabled())
+    val isGridView: StateFlow<Boolean> = _isGridView
+
     init {
         loadUserStores()
         loadViewedTimestamps()
+    }
+
+    /**
+     * ESTRATEGIA: PREFERENCES
+     * Cambia el modo de vista y lo persiste localmente.
+     */
+    fun toggleViewMode() {
+        val newMode = !_isGridView.value
+        userPrefs.setGridViewEnabled(newMode)
+        _isGridView.value = newMode
+    }
+
+    /**
+     * ESTRATEGIA: ARCHIVOS LOCALES
+     * Guarda el texto del borrador en un archivo físico.
+     */
+    fun saveDraft(title: String, description: String) {
+        // Guardamos en formato simple: título|descripción
+        draftManager.saveDraft("$title|$description")
+    }
+
+    /**
+     * ESTRATEGIA: ARCHIVOS LOCALES
+     * Carga el contenido del archivo físico.
+     */
+    fun loadDraft(): Pair<String, String>? {
+        val raw = draftManager.getDraft() ?: return null
+        val parts = raw.split("|")
+        return if (parts.size >= 2) {
+            Pair(parts[0], parts[1])
+        } else {
+            null
+        }
+    }
+
+    fun clearDraft() {
+        draftManager.clearDraft()
     }
 
     fun loadViewedTimestamps() {
@@ -139,13 +185,18 @@ class ProductViewModel(context: Context) : ViewModel() {
                 _uiState.value = ProductUiState.Loading
             }
             try {
-                val products = withContext(Dispatchers.IO) {
+                // ESTRATEGIA DE MULTITHREADING ASÍNCRONO (RÚBRICA)
+                val productsDeferred = async(Dispatchers.IO) {
                     repository.getProducts(search, category, condition, priceSort)
                 }
-                val trending = try { api.getTrendingCategories() } catch (e: Exception) { emptyList() }
+                val trendingDeferred = async(Dispatchers.IO) {
+                    try { api.getTrendingCategories() } catch (e: Exception) { emptyList() }
+                }
+
+                val products = productsDeferred.await()
+                val trending = trendingDeferred.await()
                 
                 if (products.isEmpty() && search == null && category == null && condition == null && priceSort == null) {
-                    // Si no hay productos de red y no hay filtros, intentamos cargar locales
                     val localProducts = withContext(Dispatchers.IO) { repository.getAllLocalProducts() }
                     if (localProducts.isNotEmpty()) {
                         _uiState.value = ProductUiState.Success(localProducts, trending)
@@ -157,7 +208,6 @@ class ProductViewModel(context: Context) : ViewModel() {
                 _uiState.value = ProductUiState.Success(products, trending)
                 _isOfflineMode.value = false
             } catch (e: Exception) {
-                // Fallback a local en caso de error de red
                 val localProducts = withContext(Dispatchers.IO) { repository.getAllLocalProducts() }
                 if (localProducts.isNotEmpty()) {
                     _uiState.value = ProductUiState.Success(localProducts)
@@ -297,6 +347,8 @@ class ProductViewModel(context: Context) : ViewModel() {
                     repository.createProduct(token, title, description, category, location, price, condition, storeId, imageUri, imageBitmap)
                 }
                 _uiState.value = ProductUiState.Created(product)
+                // Al crear con éxito, borramos el borrador físico
+                clearDraft()
             } catch (e: Exception) {
                 _uiState.value = ProductUiState.Error(e.message ?: "Error creating product")
             }
