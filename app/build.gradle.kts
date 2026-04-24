@@ -2,7 +2,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.parcelize)
-    id("com.google.devtools.ksp") version "2.3.2"
+    alias(libs.plugins.ksp)
 }
 
 android {
@@ -55,9 +55,9 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.4")
     implementation("androidx.security:security-crypto:1.1.0-alpha06")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
-    implementation("androidx.room:room-runtime:2.6.1")
-    implementation("androidx.room:room-ktx:2.6.1")
-    ksp("androidx.room:room-compiler:2.6.1")
+    implementation("androidx.room:room-runtime:2.7.0-alpha11")
+    implementation("androidx.room:room-ktx:2.7.0-alpha11")
+    ksp("androidx.room:room-compiler:2.7.0-alpha11")
     
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
