@@ -32,6 +32,9 @@ class HomeViewModel : ViewModel() {
     private val _searchQuery = MutableStateFlow("")
     val searchQuery: StateFlow<String> = _searchQuery
 
+    private val _selectedCategory = MutableStateFlow<String?>(null)
+    val selectedCategory: StateFlow<String?> = _selectedCategory
+
     init {
         loadData()
     }
@@ -88,5 +91,10 @@ class HomeViewModel : ViewModel() {
                 _uiState.value = HomeUiState.Error(e.message ?: "Error desconocido")
             }
         }
+    }
+
+    fun onCategorySelected(category: String) {
+        // Si ya está seleccionada, la deselecciona (toggle)
+        _selectedCategory.value = if (_selectedCategory.value == category) null else category
     }
 }
