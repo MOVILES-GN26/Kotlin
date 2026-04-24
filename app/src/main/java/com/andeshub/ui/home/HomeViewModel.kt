@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.andeshub.data.local.AppDatabase
+import com.andeshub.data.local.HomeLruCache
 import com.andeshub.data.local.SearchPreferences
 import com.andeshub.data.model.Product
 import com.andeshub.data.model.TrendingCategory
@@ -108,16 +109,35 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             val currentState = _uiState.value
             val currentTrending = if (currentState is HomeUiState.Success) currentState.trendingCategories else emptyList()
 
-            // Guarda en historial solo si hay texto
-            if (_searchQuery.value.isNotBlank()) {
-                searchPreferences.saveSearch(_searchQuery.value)
+            val query = _searchQuery.value
+
+            // Guarda en historial DataStore
+            if (query.isNotBlank()) {
+                searchPreferences.saveSearch(query)
             }
 
+            // Revisa si ya está en el LRU
+            val cached = HomeLruCache.get(query)
+            if (cached != null) {
+                android.util.Log.d("LruCache", "Cargado desde caché: '$query'")
+                _uiState.value = HomeUiState.Success(
+                    products = cached,
+                    trendingCategories = currentTrending
+                )
+                return@launch
+            }
+
+            // Si no está en caché, llama a la API
             _uiState.value = HomeUiState.Loading
             try {
-                val response = api.getProducts(search = _searchQuery.value)
+                val response = api.getProducts(search = query)
+                val products = response.items ?: emptyList()
+
+                // Guarda en LRU para la próxima vez
+                HomeLruCache.put(query, products)
+
                 _uiState.value = HomeUiState.Success(
-                    products = response.items ?: emptyList(),
+                    products = products,
                     trendingCategories = currentTrending
                 )
             } catch (e: Exception) {
