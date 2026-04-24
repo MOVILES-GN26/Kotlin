@@ -37,6 +37,9 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private val _searchQuery = MutableStateFlow("")
     val searchQuery: StateFlow<String> = _searchQuery
 
+    private val _searchHistory = MutableStateFlow<List<String>>(emptyList())
+    val searchHistory: StateFlow<List<String>> = _searchHistory
+
     private val _viewedTimestamps = MutableStateFlow<Map<String, Long>>(emptyList<Pair<String, Long>>().toMap())
     val viewedTimestamps: StateFlow<Map<String, Long>> = _viewedTimestamps
 
@@ -44,13 +47,11 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     val selectedCategory: StateFlow<String?> = _selectedCategory
 
     init {
-        // Carga la última búsqueda guardada en DataStore
+        // Carga el historial de búsquedas desde DataStore
         viewModelScope.launch {
-            searchPreferences.lastSearch.collect { savedQuery ->
-                android.util.Log.d("DataStore", "Búsqueda cargada: $savedQuery")
-                if (savedQuery.isNotEmpty() && _searchQuery.value.isEmpty()) {
-                    _searchQuery.value = savedQuery
-                }
+            searchPreferences.searchHistory.collect { history ->
+                android.util.Log.d("DataStore", "Historial cargado: $history")
+                _searchHistory.value = history
             }
         }
         loadData()
@@ -95,6 +96,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     fun onSearchQueryChange(query: String) {
         _searchQuery.value = query
+        // Ya no guarda mientras escribe
     }
 
     fun onCategorySelected(category: String) {
@@ -106,8 +108,10 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             val currentState = _uiState.value
             val currentTrending = if (currentState is HomeUiState.Success) currentState.trendingCategories else emptyList()
 
-            // Guarda la búsqueda en DataStore antes de buscar
-            searchPreferences.saveLastSearch(_searchQuery.value)
+            // Guarda en historial solo si hay texto
+            if (_searchQuery.value.isNotBlank()) {
+                searchPreferences.saveSearch(_searchQuery.value)
+            }
 
             _uiState.value = HomeUiState.Loading
             try {
@@ -120,5 +124,10 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 _uiState.value = HomeUiState.Error(e.message ?: "Error desconocido")
             }
         }
+    }
+
+    fun selectHistoryItem(query: String) {
+        _searchQuery.value = query
+        search()
     }
 }
