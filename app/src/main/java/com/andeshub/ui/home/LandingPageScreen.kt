@@ -178,7 +178,9 @@ fun LandingPageScreen(
                 }
             }
             is HomeUiState.Success -> {
-                val products = (uiState as HomeUiState.Success).products
+                val products = (uiState as HomeUiState.Success).products.filter { product ->
+                    product.title.contains(searchQuery, ignoreCase = true) || product.description.contains(searchQuery, ignoreCase = true) || product.category.contains(searchQuery, ignoreCase = true)
+                }
                 LazyRow(
                     contentPadding = PaddingValues(horizontal = 20.dp),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
