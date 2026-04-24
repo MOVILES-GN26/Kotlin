@@ -1,6 +1,7 @@
 package com.andeshub.ui.favorites
 
-import androidx.lifecycle.ViewModel
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.andeshub.data.model.Product
 import com.andeshub.data.repository.FavoritesRepository
@@ -9,15 +10,15 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
 sealed class FavoritesUiState {
-    object Idle    : FavoritesUiState()
+    object Idle : FavoritesUiState()
     object Loading : FavoritesUiState()
     data class Success(val favorites: List<Product>) : FavoritesUiState()
     data class Error(val message: String) : FavoritesUiState()
 }
 
-class FavoritesViewModel : ViewModel() {
+class FavoritesViewModel(application: Application) : AndroidViewModel(application) {
 
-    private val repository = FavoritesRepository()
+    private val repository = FavoritesRepository(application)
 
     private val _uiState = MutableStateFlow<FavoritesUiState>(FavoritesUiState.Idle)
     val uiState: StateFlow<FavoritesUiState> = _uiState
@@ -28,27 +29,31 @@ class FavoritesViewModel : ViewModel() {
 
     fun getFavorites() {
         viewModelScope.launch {
-            val currentState = _uiState.value
-            if (currentState !is FavoritesUiState.Success) {
-                _uiState.value = FavoritesUiState.Loading
+            _uiState.value = FavoritesUiState.Loading
+
+            val localFavorites = repository.getLocalFavorites()
+
+            if (localFavorites.isNotEmpty()) {
+                _uiState.value = FavoritesUiState.Success(localFavorites)
             }
+
             try {
-                val favorites = repository.getFavorites()
-                _uiState.value = FavoritesUiState.Success(favorites)
+                val remoteFavorites = repository.syncFavorites()
+                _uiState.value = FavoritesUiState.Success(remoteFavorites)
             } catch (e: Exception) {
-                _uiState.value = FavoritesUiState.Error(e.message ?: "Error desconocido")
+                if (localFavorites.isEmpty()) {
+                    _uiState.value = FavoritesUiState.Error(
+                        e.message ?: "No se pudieron cargar los favoritos"
+                    )
+                }
             }
         }
     }
 
     fun removeFavorite(productId: String) {
         viewModelScope.launch {
-            try {
-                repository.removeFavorite(productId)
-                getFavorites() // refresca la lista
-            } catch (e: Exception) {
-                _uiState.value = FavoritesUiState.Error(e.message ?: "Error desconocido")
-            }
+            repository.removeFavorite(productId)
+            getFavorites()
         }
     }
 }

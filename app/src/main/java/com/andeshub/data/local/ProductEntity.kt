@@ -15,6 +15,8 @@ data class ProductEntity(
     val condition: String,
     val location: String,
     val imageUrl: String?,
-    val sellerId: String,
-    val createdAt: String?
+    val sellerId: String?,
+    val storeId: String?,
+    val createdAt: String?,
+    val isFavorite: Boolean = false
 )
