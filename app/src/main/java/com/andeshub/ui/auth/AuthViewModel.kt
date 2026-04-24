@@ -6,6 +6,8 @@ import com.andeshub.data.repository.AuthRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import com.andeshub.data.local.SessionManager
@@ -27,30 +29,29 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
     val uiState: StateFlow<AuthUiState> = _uiState
 
     fun login(email: String, password: String) {
-        viewModelScope.launch {
+        viewModelScope.launch { // Main — actualiza UI
             _uiState.value = AuthUiState.Loading
             try {
-                val response = repository.login(email, password)
+                val response = withContext(Dispatchers.IO) { // IO — llamada de red
+                    repository.login(email, password)
+                }
                 sessionManager.saveTokens(response.accessToken, response.refreshToken)
                 RetrofitClient.setToken(response.accessToken)
                 sessionManager.saveUser(
-                    id        = response.user.id,
-                    email     = response.user.email,
+                    id = response.user.id,
+                    email = response.user.email,
                     firstName = response.user.firstName,
-                    lastName  = response.user.lastName,
-                    major     = response.user.major,
+                    lastName = response.user.lastName,
+                    major = response.user.major,
                     phoneNumber = response.user.phoneNumber
                 )
                 _uiState.value = AuthUiState.Success(response)
             } catch (e: retrofit2.HttpException) {
-
                 val errorBody = e.response()?.errorBody()?.string()
                 val message = try {
                     val json = org.json.JSONObject(errorBody ?: "")
                     json.optString("message", "Incorrect email or password.")
-                } catch (_: Exception) {
-                    "Incorrect email or password."
-                }
+                } catch (_: Exception) { "Incorrect email or password." }
                 _uiState.value = AuthUiState.Error(message)
             } catch (e: Exception) {
                 _uiState.value = AuthUiState.Error("Connection error. Check your network.")
@@ -66,10 +67,12 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         password: String,
         phoneNumber: String
     ) {
-        viewModelScope.launch {
+        viewModelScope.launch { // Main — actualiza UI
             _uiState.value = AuthUiState.Loading
             try {
-                val response = repository.register(email, firstName, lastName, major, password, phoneNumber)
+                val response = withContext(Dispatchers.IO) { // IO — llamada de red
+                    repository.register(email, firstName, lastName, major, password, phoneNumber)
+                }
                 sessionManager.saveTokens(response.accessToken, response.refreshToken)
                 RetrofitClient.setToken(response.accessToken)
                 sessionManager.saveUser(
@@ -80,34 +83,35 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                     major = response.user.major,
                     phoneNumber = response.user.phoneNumber
                 )
-                android.util.Log.d("AuthViewModel", "Success: ${response.user.email}")
                 _uiState.value = AuthUiState.Success(response)
             } catch (e: retrofit2.HttpException) {
-            val errorBody = e.response()?.errorBody()?.string()
-            val message = try {
-                val json = org.json.JSONObject(errorBody ?: "")
-                json.optString("message", "This email is already registered.")
-            } catch (_: Exception) {
-                "This email is already registered."
+                val errorBody = e.response()?.errorBody()?.string()
+                val message = try {
+                    val json = org.json.JSONObject(errorBody ?: "")
+                    json.optString("message", "This email is already registered.")
+                } catch (_: Exception) { "This email is already registered." }
+                _uiState.value = AuthUiState.Error(message)
+            } catch (e: Exception) {
+                _uiState.value = AuthUiState.Error("Connection error. Check your network.")
             }
-            _uiState.value = AuthUiState.Error(message)
-        }
         }
     }
 
     fun nfcLogin(userId: String) {
-        viewModelScope.launch {
+        viewModelScope.launch { // Main — actualiza UI
             _uiState.value = AuthUiState.Loading
             try {
-                val response = repository.nfcLogin(userId)
+                val response = withContext(Dispatchers.IO) { // IO — llamada de red
+                    repository.nfcLogin(userId)
+                }
                 sessionManager.saveTokens(response.accessToken, response.refreshToken)
                 RetrofitClient.setToken(response.accessToken)
                 sessionManager.saveUser(
-                    id        = response.user.id,
-                    email     = response.user.email,
+                    id = response.user.id,
+                    email = response.user.email,
                     firstName = response.user.firstName,
-                    lastName  = response.user.lastName,
-                    major     = response.user.major,
+                    lastName = response.user.lastName,
+                    major = response.user.major,
                     phoneNumber = response.user.phoneNumber
                 )
                 _uiState.value = AuthUiState.Success(response)
