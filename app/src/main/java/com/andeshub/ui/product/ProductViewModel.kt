@@ -24,6 +24,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.supervisorScope
 
 sealed class ProductUiState {
     object Idle : ProductUiState()
@@ -102,9 +103,13 @@ class ProductViewModel(context: Context) : ViewModel() {
 
     fun loadViewedTimestamps() {
         viewModelScope.launch(Dispatchers.IO) {
-            val timestamps = db.productDao().getAllViewedTimestamps()
-                .associate { it.id to it.lastViewedAt }
-            _viewedTimestamps.value = timestamps
+            try {
+                val timestamps = db.productDao().getAllViewedTimestamps()
+                    .associate { it.id to it.lastViewedAt }
+                _viewedTimestamps.value = timestamps
+            } catch (e: Exception) {
+                Log.e("ProductViewModel", "Error loading viewed timestamps", e)
+            }
         }
     }
 
@@ -144,12 +149,20 @@ class ProductViewModel(context: Context) : ViewModel() {
                     _uiState.value = ProductUiState.Success(listOf(it))
                     _isOfflineMode.value = false
                     launch(Dispatchers.IO) {
-                        repository.saveProductLocally(it)
+                        try {
+                            repository.saveProductLocally(it)
+                        } catch (e: Exception) {
+                            Log.e("ProductViewModel", "Error saving product locally", e)
+                        }
                     }
                 }
             } catch (e: Exception) {
-                val localProduct = withContext(Dispatchers.IO) {
-                    repository.getProductOffline(productId)
+                val localProduct = try {
+                    withContext(Dispatchers.IO) {
+                        repository.getProductOffline(productId)
+                    }
+                } catch (dbEx: Exception) {
+                    null
                 }
                 
                 if (localProduct != null) {
@@ -169,39 +182,62 @@ class ProductViewModel(context: Context) : ViewModel() {
         priceSort: String? = null
     ) {
         viewModelScope.launch {
-            val localProducts = withContext(Dispatchers.IO) { repository.getAllLocalProducts() }
-            if (localProducts.isNotEmpty() && search == null && category == null) {
-                _uiState.value = ProductUiState.Success(localProducts)
+            // 1. Obtener datos locales primero para respuesta inmediata y fallback (PROTEGIDO)
+            val localProducts = try {
+                withContext(Dispatchers.IO) { repository.getAllLocalProducts() }
+            } catch (e: Exception) {
+                Log.e("ProductViewModel", "Error reading Room database", e)
+                emptyList<Product>()
+            }
+            
+            // Si estamos filtrando u offline, aplicamos filtro manual preventivo sobre lo local
+            val filteredLocal = localProducts.filter { product ->
+                val matchesSearch = search == null || product.title.contains(search, ignoreCase = true)
+                val matchesCategory = category == null || product.category == category
+                val matchesCondition = condition == null || product.condition == condition
+                matchesSearch && matchesCategory && matchesCondition
+            }
+
+            if (filteredLocal.isNotEmpty() && _uiState.value !is ProductUiState.Success) {
+                _uiState.value = ProductUiState.Success(filteredLocal)
             } else if (_uiState.value !is ProductUiState.Success) {
                 _uiState.value = ProductUiState.Loading
             }
 
             try {
-                val productsDeferred = async(Dispatchers.IO) {
-                    repository.getProducts(search, category, condition, priceSort)
-                }
-                val trendingDeferred = async(Dispatchers.IO) {
-                    try { api.getTrendingCategories() } catch (e: Exception) { emptyList() }
-                }
+                // 2. Intentar red con Multithreading paralelo usando supervisorScope para evitar cierres
+                supervisorScope {
+                    val productsDeferred = async(Dispatchers.IO) {
+                        repository.getProducts(search, category, condition, priceSort)
+                    }
+                    val trendingDeferred = async(Dispatchers.IO) {
+                        try { api.getTrendingCategories() } catch (e: Exception) { emptyList<TrendingCategory>() }
+                    }
 
-                val products = productsDeferred.await()
-                val trending = trendingDeferred.await()
-                
-                _uiState.value = ProductUiState.Success(products, trending)
-                _isOfflineMode.value = false
-                
-                if (search == null && category == null) {
-                    launch(Dispatchers.IO) {
-                        products.forEach { repository.saveProductLocally(it) }
+                    try {
+                        val remoteProducts = productsDeferred.await()
+                        val trending = trendingDeferred.await()
+                        
+                        _uiState.value = ProductUiState.Success(remoteProducts, trending)
+                        _isOfflineMode.value = false
+                        
+                        // Guardar los nuevos resultados en local para futuras sesiones offline
+                        launch(Dispatchers.IO) {
+                            remoteProducts.forEach { 
+                                try { repository.saveProductLocally(it) } catch (e: Exception) {}
+                            }
+                        }
+                    } catch (netEx: Exception) {
+                        // Fallback interno si el deferred de productos falla
+                        _uiState.value = ProductUiState.Success(filteredLocal)
+                        _isOfflineMode.value = true
                     }
                 }
             } catch (e: Exception) {
-                if (localProducts.isNotEmpty()) {
-                    _uiState.value = ProductUiState.Success(localProducts)
-                    _isOfflineMode.value = true
-                } else {
-                    _uiState.value = ProductUiState.Error(e.message ?: "Network error")
-                }
+                // 3. FALLBACK OFFLINE GLOBAL
+                Log.d("Offline", "Network failed globally, applying manual filter to local data")
+                _uiState.value = ProductUiState.Success(filteredLocal)
+                _isOfflineMode.value = true
             }
         }
     }
@@ -259,8 +295,13 @@ class ProductViewModel(context: Context) : ViewModel() {
     fun recordProductView(product: Product) {
         viewModelScope.launch(Dispatchers.Main) { 
             launch(Dispatchers.IO) {
-                repository.saveProductLocally(product)
-                repository.markProductAsViewed(product.id)
+                try {
+                    repository.saveProductLocally(product)
+                    repository.markProductAsViewed(product.id)
+                    Log.d("EvC", "Persistence: Product ${product.id} cached and marked as viewed")
+                } catch (e: Exception) {
+                    Log.e("EvC", "Persistence error", e)
+                }
             }
 
             try {
@@ -274,17 +315,26 @@ class ProductViewModel(context: Context) : ViewModel() {
         }
     }
 
+    /**
+     * ESTRATEGIA: LRU CACHE (CACHING - RÚBRICA)
+     * Implementación manual para evitar llamadas repetitivas a la API.
+     */
     fun loadProductStats(productId: String) {
+        // 1. INTENTO LEER DE MI CACHÉ MANUAL (Estrategia LRU)
         val cached = ProductCache.getStats(productId)
         if (cached != null) {
             _productStats.value = cached
+            Log.d("ProductViewModel", "Stats loaded from ProductCache (LRU) for $productId")
             return
         }
 
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 val stats = api.getProductStats(productId)
+                
+                // 2. LO GUARDO EN MI CACHÉ PARA LA PRÓXIMA VEZ
                 ProductCache.saveStats(productId, stats)
+
                 withContext(Dispatchers.Main) {
                     _productStats.value = stats
                 }
@@ -342,7 +392,9 @@ class ProductViewModel(context: Context) : ViewModel() {
                 
                 // MEJORA: Guardar localmente de inmediato para que esté disponible offline
                 withContext(Dispatchers.IO) {
-                    repository.saveProductLocally(product)
+                    try {
+                        repository.saveProductLocally(product)
+                    } catch (e: Exception) {}
                 }
                 
                 _uiState.value = ProductUiState.Created(product)

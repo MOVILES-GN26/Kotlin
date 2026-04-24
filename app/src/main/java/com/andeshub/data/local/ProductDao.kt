@@ -37,6 +37,9 @@ interface ProductDao {
 
     @Query("SELECT id, lastViewedAt FROM products WHERE lastViewedAt IS NOT NULL")
     suspend fun getAllViewedTimestamps(): List<ViewedTimestamp>
+
+    @Query("UPDATE products SET lastViewedAt = :timestamp WHERE id = :productId")
+    suspend fun updateLastViewed(productId: String, timestamp: Long)
 }
 
 data class ViewedTimestamp(
