@@ -28,8 +28,8 @@ class AuthRepository(private val sessionManager: SessionManager) {
         userCache.evictAll()
     }
 
-    suspend fun login(email: String, password: String): AuthResponse {
-        return authService.login(LoginRequest(email, password))
+    suspend fun login(email: String, password: String, isNfc: Boolean = false): AuthResponse {
+        return authService.login(LoginRequest(email, password, loginType = if (isNfc) "NFC" else "email_password"))
     }
 
     suspend fun register(

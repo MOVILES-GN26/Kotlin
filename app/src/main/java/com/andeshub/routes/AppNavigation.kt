@@ -98,7 +98,7 @@ fun AppNavigation(nfcCredentials: StateFlow<Pair<String, String>?> = MutableStat
 
                 LaunchedEffect(credentials) {
                     credentials?.let { (email, password) ->
-                        authViewModel.login(email, password)
+                        authViewModel.login(email, password, isNfc = true)
                     }
                 }
 
