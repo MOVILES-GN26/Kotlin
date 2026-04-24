@@ -89,4 +89,33 @@ class SessionManager(context: Context) {
     }
 
     fun isBiometricEnabled(): Boolean = prefs.getBoolean("biometric_enabled", false)
+
+    fun savePendingProfileUpdate(firstName: String, lastName: String, major: String, phoneNumber: String) {
+        prefs.edit {
+            putString("pending_first_name", firstName)
+            putString("pending_last_name", lastName)
+            putString("pending_major", major)
+            putString("pending_phone", phoneNumber)
+            putBoolean("has_pending_changes", true)
+        }
+    }
+
+    fun hasPendingChanges(): Boolean = prefs.getBoolean("has_pending_changes", false)
+
+    fun getPendingChanges(): Map<String, String?> = mapOf(
+        "firstName" to prefs.getString("pending_first_name", null),
+        "lastName" to prefs.getString("pending_last_name", null),
+        "major" to prefs.getString("pending_major", null),
+        "phoneNumber" to prefs.getString("pending_phone", null)
+    )
+
+    fun clearPendingChanges() {
+        prefs.edit {
+            remove("pending_first_name")
+            remove("pending_last_name")
+            remove("pending_major")
+            remove("pending_phone")
+            putBoolean("has_pending_changes", false)
+        }
+    }
 }
