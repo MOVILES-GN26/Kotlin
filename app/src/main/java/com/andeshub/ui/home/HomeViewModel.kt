@@ -37,6 +37,9 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private val _viewedTimestamps = MutableStateFlow<Map<String, Long>>(emptyList<Pair<String, Long>>().toMap())
     val viewedTimestamps: StateFlow<Map<String, Long>> = _viewedTimestamps
 
+    private val _selectedCategory = MutableStateFlow<String?>(null)
+    val selectedCategory: StateFlow<String?> = _selectedCategory
+
     init {
         loadData()
         loadViewedTimestamps()
@@ -98,5 +101,10 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 _uiState.value = HomeUiState.Error(e.message ?: "Error desconocido")
             }
         }
+    }
+
+    fun onCategorySelected(category: String) {
+        // Si ya está seleccionada, la deselecciona (toggle)
+        _selectedCategory.value = if (_selectedCategory.value == category) null else category
     }
 }
