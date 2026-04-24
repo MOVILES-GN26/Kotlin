@@ -22,10 +22,9 @@ fun FavoritesScreen(
     onProductClick: (com.andeshub.data.model.Product) -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-
-    LaunchedEffect(Unit) {
+    """LaunchedEffect(Unit) {
         viewModel.getFavorites()
-    }
+    }"""
     Column(
         modifier = Modifier
             .fillMaxSize()
