@@ -42,7 +42,8 @@ import com.andeshub.ui.theme.*
 @Composable
 fun ProductDetailScreen(
     product: Product,
-    onBackClick: () -> Unit = {}
+    onBackClick: () -> Unit = {},
+    onBuyClick: (Product) -> Unit = {}
 ) {
     val context = LocalContext.current
     val productViewModel: ProductViewModel = viewModel(
@@ -96,7 +97,7 @@ fun ProductDetailScreen(
                     .navigationBarsPadding()
             ) {
                 Button(
-                    onClick = { },
+                    onClick = { onBuyClick(product) },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(50.dp),
