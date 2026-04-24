@@ -7,11 +7,26 @@ import com.andeshub.data.model.RegisterRequest
 import com.andeshub.data.remote.RetrofitClient
 import com.andeshub.data.model.NfcLoginRequest
 import com.andeshub.data.local.SessionManager
+import android.util.LruCache
 
 class AuthRepository(private val sessionManager: SessionManager) {
     private val authService = RetrofitClient.authService
+    private val userCache = LruCache<String, CachedUser>(1)
 
-    fun getCachedUser(): CachedUser? = sessionManager.getCachedUser()
+    fun getCachedUser(): CachedUser? {
+        // Buscar en LRU Cache (memoria)
+        val cached = userCache.get("current_user")
+        if (cached != null) return cached
+
+        return sessionManager.getCachedUser()
+    }
+    fun cacheUser(user: CachedUser) {
+        userCache.put("current_user", user)
+    }
+
+    fun clearCache() {
+        userCache.evictAll()
+    }
 
     suspend fun login(email: String, password: String): AuthResponse {
         return authService.login(LoginRequest(email, password))
