@@ -76,29 +76,16 @@ class ProductViewModel(context: Context) : ViewModel() {
         loadViewedTimestamps()
     }
 
-    /**
-     * ESTRATEGIA: PREFERENCES
-     * Cambia el modo de vista y lo persiste localmente.
-     */
     fun toggleViewMode() {
         val newMode = !_isGridView.value
         userPrefs.setGridViewEnabled(newMode)
         _isGridView.value = newMode
     }
 
-    /**
-     * ESTRATEGIA: ARCHIVOS LOCALES
-     * Guarda el texto del borrador en un archivo físico.
-     */
     fun saveDraft(title: String, description: String) {
-        // Guardamos en formato simple: título|descripción
         draftManager.saveDraft("$title|$description")
     }
 
-    /**
-     * ESTRATEGIA: ARCHIVOS LOCALES
-     * Carga el contenido del archivo físico.
-     */
     fun loadDraft(): Pair<String, String>? {
         val raw = draftManager.getDraft() ?: return null
         val parts = raw.split("|")
@@ -182,11 +169,14 @@ class ProductViewModel(context: Context) : ViewModel() {
         priceSort: String? = null
     ) {
         viewModelScope.launch {
-            if (_uiState.value !is ProductUiState.Success) {
+            val localProducts = withContext(Dispatchers.IO) { repository.getAllLocalProducts() }
+            if (localProducts.isNotEmpty() && search == null && category == null) {
+                _uiState.value = ProductUiState.Success(localProducts)
+            } else if (_uiState.value !is ProductUiState.Success) {
                 _uiState.value = ProductUiState.Loading
             }
+
             try {
-                // ESTRATEGIA DE MULTITHREADING ASÍNCRONO (RÚBRICA)
                 val productsDeferred = async(Dispatchers.IO) {
                     repository.getProducts(search, category, condition, priceSort)
                 }
@@ -197,24 +187,20 @@ class ProductViewModel(context: Context) : ViewModel() {
                 val products = productsDeferred.await()
                 val trending = trendingDeferred.await()
                 
-                if (products.isEmpty() && search == null && category == null && condition == null && priceSort == null) {
-                    val localProducts = withContext(Dispatchers.IO) { repository.getAllLocalProducts() }
-                    if (localProducts.isNotEmpty()) {
-                        _uiState.value = ProductUiState.Success(localProducts, trending)
-                        _isOfflineMode.value = true
-                        return@launch
-                    }
-                }
-
                 _uiState.value = ProductUiState.Success(products, trending)
                 _isOfflineMode.value = false
+                
+                if (search == null && category == null) {
+                    launch(Dispatchers.IO) {
+                        products.forEach { repository.saveProductLocally(it) }
+                    }
+                }
             } catch (e: Exception) {
-                val localProducts = withContext(Dispatchers.IO) { repository.getAllLocalProducts() }
                 if (localProducts.isNotEmpty()) {
                     _uiState.value = ProductUiState.Success(localProducts)
                     _isOfflineMode.value = true
                 } else {
-                    _uiState.value = ProductUiState.Error(e.message ?: "Unknown error")
+                    _uiState.value = ProductUiState.Error(e.message ?: "Network error")
                 }
             }
         }
@@ -275,7 +261,6 @@ class ProductViewModel(context: Context) : ViewModel() {
             launch(Dispatchers.IO) {
                 repository.saveProductLocally(product)
                 repository.markProductAsViewed(product.id)
-                Log.d("EvC", "Persistence: Product ${product.id} cached and marked as viewed")
             }
 
             try {
@@ -289,26 +274,17 @@ class ProductViewModel(context: Context) : ViewModel() {
         }
     }
 
-    /**
-     * ESTRATEGIA: LRU CACHE (CACHING - RÚBRICA)
-     * Implementación manual para evitar llamadas repetitivas a la API.
-     */
     fun loadProductStats(productId: String) {
-        // 1. INTENTO LEER DE MI CACHÉ MANUAL (Estrategia LRU)
         val cached = ProductCache.getStats(productId)
         if (cached != null) {
             _productStats.value = cached
-            Log.d("ProductViewModel", "Stats loaded from ProductCache (LRU) for $productId")
             return
         }
 
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 val stats = api.getProductStats(productId)
-                
-                // 2. LO GUARDO EN MI CACHÉ PARA LA PRÓXIMA VEZ
                 ProductCache.saveStats(productId, stats)
-                
                 withContext(Dispatchers.Main) {
                     _productStats.value = stats
                 }
@@ -363,8 +339,13 @@ class ProductViewModel(context: Context) : ViewModel() {
                 val product = withContext(Dispatchers.IO) {
                     repository.createProduct(token, title, description, category, location, price, condition, storeId, imageUri, imageBitmap)
                 }
+                
+                // MEJORA: Guardar localmente de inmediato para que esté disponible offline
+                withContext(Dispatchers.IO) {
+                    repository.saveProductLocally(product)
+                }
+                
                 _uiState.value = ProductUiState.Created(product)
-                // Al crear con éxito, borramos el borrador físico
                 clearDraft()
             } catch (e: Exception) {
                 _uiState.value = ProductUiState.Error(e.message ?: "Error creating product")

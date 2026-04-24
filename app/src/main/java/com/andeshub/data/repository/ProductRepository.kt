@@ -23,8 +23,13 @@ class ProductRepository(private val context: Context) {
         condition: String? = null,
         priceSort: String? = null
     ): List<Product> {
-        val response = api.getProducts(search, category, condition, priceSort)
-        return response.items ?: emptyList()
+        return try {
+            val response = api.getProducts(search, category, condition, priceSort)
+            response.items ?: emptyList()
+        } catch (e: Exception) {
+            // Si falla la red al buscar/filtrar, intentamos devolver de la DB local
+            getAllLocalProducts()
+        }
     }
 
     suspend fun getProductOffline(productId: String): Product? {
@@ -33,13 +38,21 @@ class ProductRepository(private val context: Context) {
     }
 
     suspend fun getAllLocalProducts(): List<Product> {
-        return productDao.getAllProducts().map { mapEntityToProduct(it) }
+        return try {
+            productDao.getAllProducts().map { mapEntityToProduct(it) }
+        } catch (e: Exception) {
+            emptyList()
+        }
     }
 
     suspend fun markProductAsViewed(productId: String) {
-        val entity = productDao.getProductById(productId)
-        entity?.let {
-            productDao.insertProduct(it.copy(lastViewedAt = System.currentTimeMillis()))
+        try {
+            val entity = productDao.getProductById(productId)
+            entity?.let {
+                productDao.insertProduct(it.copy(lastViewedAt = System.currentTimeMillis()))
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("ProductRepository", "Error marking product as viewed: ${e.message}")
         }
     }
 
@@ -52,7 +65,9 @@ class ProductRepository(private val context: Context) {
             category = it.category,
             condition = it.condition,
             building_location = it.location,
-            image_urls = listOfNotNull(it.imageUrl),
+            // IMPORTANTE: Mantener la imageUrl original para que Coil use el caché de disco
+            image_urls = if (!it.localImagePath.isNullOrEmpty()) listOf(it.localImagePath) 
+                         else listOfNotNull(it.imageUrl),
             seller_id = it.sellerId,
             store_id = it.storeId,
             created_at = it.createdAt
@@ -60,23 +75,28 @@ class ProductRepository(private val context: Context) {
     }
 
     suspend fun saveProductLocally(product: Product) {
-        val existing = productDao.getProductById(product.id)
-        val entity = ProductEntity(
-            id = product.id,
-            title = product.title,
-            description = product.description,
-            price = product.price,
-            category = product.category,
-            condition = product.condition,
-            location = product.building_location,
-            imageUrl = product.image_urls.firstOrNull(),
-            sellerId = product.seller_id,
-            storeId = product.store_id,
-            createdAt = product.created_at,
-            isFavorite = existing?.isFavorite ?: false,
-            lastViewedAt = existing?.lastViewedAt ?: System.currentTimeMillis()
-        )
-        productDao.insertProduct(entity)
+        try {
+            val existing = productDao.getProductById(product.id)
+            val entity = ProductEntity(
+                id = product.id,
+                title = product.title,
+                description = product.description,
+                price = product.price,
+                category = product.category,
+                condition = product.condition,
+                location = product.building_location,
+                imageUrl = product.image_urls.firstOrNull(),
+                localImagePath = null,
+                sellerId = product.seller_id,
+                storeId = product.store_id,
+                createdAt = product.created_at,
+                isFavorite = existing?.isFavorite ?: false,
+                lastViewedAt = existing?.lastViewedAt ?: System.currentTimeMillis()
+            )
+            productDao.insertProduct(entity)
+        } catch (e: Exception) {
+            android.util.Log.e("ProductRepository", "Error saving product locally: ${e.message}")
+        }
     }
 
     suspend fun createProduct(
