@@ -21,6 +21,7 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.andeshub.data.model.Product
 import com.andeshub.data.model.ProductStats
+import com.andeshub.data.remote.RetrofitClient
 import com.andeshub.ui.theme.*
 import java.text.SimpleDateFormat
 import java.util.*
@@ -29,6 +30,8 @@ import java.util.*
 fun ProductCard(
     product: Product,
     stats: ProductStats? = null,
+    localLastViewed: Long? = null,
+    showStats: Boolean = true,
     onClick: () -> Unit = {}
 ) {
     Column(
@@ -45,8 +48,18 @@ fun ProductCard(
             contentAlignment = Alignment.Center
         ) {
             if (product.image_urls.isNotEmpty()) {
+                val baseUrl = RetrofitClient.getBaseUrl().removeSuffix("/")
+                val hostPort = baseUrl.split("//").last()
+                val rawUrl = product.image_urls.first()
+                
+                val imageUrl = rawUrl
+                    .replace("localhost:3000", hostPort)
+                    .replace("127.0.0.1:3000", hostPort)
+                    .replace("157.253.225.221:3000", hostPort)
+                    .replace("localhost", hostPort.split(":").first())
+
                 AsyncImage(
-                    model = product.image_urls.first().replace("localhost", "10.0.2.2"),
+                    model = imageUrl,
                     contentDescription = product.title,
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize()
@@ -58,21 +71,29 @@ fun ProductCard(
                 )
             }
 
-            // Badge de última interacción
-            stats?.last_viewed?.let { lastViewed ->
-                Surface(
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(4.dp),
-                    color = Color.Black.copy(alpha = 0.6f),
-                    shape = RoundedCornerShape(4.dp)
-                ) {
-                    Text(
-                        text = formatTimeAgo(lastViewed),
-                        color = Color.White,
-                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 8.sp),
-                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
-                    )
+            // Mostrar el label de tiempo solo si showStats es true
+            if (showStats) {
+                val timeToShow = when {
+                    localLastViewed != null -> formatTimeAgoLocal(localLastViewed)
+                    stats?.last_viewed != null -> formatTimeAgo(stats.last_viewed)
+                    else -> null
+                }
+
+                timeToShow?.let { timeText ->
+                    Surface(
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(4.dp),
+                        color = Color.Black.copy(alpha = 0.6f),
+                        shape = RoundedCornerShape(4.dp)
+                    ) {
+                        Text(
+                            text = timeText,
+                            color = Color.White,
+                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 8.sp),
+                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+                        )
+                    }
                 }
             }
         }
@@ -92,7 +113,7 @@ fun ProductCard(
                 modifier = Modifier.weight(1f)
             )
             
-            if (stats != null && stats.views > 0) {
+            if (showStats && stats != null && stats.views > 0) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
                         imageVector = Icons.Default.Visibility,
@@ -139,6 +160,21 @@ fun formatTimeAgo(dateString: String): String {
         }
     } catch (e: Exception) {
         "Recently"
+    }
+}
+
+fun formatTimeAgoLocal(timestamp: Long): String {
+    val diff = System.currentTimeMillis() - timestamp
+    val seconds = diff / 1000
+    val minutes = seconds / 60
+    val hours = minutes / 60
+    val days = hours / 24
+
+    return when {
+        seconds < 60 -> "Just now"
+        minutes < 60 -> "${minutes}m ago"
+        hours < 24 -> "${hours}h ago"
+        else -> "${days}d ago"
     }
 }
 

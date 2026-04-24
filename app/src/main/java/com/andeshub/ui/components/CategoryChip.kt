@@ -21,12 +21,14 @@ data class Category(
 @Composable
 fun CategoryChip(
     category: Category,
+    isSelected: Boolean = false,
     onClick: () -> Unit = {}
 ) {
     Surface(
         onClick = onClick,
         shape = RoundedCornerShape(8.dp),
-        color = MaterialTheme.colorScheme.surface
+        color = if (isSelected) MaterialTheme.colorScheme.primary
+        else MaterialTheme.colorScheme.surface
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
@@ -36,13 +38,15 @@ fun CategoryChip(
             Icon(
                 imageVector = category.icon,
                 contentDescription = category.label,
-                tint = MaterialTheme.colorScheme.onSurface,
+                tint = if (isSelected) MaterialTheme.colorScheme.onPrimary
+                else MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.size(16.dp)
             )
             Text(
                 text = category.label,
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurface
+                color = if (isSelected) MaterialTheme.colorScheme.onPrimary
+                else MaterialTheme.colorScheme.onSurface
             )
         }
     }

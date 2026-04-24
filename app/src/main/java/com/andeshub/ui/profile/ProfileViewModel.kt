@@ -13,6 +13,7 @@ import com.andeshub.data.model.Product
 import com.andeshub.data.model.ProductStats
 import com.andeshub.data.remote.RetrofitClient
 import com.andeshub.data.repository.ProductRepository
+import com.andeshub.data.repository.UserRepository
 
 data class ProfileUiState(
     val firstName: String = "",
@@ -31,6 +32,7 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
     private val sessionManager = SessionManager(application)
     private val storeRepository = StoreRepository(application)
     private val productRepository = ProductRepository(application)
+    private val userRepository = UserRepository(application)
     private val api = RetrofitClient.apiService
 
     private val _uiState = MutableStateFlow(ProfileUiState())
@@ -40,6 +42,7 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
         loadProfile()
         loadStores()
         loadListings()
+        syncPendingChanges()
     }
 
     private fun loadProfile() {
@@ -105,6 +108,25 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
                 }
             }
             _uiState.value = _uiState.value.copy(productStats = statsMap)
+        }
+    }
+    private fun syncPendingChanges() {
+        viewModelScope.launch {
+            if (sessionManager.hasPendingChanges()) {
+                val pending = sessionManager.getPendingChanges()
+                userRepository.updateProfile(
+                    firstName = pending["firstName"],
+                    lastName = pending["lastName"],
+                    major = pending["major"],
+                    phoneNumber = pending["phoneNumber"]
+                ).onSuccess {
+                    sessionManager.clearPendingChanges()
+                    android.util.Log.d("ProfileViewModel", "Pending changes synced successfully")
+                    loadProfile()
+                }.onFailure {
+                    android.util.Log.e("ProfileViewModel", "Sync failed: ${it.message}")
+                }
+            }
         }
     }
 

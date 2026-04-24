@@ -3,6 +3,8 @@ package com.andeshub.data.repository
 import android.content.Context
 import android.graphics.Bitmap
 import android.net.Uri
+import com.andeshub.data.local.AppDatabase
+import com.andeshub.data.local.ProductEntity
 import com.andeshub.data.model.Product
 import com.andeshub.data.remote.RetrofitClient
 import okhttp3.MediaType.Companion.toMediaType
@@ -13,6 +15,7 @@ import java.io.ByteArrayOutputStream
 class ProductRepository(private val context: Context) {
 
     private val api = RetrofitClient.apiService
+    private val productDao = AppDatabase.getInstance(context).productDao()
 
     suspend fun getProducts(
         search: String? = null,
@@ -22,6 +25,58 @@ class ProductRepository(private val context: Context) {
     ): List<Product> {
         val response = api.getProducts(search, category, condition, priceSort)
         return response.items ?: emptyList()
+    }
+
+    suspend fun getProductOffline(productId: String): Product? {
+        val entity = productDao.getProductById(productId)
+        return entity?.let { mapEntityToProduct(it) }
+    }
+
+    suspend fun getAllLocalProducts(): List<Product> {
+        return productDao.getAllProducts().map { mapEntityToProduct(it) }
+    }
+
+    suspend fun markProductAsViewed(productId: String) {
+        val entity = productDao.getProductById(productId)
+        entity?.let {
+            productDao.insertProduct(it.copy(lastViewedAt = System.currentTimeMillis()))
+        }
+    }
+
+    private fun mapEntityToProduct(it: ProductEntity): Product {
+        return Product(
+            id = it.id,
+            title = it.title,
+            description = it.description,
+            price = it.price,
+            category = it.category,
+            condition = it.condition,
+            building_location = it.location,
+            image_urls = listOfNotNull(it.imageUrl),
+            seller_id = it.sellerId,
+            store_id = it.storeId,
+            created_at = it.createdAt
+        )
+    }
+
+    suspend fun saveProductLocally(product: Product) {
+        val existing = productDao.getProductById(product.id)
+        val entity = ProductEntity(
+            id = product.id,
+            title = product.title,
+            description = product.description,
+            price = product.price,
+            category = product.category,
+            condition = product.condition,
+            location = product.building_location,
+            imageUrl = product.image_urls.firstOrNull(),
+            sellerId = product.seller_id,
+            storeId = product.store_id,
+            createdAt = product.created_at,
+            isFavorite = existing?.isFavorite ?: false,
+            lastViewedAt = existing?.lastViewedAt ?: System.currentTimeMillis()
+        )
+        productDao.insertProduct(entity)
     }
 
     suspend fun createProduct(

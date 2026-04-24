@@ -67,9 +67,23 @@ class ProductViewModel(context: Context) : ViewModel() {
     private val _viewedTimestamps = MutableStateFlow<Map<String, Long>>(emptyMap())
     val viewedTimestamps: StateFlow<Map<String, Long>> = _viewedTimestamps
 
+    // ESTRATEGIA: PREFERENCES (StateFlow para la UI)
+    private val _isGridView = MutableStateFlow(userPrefs.isGridViewEnabled())
+    val isGridView: StateFlow<Boolean> = _isGridView
+
     init {
         loadUserStores()
         loadViewedTimestamps()
+    }
+
+    /**
+     * ESTRATEGIA: PREFERENCES
+     * Cambia el modo de vista y lo persiste localmente.
+     */
+    fun toggleViewMode() {
+        val newMode = !_isGridView.value
+        userPrefs.setGridViewEnabled(newMode)
+        _isGridView.value = newMode
     }
 
     /**
@@ -77,6 +91,7 @@ class ProductViewModel(context: Context) : ViewModel() {
      * Guarda el texto del borrador en un archivo físico.
      */
     fun saveDraft(title: String, description: String) {
+        // Guardamos en formato simple: título|descripción
         draftManager.saveDraft("$title|$description")
     }
 
@@ -260,6 +275,7 @@ class ProductViewModel(context: Context) : ViewModel() {
             launch(Dispatchers.IO) {
                 repository.saveProductLocally(product)
                 repository.markProductAsViewed(product.id)
+                Log.d("EvC", "Persistence: Product ${product.id} cached and marked as viewed")
             }
 
             try {
@@ -348,6 +364,7 @@ class ProductViewModel(context: Context) : ViewModel() {
                     repository.createProduct(token, title, description, category, location, price, condition, storeId, imageUri, imageBitmap)
                 }
                 _uiState.value = ProductUiState.Created(product)
+                // Al crear con éxito, borramos el borrador físico
                 clearDraft()
             } catch (e: Exception) {
                 _uiState.value = ProductUiState.Error(e.message ?: "Error creating product")

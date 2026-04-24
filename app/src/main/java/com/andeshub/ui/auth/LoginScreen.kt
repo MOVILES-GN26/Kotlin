@@ -1,36 +1,25 @@
 package com.andeshub.ui.auth
 
+import androidx.biometric.BiometricPrompt
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Fingerprint
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.fragment.app.FragmentActivity
 import com.andeshub.ui.components.InputField
 import com.andeshub.ui.theme.AndesHubTheme
+import com.andeshub.utils.BiometricHelper
 
 @Composable
 fun LoginScreen(
@@ -41,6 +30,10 @@ fun LoginScreen(
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     val uiState by viewModel.uiState.collectAsState()
+    
+    val context = LocalContext.current
+    val activity = context as? FragmentActivity
+    val isBiometricEnabled = viewModel.isBiometricEnabled()
 
     Box(
         modifier = Modifier
@@ -107,7 +100,7 @@ fun LoginScreen(
                 enabled = uiState !is AuthUiState.Loading
             ) {
                 if (uiState is AuthUiState.Loading) {
-                    CircularProgressIndicator()
+                    CircularProgressIndicator(modifier = Modifier.size(24.dp), color = MaterialTheme.colorScheme.onPrimary)
                 } else {
                     Text(
                         text = "Login",
@@ -115,6 +108,35 @@ fun LoginScreen(
                         color = MaterialTheme.colorScheme.onPrimary
                     )
                 }
+            }
+
+            // Biometric Login Option
+            if (isBiometricEnabled) {
+                Spacer(modifier = Modifier.height(24.dp))
+                IconButton(
+                    onClick = {
+                        activity?.let {
+                            BiometricHelper.showBiometricPrompt(
+                                activity = it,
+                                onSuccess = { viewModel.loginWithBiometric() },
+                                onError = { /* Handle error if needed */ }
+                            )
+                        }
+                    },
+                    modifier = Modifier.size(64.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Fingerprint,
+                        contentDescription = "Login with biometrics",
+                        modifier = Modifier.size(48.dp),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
+                Text(
+                    text = "Quick Sign-in",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.secondary
+                )
             }
 
             if (uiState is AuthUiState.Error) {

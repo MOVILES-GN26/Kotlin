@@ -8,6 +8,8 @@ import retrofit2.converter.gson.GsonConverterFactory
 object RetrofitClient {
     private const val BASE_URL = "http://157.253.225.145:3000/"
 
+    fun getBaseUrl(): String = BASE_URL
+
     private var token: String? = null
 
     fun setToken(accessToken: String) {

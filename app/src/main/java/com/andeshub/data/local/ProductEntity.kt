@@ -19,7 +19,8 @@ data class ProductEntity(
     val sellerId: String?,
     val storeId: String?,
     val createdAt: String?,
-    val isFavorite: Boolean = false
+    val isFavorite: Boolean = false,
+    val lastViewedAt: Long? = null
 ) {
     fun toModel(): Product {
         return Product(

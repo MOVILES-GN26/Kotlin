@@ -11,6 +11,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -23,6 +24,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -62,6 +64,15 @@ fun PostProductScreen(
     var imageBitmap by remember { mutableStateOf<Bitmap?>(null) }
     var selectedStore by remember { mutableStateOf<Store?>(null) }
 
+    // Validation States
+    var titleError by remember { mutableStateOf<String?>(null) }
+    var priceError by remember { mutableStateOf<String?>(null) }
+    var descriptionError by remember { mutableStateOf<String?>(null) }
+    var categoryError by remember { mutableStateOf<String?>(null) }
+    var conditionError by remember { mutableStateOf<String?>(null) }
+    var locationError by remember { mutableStateOf<String?>(null) }
+    var imageError by remember { mutableStateOf<String?>(null) }
+
     val categories = listOf(
         "Books & Supplies", "Clothing & Accessories", "Electronics",
         "Food & Drinks", "Furniture", "Sports & Outdoors",
@@ -75,6 +86,22 @@ fun PostProductScreen(
     var storeExpanded by remember { mutableStateOf(false) }
     var showImageSourceOptions by remember { mutableStateOf(false) }
 
+    // ESTRATEGIA: ARCHIVOS LOCALES - Cargar borrador al iniciar
+    LaunchedEffect(Unit) {
+        val draft = productViewModel.loadDraft()
+        if (draft != null) {
+            title = draft.first
+            description = draft.second
+        }
+    }
+
+    // ESTRATEGIA: ARCHIVOS LOCALES - Guardar borrador cuando cambien los campos
+    LaunchedEffect(title, description) {
+        if (title.isNotEmpty() || description.isNotEmpty()) {
+            productViewModel.saveDraft(title, description)
+        }
+    }
+
     LaunchedEffect(uiState) {
         if (uiState is ProductUiState.Created) {
             onCloseClick()
@@ -87,6 +114,7 @@ fun PostProductScreen(
         if (uri != null) {
             imageUri = uri
             imageBitmap = null
+            imageError = null
         }
     }
 
@@ -96,7 +124,86 @@ fun PostProductScreen(
         if (bitmap != null) {
             imageBitmap = bitmap
             imageUri = null
+            imageError = null
         }
+    }
+
+    fun validateForm(): Boolean {
+        var isValid = true
+        
+        // Title validation
+        if (title.trim().isEmpty()) {
+            titleError = "Title is required"
+            isValid = false
+        } else if (title.trim().length < 3) {
+            titleError = "Title must be at least 3 characters"
+            isValid = false
+        } else if (title.trim().length > 50) {
+            titleError = "Title must be less than 50 characters"
+            isValid = false
+        } else {
+            titleError = null
+        }
+
+        // Price validation
+        val priceValue = price.toDoubleOrNull()
+        if (price.isEmpty()) {
+            priceError = "Price is required"
+            isValid = false
+        } else if (priceValue == null) {
+            priceError = "Price must be a valid number"
+            isValid = false
+        } else if (priceValue < 50.0) {
+            priceError = "Minimum price is $50 COP"
+            isValid = false
+        } else {
+            priceError = null
+        }
+
+        // Description validation
+        if (description.trim().isEmpty()) {
+            descriptionError = "Description is required"
+            isValid = false
+        } else if (description.trim().length < 10) {
+            descriptionError = "Description must be at least 10 characters"
+            isValid = false
+        } else {
+            descriptionError = null
+        }
+
+        // Category validation
+        if (selectedCategory.isEmpty()) {
+            categoryError = "Category is required"
+            isValid = false
+        } else {
+            categoryError = null
+        }
+
+        // Condition validation
+        if (selectedCondition.isEmpty()) {
+            conditionError = "Condition is required"
+            isValid = false
+        } else {
+            conditionError = null
+        }
+
+        // Location validation
+        if (buildingLocation.isEmpty()) {
+            locationError = "Location is required"
+            isValid = false
+        } else {
+            locationError = null
+        }
+
+        // Image validation
+        if (imageUri == null && imageBitmap == null) {
+            imageError = "At least one photo is required"
+            isValid = false
+        } else {
+            imageError = null
+        }
+
+        return isValid
     }
 
     Scaffold(
@@ -147,6 +254,11 @@ fun PostProductScreen(
                     .height(200.dp)
                     .clip(RoundedCornerShape(16.dp))
                     .background(MaterialTheme.colorScheme.surface)
+                    .border(
+                        width = 1.dp,
+                        color = if (imageError != null) MaterialTheme.colorScheme.error else Color.Transparent,
+                        shape = RoundedCornerShape(16.dp)
+                    )
                     .clickable { showImageSourceOptions = true },
                 contentAlignment = Alignment.Center
             ) {
@@ -155,14 +267,14 @@ fun PostProductScreen(
                         Icon(
                             imageVector = Icons.Default.CameraAlt,
                             contentDescription = null,
-                            tint = MaterialTheme.colorScheme.secondary,
+                            tint = if (imageError != null) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.secondary,
                             modifier = Modifier.size(48.dp)
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
                             text = "Tap to add a photo",
                             style = Typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.secondary
+                            color = if (imageError != null) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.secondary
                         )
                     }
                 } else {
@@ -173,6 +285,14 @@ fun PostProductScreen(
                         contentScale = ContentScale.Crop
                     )
                 }
+            }
+            if (imageError != null) {
+                Text(
+                    text = imageError!!,
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.labelSmall,
+                    modifier = Modifier.padding(start = 8.dp, top = 4.dp)
+                )
             }
 
             Text(
@@ -185,9 +305,14 @@ fun PostProductScreen(
 
             OutlinedTextField(
                 value = title,
-                onValueChange = { title = it },
+                onValueChange = { 
+                    title = it
+                    if (titleError != null) validateForm() 
+                },
                 label = { Text("Title") },
                 modifier = Modifier.fillMaxWidth(),
+                isError = titleError != null,
+                supportingText = { if (titleError != null) Text(titleError!!) },
                 shape = RoundedCornerShape(12.dp),
                 colors = OutlinedTextFieldDefaults.colors(
                     unfocusedBorderColor = MaterialTheme.colorScheme.surface,
@@ -201,11 +326,16 @@ fun PostProductScreen(
 
             OutlinedTextField(
                 value = description,
-                onValueChange = { description = it },
+                onValueChange = { 
+                    description = it
+                    if (descriptionError != null) validateForm()
+                },
                 label = { Text("Description") },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(120.dp),
+                isError = descriptionError != null,
+                supportingText = { if (descriptionError != null) Text(descriptionError!!) },
                 shape = RoundedCornerShape(12.dp),
                 colors = OutlinedTextFieldDefaults.colors(
                     unfocusedBorderColor = MaterialTheme.colorScheme.surface,
@@ -226,6 +356,8 @@ fun PostProductScreen(
                     onValueChange = {},
                     readOnly = true,
                     label = { Text("Category") },
+                    isError = categoryError != null,
+                    supportingText = { if (categoryError != null) Text(categoryError!!) },
                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = categoryExpanded) },
                     modifier = Modifier.menuAnchor().fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
@@ -246,6 +378,7 @@ fun PostProductScreen(
                             onClick = {
                                 selectedCategory = category
                                 categoryExpanded = false
+                                categoryError = null
                             }
                         )
                     }
@@ -257,7 +390,7 @@ fun PostProductScreen(
             Text(
                 "Condition",
                 style = Typography.bodyMedium,
-                color = MaterialTheme.colorScheme.secondary
+                color = if (conditionError != null) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.secondary
             )
             Spacer(modifier = Modifier.height(8.dp))
             Row(
@@ -268,7 +401,10 @@ fun PostProductScreen(
                     val isSelected = selectedCondition == condition
                     FilterChip(
                         selected = isSelected,
-                        onClick = { selectedCondition = condition },
+                        onClick = { 
+                            selectedCondition = condition
+                            conditionError = null
+                        },
                         label = { Text(condition) },
                         colors = FilterChipDefaults.filterChipColors(
                             selectedContainerColor = MaterialTheme.colorScheme.primary,
@@ -279,13 +415,21 @@ fun PostProductScreen(
                         border = FilterChipDefaults.filterChipBorder(
                             enabled = true,
                             selected = isSelected,
-                            borderColor = MaterialTheme.colorScheme.surface,
+                            borderColor = if (conditionError != null) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.surface,
                             selectedBorderColor = MaterialTheme.colorScheme.primary,
                             borderWidth = 1.dp
                         ),
                         shape = RoundedCornerShape(20.dp)
                     )
                 }
+            }
+            if (conditionError != null) {
+                Text(
+                    text = conditionError!!,
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.labelSmall,
+                    modifier = Modifier.padding(start = 8.dp, top = 4.dp)
+                )
             }
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -299,6 +443,8 @@ fun PostProductScreen(
                     onValueChange = {},
                     readOnly = true,
                     label = { Text("Building Location") },
+                    isError = locationError != null,
+                    supportingText = { if (locationError != null) Text(locationError!!) },
                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = buildingExpanded) },
                     modifier = Modifier.menuAnchor().fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
@@ -319,6 +465,7 @@ fun PostProductScreen(
                             onClick = {
                                 buildingLocation = building
                                 buildingExpanded = false
+                                locationError = null
                             }
                         )
                     }
@@ -329,10 +476,19 @@ fun PostProductScreen(
 
             OutlinedTextField(
                 value = price,
-                onValueChange = { price = it },
+                onValueChange = { 
+                    // Only allow numbers and one decimal point
+                    if (it.isEmpty() || it.toDoubleOrNull() != null || (it.endsWith(".") && it.count { c -> c == '.' } <= 1)) {
+                        price = it
+                        if (priceError != null) validateForm()
+                    }
+                },
                 label = { Text("Price") },
                 prefix = { Text("$ ") },
                 modifier = Modifier.fillMaxWidth(),
+                isError = priceError != null,
+                supportingText = { if (priceError != null) Text(priceError!!) },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 shape = RoundedCornerShape(12.dp),
                 colors = OutlinedTextFieldDefaults.colors(
                     unfocusedBorderColor = MaterialTheme.colorScheme.surface,
@@ -410,25 +566,24 @@ fun PostProductScreen(
 
             Button(
                 onClick = {
-                    productViewModel.createProduct(
-                        title = title,
-                        description = description,
-                        category = selectedCategory,
-                        location = buildingLocation,
-                        price = price.toDoubleOrNull() ?: 0.0,
-                        condition = selectedCondition,
-                        storeId = selectedStore?.id,
-                        imageUri = imageUri,
-                        imageBitmap = imageBitmap
-                    )
+                    if (validateForm()) {
+                        productViewModel.createProduct(
+                            title = title.trim(),
+                            description = description.trim(),
+                            category = selectedCategory,
+                            location = buildingLocation,
+                            price = price.toDoubleOrNull() ?: 0.0,
+                            condition = selectedCondition,
+                            storeId = selectedStore?.id,
+                            imageUri = imageUri,
+                            imageBitmap = imageBitmap
+                        )
+                    }
                 },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp),
-                enabled = uiState !is ProductUiState.Loading &&
-                        title.isNotEmpty() &&
-                        price.isNotEmpty() &&
-                        (imageUri != null || imageBitmap != null),
+                enabled = uiState !is ProductUiState.Loading,
                 shape = RoundedCornerShape(16.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.primary,

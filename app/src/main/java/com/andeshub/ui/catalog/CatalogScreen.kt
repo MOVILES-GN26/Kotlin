@@ -27,14 +27,17 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.andeshub.data.getRecommendedCategories
 import com.andeshub.data.local.SessionManager
+import com.andeshub.data.local.UserPreferencesManager
 import com.andeshub.data.model.Product
+import com.andeshub.data.remote.RetrofitClient
 import com.andeshub.ui.components.SearchBar
 import com.andeshub.ui.product.ProductUiState
 import com.andeshub.ui.product.ProductViewModel
@@ -55,10 +58,15 @@ fun CatalogScreen(
         }
     )
 
-    val uiState by productViewModel.uiState.collectAsState()
+    // ESTRATEGIA: PREFERENCES (5 pts)
+    val userPrefs = remember { UserPreferencesManager(context) }
+    
+    val uiState by productViewModel.uiState.collectAsStateWithLifecycle()
+    val viewedTimestamps by productViewModel.viewedTimestamps.collectAsStateWithLifecycle()
 
     var searchQuery by remember { mutableStateOf("") }
-    var selectedCategory by remember { mutableStateOf<String?>(null) }
+    // Cargamos la última categoría persistida al iniciar
+    var selectedCategory by remember { mutableStateOf<String?>(userPrefs.getLastCategory()) }
     var selectedCondition by remember { mutableStateOf<String?>(null) }
     var selectedSort by remember { mutableStateOf<String?>(null) }
 
@@ -68,6 +76,9 @@ fun CatalogScreen(
     var sheetType by remember { mutableStateOf("all") }
 
     LaunchedEffect(searchQuery, selectedCategory, selectedCondition, selectedSort) {
+        // Persistimos la categoría cada vez que cambie
+        userPrefs.saveLastCategory(selectedCategory)
+
         productViewModel.getProducts(
             search = searchQuery.ifEmpty { null },
             category = selectedCategory,
@@ -78,6 +89,7 @@ fun CatalogScreen(
                 else -> null
             }
         )
+        productViewModel.loadViewedTimestamps()
     }
 
     val products = if (uiState is ProductUiState.Success) {
@@ -195,6 +207,10 @@ fun CatalogScreen(
                     }
                 }
                 is ProductUiState.Error -> {
+                    // Si hay error (posiblemente offline), intentamos cargar de la DB local
+                    LaunchedEffect(Unit) {
+                        productViewModel.loadLocalProducts()
+                    }
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Text(
@@ -220,7 +236,6 @@ fun CatalogScreen(
                             Text("No products found", color = MaterialTheme.colorScheme.secondary)
                         }
                     } else {
-                        // Smart feature: reordenar por carrera solo si no hay filtros activos
                         val sortedProducts = if (selectedCategory == null && searchQuery.isEmpty()) {
                             val major = SessionManager(context).getUserMajor()
                             val recommendedCategories = getRecommendedCategories(major)
@@ -241,6 +256,7 @@ fun CatalogScreen(
                             items(sortedProducts) { product ->
                                 CatalogProductItem(
                                     product = product,
+                                    localLastViewed = null, // Ya no mostramos el tiempo local en CatalogScreen
                                     onClick = { onProductClick(product) }
                                 )
                             }
@@ -473,7 +489,7 @@ fun CategoryIconItem(
 }
 
 @Composable
-fun CatalogProductItem(product: Product, onClick: () -> Unit) {
+fun CatalogProductItem(product: Product, localLastViewed: Long? = null, onClick: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -487,8 +503,18 @@ fun CatalogProductItem(product: Product, onClick: () -> Unit) {
                 .background(Color(0xFFD9E8B6))
         ) {
             if (product.image_urls.isNotEmpty()) {
+                val baseUrl = RetrofitClient.getBaseUrl().removeSuffix("/")
+                val hostPort = baseUrl.split("//").last()
+                val rawUrl = product.image_urls.first()
+                
+                val imageUrl = rawUrl
+                    .replace("localhost:3000", hostPort)
+                    .replace("127.0.0.1:3000", hostPort)
+                    .replace("157.253.225.221:3000", hostPort)
+                    .replace("localhost", hostPort.split(":").first())
+
                 coil.compose.AsyncImage(
-                    model = product.image_urls.first().replace("localhost", "10.0.2.2"),
+                    model = imageUrl,
                     contentDescription = product.title,
                     modifier = Modifier.fillMaxSize(),
                     contentScale = androidx.compose.ui.layout.ContentScale.Crop
@@ -501,6 +527,23 @@ fun CatalogProductItem(product: Product, onClick: () -> Unit) {
                         .align(Alignment.BottomEnd)
                         .background(Color(0xFF6DA025).copy(alpha = 0.6f))
                 )
+            }
+
+            if (localLastViewed != null) {
+                Surface(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(8.dp),
+                    color = Color.Black.copy(alpha = 0.6f),
+                    shape = RoundedCornerShape(4.dp)
+                ) {
+                    Text(
+                        text = com.andeshub.ui.components.formatTimeAgoLocal(localLastViewed),
+                        color = Color.White,
+                        style = Typography.labelSmall.copy(fontSize = 10.sp),
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                    )
+                }
             }
         }
         Spacer(modifier = Modifier.height(8.dp))
