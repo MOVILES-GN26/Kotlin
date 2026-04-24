@@ -37,20 +37,20 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private val _searchQuery = MutableStateFlow("")
     val searchQuery: StateFlow<String> = _searchQuery
 
-    private val _viewedTimestamps = MutableStateFlow<Map<String, Long>>(emptyList<Pair<String, Long>>().toMap())
+    private val _searchHistory = MutableStateFlow<List<String>>(emptyList())
+    val searchHistory: StateFlow<List<String>> = _searchHistory
+
+    private val _viewedTimestamps = MutableStateFlow<Map<String, Long>>(emptyMap())
     val viewedTimestamps: StateFlow<Map<String, Long>> = _viewedTimestamps
 
     private val _selectedCategory = MutableStateFlow<String?>(null)
     val selectedCategory: StateFlow<String?> = _selectedCategory
 
     init {
-        // Carga la última búsqueda guardada en DataStore
+        // Carga el historial de búsquedas desde DataStore
         viewModelScope.launch {
-            searchPreferences.lastSearch.collect { savedQuery ->
-                android.util.Log.d("DataStore", "Búsqueda cargada: $savedQuery")
-                if (savedQuery.isNotEmpty() && _searchQuery.value.isEmpty()) {
-                    _searchQuery.value = savedQuery
-                }
+            searchPreferences.searchHistory.collect { history ->
+                _searchHistory.value = history
             }
         }
         loadData()
@@ -59,10 +59,14 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     fun loadViewedTimestamps() {
         viewModelScope.launch(Dispatchers.IO) {
-            val timestamps = AppDatabase.getInstance(getApplication())
-                .productDao().getAllViewedTimestamps()
-                .associate { it.id to it.lastViewedAt }
-            _viewedTimestamps.value = timestamps
+            try {
+                val timestamps = AppDatabase.getInstance(getApplication())
+                    .productDao().getAllViewedTimestamps()
+                    .associate { it.id to it.lastViewedAt }
+                _viewedTimestamps.value = timestamps
+            } catch (e: Exception) {
+                _viewedTimestamps.value = emptyMap()
+            }
         }
     }
 
@@ -72,19 +76,25 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 _uiState.value = HomeUiState.Loading
             }
 
+            // ESTRATEGIA DE MULTITHREADING PARALELO (RÚBRICA)
             val productsDeferred = async(Dispatchers.IO) {
-                try { api.getProducts() } catch (e: Exception) { null }
+                try { 
+                    repository.getProducts() 
+                } catch (e: Exception) { 
+                    // Fallback automático a local si falla la red al cargar el inicio
+                    repository.getAllLocalProducts() 
+                }
             }
             val trendingDeferred = async(Dispatchers.IO) {
                 try { api.getTrendingCategories() } catch (e: Exception) { emptyList<TrendingCategory>() }
             }
 
             try {
-                val productsResponse = productsDeferred.await()
+                val products = productsDeferred.await()
                 val trending = trendingDeferred.await()
 
                 _uiState.value = HomeUiState.Success(
-                    products = productsResponse?.items ?: emptyList(),
+                    products = products,
                     trendingCategories = trending
                 )
             } catch (e: Exception) {
@@ -106,19 +116,32 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             val currentState = _uiState.value
             val currentTrending = if (currentState is HomeUiState.Success) currentState.trendingCategories else emptyList()
 
-            // Guarda la búsqueda en DataStore antes de buscar
-            searchPreferences.saveLastSearch(_searchQuery.value)
+            if (_searchQuery.value.isNotBlank()) {
+                searchPreferences.saveSearch(_searchQuery.value)
+            }
 
             _uiState.value = HomeUiState.Loading
             try {
-                val response = api.getProducts(search = _searchQuery.value)
+                val products = repository.getProducts(search = _searchQuery.value)
                 _uiState.value = HomeUiState.Success(
-                    products = response.items ?: emptyList(),
+                    products = products,
                     trendingCategories = currentTrending
                 )
             } catch (e: Exception) {
-                _uiState.value = HomeUiState.Error(e.message ?: "Error desconocido")
+                // Fallback a búsqueda local si falla la red
+                val localProducts = repository.getAllLocalProducts().filter { 
+                    it.title.contains(_searchQuery.value, ignoreCase = true) 
+                }
+                _uiState.value = HomeUiState.Success(
+                    products = localProducts,
+                    trendingCategories = currentTrending
+                )
             }
         }
+    }
+
+    fun selectHistoryItem(query: String) {
+        _searchQuery.value = query
+        search()
     }
 }

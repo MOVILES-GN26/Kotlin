@@ -11,6 +11,8 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.ByteArrayOutputStream
+import java.io.File
+import java.io.FileOutputStream
 
 class ProductRepository(private val context: Context) {
 
@@ -23,6 +25,7 @@ class ProductRepository(private val context: Context) {
         condition: String? = null,
         priceSort: String? = null
     ): List<Product> {
+        // No capturamos el error aquí para que el ViewModel pueda manejar el fallback filtrado
         val response = api.getProducts(search, category, condition, priceSort)
         return response.items ?: emptyList()
     }
@@ -36,13 +39,6 @@ class ProductRepository(private val context: Context) {
         return productDao.getAllProducts().map { mapEntityToProduct(it) }
     }
 
-    suspend fun markProductAsViewed(productId: String) {
-        val entity = productDao.getProductById(productId)
-        entity?.let {
-            productDao.insertProduct(it.copy(lastViewedAt = System.currentTimeMillis()))
-        }
-    }
-
     private fun mapEntityToProduct(it: ProductEntity): Product {
         return Product(
             id = it.id,
@@ -52,31 +48,64 @@ class ProductRepository(private val context: Context) {
             category = it.category,
             condition = it.condition,
             building_location = it.location,
-            image_urls = listOfNotNull(it.imageUrl),
+            // PRIORIDAD: Imagen local si existe, sino URL remota
+            image_urls = if (!it.localImagePath.isNullOrEmpty() && File(it.localImagePath).exists()) 
+                            listOf(it.localImagePath) 
+                         else listOfNotNull(it.imageUrl),
             seller_id = it.sellerId,
             store_id = it.storeId,
             created_at = it.createdAt
         )
     }
 
-    suspend fun saveProductLocally(product: Product) {
-        val existing = productDao.getProductById(product.id)
-        val entity = ProductEntity(
-            id = product.id,
-            title = product.title,
-            description = product.description,
-            price = product.price,
-            category = product.category,
-            condition = product.condition,
-            location = product.building_location,
-            imageUrl = product.image_urls.firstOrNull(),
-            sellerId = product.seller_id,
-            storeId = product.store_id,
-            createdAt = product.created_at,
-            isFavorite = existing?.isFavorite ?: false,
-            lastViewedAt = existing?.lastViewedAt ?: System.currentTimeMillis()
-        )
-        productDao.insertProduct(entity)
+    fun saveImageToInternalStorage(uri: Uri?, bitmap: Bitmap?): String? {
+        val fileName = "prod_img_${System.currentTimeMillis()}.jpg"
+        val file = File(context.filesDir, fileName)
+        return try {
+            val outputStream = FileOutputStream(file)
+            if (uri != null) {
+                context.contentResolver.openInputStream(uri)?.use { it.copyTo(outputStream) }
+            } else if (bitmap != null) {
+                bitmap.compress(Bitmap.CompressFormat.JPEG, 90, outputStream)
+            }
+            outputStream.close()
+            file.absolutePath
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    suspend fun saveProductLocally(product: Product, localPath: String? = null) {
+        try {
+            val existing = productDao.getProductById(product.id)
+            val entity = ProductEntity(
+                id = product.id,
+                title = product.title,
+                description = product.description,
+                price = product.price,
+                category = product.category,
+                condition = product.condition,
+                location = product.building_location,
+                imageUrl = product.image_urls.firstOrNull(),
+                localImagePath = localPath ?: existing?.localImagePath,
+                sellerId = product.seller_id,
+                storeId = product.store_id,
+                createdAt = product.created_at,
+                isFavorite = existing?.isFavorite ?: false,
+                lastViewedAt = existing?.lastViewedAt ?: System.currentTimeMillis()
+            )
+            productDao.insertProduct(entity)
+        } catch (e: Exception) {
+            android.util.Log.e("ProductRepository", "Error saving product locally: ${e.message}")
+        }
+    }
+
+    suspend fun markProductAsViewed(productId: String) {
+        try {
+            productDao.updateLastViewed(productId, System.currentTimeMillis())
+        } catch (e: Exception) {
+            android.util.Log.e("ProductRepository", "Error marking product as viewed: ${e.message}")
+        }
     }
 
     suspend fun createProduct(
