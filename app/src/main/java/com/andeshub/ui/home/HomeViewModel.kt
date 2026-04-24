@@ -5,9 +5,12 @@ import androidx.lifecycle.viewModelScope
 import com.andeshub.data.model.Product
 import com.andeshub.data.model.TrendingCategory
 import com.andeshub.data.remote.RetrofitClient
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 sealed class HomeUiState {
     object Idle    : HomeUiState()
@@ -34,30 +37,37 @@ class HomeViewModel : ViewModel() {
     }
 
     fun loadData() {
-        viewModelScope.launch {
-            // Solo muestra Loading si no hay datos previos
-            val currentState = _uiState.value
-            if (currentState !is HomeUiState.Success) {
+        viewModelScope.launch(Dispatchers.Main) { // ← corrutina en Main (UI)
+            if (_uiState.value !is HomeUiState.Success) {
                 _uiState.value = HomeUiState.Loading
             }
-            try {
-                val productsResponse = api.getProducts()
-                val trendingResponse = try {
-                    api.getTrendingCategories()
-                } catch (e: Exception) {
-                    emptyList<TrendingCategory>()
-                }
 
-                _uiState.value = HomeUiState.Success(
-                    products = productsResponse.items ?: emptyList(),
-                    trendingCategories = trendingResponse
-                )
+            // Dos corrutinas anidadas en IO, corriendo en paralelo (async/await)
+            val productsDeferred = async(Dispatchers.IO) {
+                api.getProducts()
+            }
+            val trendingDeferred = async(Dispatchers.IO) {
+                try { api.getTrendingCategories() } catch (e: Exception) { emptyList<TrendingCategory>() }
+            }
+
+            try {
+                val products = productsDeferred.await()
+                val trending = trendingDeferred.await()
+
+                // De vuelta en Main para actualizar la UI
+                withContext(Dispatchers.Main) {
+                    _uiState.value = HomeUiState.Success(
+                        products = products.items ?: emptyList(),
+                        trendingCategories = trending
+                    )
+                }
             } catch (e: Exception) {
-                _uiState.value = HomeUiState.Error(e.message ?: "Error desconocido")
+                withContext(Dispatchers.Main) {
+                    _uiState.value = HomeUiState.Error(e.message ?: "Error desconocido")
+                }
             }
         }
     }
-
     fun onSearchQueryChange(query: String) {
         _searchQuery.value = query
     }
