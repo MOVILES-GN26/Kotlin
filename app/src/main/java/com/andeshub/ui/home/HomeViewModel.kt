@@ -3,6 +3,8 @@ package com.andeshub.ui.home
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.andeshub.data.local.AppDatabase
+import com.andeshub.data.local.SearchPreferences
 import com.andeshub.data.model.Product
 import com.andeshub.data.model.TrendingCategory
 import com.andeshub.data.remote.RetrofitClient
@@ -27,6 +29,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     private val api = RetrofitClient.apiService
     private val repository = ProductRepository(application)
+    private val searchPreferences = SearchPreferences(application)
 
     private val _uiState = MutableStateFlow<HomeUiState>(HomeUiState.Idle)
     val uiState: StateFlow<HomeUiState> = _uiState
@@ -41,13 +44,22 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     val selectedCategory: StateFlow<String?> = _selectedCategory
 
     init {
+        // Carga la última búsqueda guardada en DataStore
+        viewModelScope.launch {
+            searchPreferences.lastSearch.collect { savedQuery ->
+                android.util.Log.d("DataStore", "Búsqueda cargada: $savedQuery")
+                if (savedQuery.isNotEmpty() && _searchQuery.value.isEmpty()) {
+                    _searchQuery.value = savedQuery
+                }
+            }
+        }
         loadData()
         loadViewedTimestamps()
     }
 
     fun loadViewedTimestamps() {
         viewModelScope.launch(Dispatchers.IO) {
-            val timestamps = com.andeshub.data.local.AppDatabase.getInstance(getApplication())
+            val timestamps = AppDatabase.getInstance(getApplication())
                 .productDao().getAllViewedTimestamps()
                 .associate { it.id to it.lastViewedAt }
             _viewedTimestamps.value = timestamps
@@ -85,11 +97,18 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         _searchQuery.value = query
     }
 
+    fun onCategorySelected(category: String) {
+        _selectedCategory.value = if (_selectedCategory.value == category) null else category
+    }
+
     fun search() {
         viewModelScope.launch {
             val currentState = _uiState.value
             val currentTrending = if (currentState is HomeUiState.Success) currentState.trendingCategories else emptyList()
-            
+
+            // Guarda la búsqueda en DataStore antes de buscar
+            searchPreferences.saveLastSearch(_searchQuery.value)
+
             _uiState.value = HomeUiState.Loading
             try {
                 val response = api.getProducts(search = _searchQuery.value)
@@ -101,10 +120,5 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 _uiState.value = HomeUiState.Error(e.message ?: "Error desconocido")
             }
         }
-    }
-
-    fun onCategorySelected(category: String) {
-        // Si ya está seleccionada, la deselecciona (toggle)
-        _selectedCategory.value = if (_selectedCategory.value == category) null else category
     }
 }
