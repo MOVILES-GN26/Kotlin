@@ -7,16 +7,12 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
-import androidx.compose.material.icons.filled.LocationOn
-import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -39,6 +35,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.andeshub.data.model.Product
 import com.andeshub.data.model.UserProfile
+import com.andeshub.data.remote.RetrofitClient
 import com.andeshub.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -161,8 +158,18 @@ fun ProductDetailScreen(
                     .background(Color(0xFFD9E8B6))
             ) {
                 if (product.image_urls.isNotEmpty()) {
+                    val baseUrl = RetrofitClient.getBaseUrl().removeSuffix("/")
+                    val hostPort = baseUrl.split("//").last()
+                    val rawUrl = product.image_urls.first()
+                    
+                    val imageUrl = rawUrl
+                        .replace("localhost:3000", hostPort)
+                        .replace("127.0.0.1:3000", hostPort)
+                        .replace("157.253.225.221:3000", hostPort)
+                        .replace("localhost", hostPort.split(":").first())
+
                     AsyncImage(
-                        model = product.image_urls.first().replace("localhost", "10.0.2.2"),
+                        model = imageUrl,
                         contentDescription = product.title,
                         modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.Crop
@@ -177,7 +184,6 @@ fun ProductDetailScreen(
                     )
                 }
 
-                // Vistas para el dueño
                 if (productViewModel.isOwner(product)) {
                     stats?.let { statsData ->
                         Surface(
@@ -214,7 +220,6 @@ fun ProductDetailScreen(
                     .fillMaxWidth()
                     .padding(24.dp)
             ) {
-                // Título + precio + corazón
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -234,7 +239,6 @@ fun ProductDetailScreen(
                         )
                     }
 
-                    // Botón corazón para no dueños, contador para el dueño
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         modifier = Modifier.padding(top = 4.dp)
@@ -254,7 +258,6 @@ fun ProductDetailScreen(
                                 color = MaterialTheme.colorScheme.secondary
                             )
                         } else {
-                            // El dueño ve el contador de favoritos
                             Icon(
                                 imageVector = Icons.Default.Favorite,
                                 contentDescription = null,
@@ -288,108 +291,39 @@ fun ProductDetailScreen(
                             style = Typography.labelMedium,
                             color = MaterialTheme.colorScheme.secondary
                         )
-                        product.seller?.major?.let {
-                            Text(
-                                text = "Major: $it",
-                                style = Typography.labelSmall,
-                                color = MaterialTheme.colorScheme.secondary
-                            )
-                        }
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(top = 8.dp)
-                        ) {
-                            Text(
-                                text = "View Profile",
-                                style = Typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
-                                color = MaterialTheme.colorScheme.onBackground
-                            )
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                                contentDescription = null,
-                                modifier = Modifier
-                                    .size(16.dp)
-                                    .padding(start = 4.dp),
-                                tint = MaterialTheme.colorScheme.onBackground
-                            )
-                        }
-                    }
-
-                    Box(
-                        modifier = Modifier
-                            .size(64.dp)
-                            .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.surface),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Person,
-                            contentDescription = "Seller Avatar",
-                            tint = MaterialTheme.colorScheme.secondary,
-                            modifier = Modifier.size(32.dp)
-                        )
                     }
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Default.LocationOn,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.secondary,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = product.building_location,
-                        style = Typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.secondary
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(24.dp))
-
                 Text(
                     text = "Description",
-                    style = Typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                    style = Typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
                     color = MaterialTheme.colorScheme.onBackground
                 )
-                Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     text = product.description,
                     style = Typography.bodyMedium,
                     color = MaterialTheme.colorScheme.secondary,
-                    lineHeight = 20.sp
+                    modifier = Modifier.padding(top = 8.dp)
                 )
 
-                Spacer(modifier = Modifier.height(120.dp))
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Text(
+                    text = "Condition: ${product.condition}",
+                    style = Typography.labelLarge,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                
+                Text(
+                    text = "Location: ${product.building_location}",
+                    style = Typography.labelLarge,
+                    color = MaterialTheme.colorScheme.primary
+                )
+
+                Spacer(modifier = Modifier.height(32.dp))
             }
         }
-    }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun ProductDetailPreview() {
-    AndesHubTheme {
-        ProductDetailScreen(
-            product = Product(
-                id = "1",
-                title = "Tomi verde",
-                description = "Verde verde",
-                category = "Other",
-                building_location = "Biblioteca General",
-                price = 15000.0,
-                condition = "NEW",
-                image_urls = emptyList(),
-                seller_id = "s1",
-                seller = UserProfile(
-                    id = "s1",
-                    name = "Sofia Rozo",
-                    major = "Ingeniería de Sistemas y Computación"
-                )
-            )
-        )
     }
 }
