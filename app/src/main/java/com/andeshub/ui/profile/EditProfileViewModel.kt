@@ -69,11 +69,44 @@ class EditProfileViewModel(application: Application) : AndroidViewModel(applicat
                 phoneNumber = _uiState.value.phoneNumber.takeIf { it.isNotBlank() },
                 password  = password?.takeIf { it.isNotBlank() }
             ).onSuccess {
+                // Guardó en backend — actualizar cache local
+                val cached = sessionManager.getCachedUser()
+                if (cached != null) {
+                    sessionManager.saveUser(
+                        id = cached.id,
+                        email = cached.email,
+                        firstName = _uiState.value.firstName,
+                        lastName = _uiState.value.lastName,
+                        major = _uiState.value.major,
+                        phoneNumber = _uiState.value.phoneNumber
+                    )
+                }
+                sessionManager.clearPendingChanges()
                 _uiState.value = _uiState.value.copy(isSaving = false, saveSuccess = true)
-            }.onFailure { error ->
+            }.onFailure {
+                // Sin red — guardar localmente como pendiente
+                sessionManager.savePendingProfileUpdate(
+                    firstName = _uiState.value.firstName,
+                    lastName = _uiState.value.lastName,
+                    major = _uiState.value.major,
+                    phoneNumber = _uiState.value.phoneNumber
+                )
+                // Actualizar cache local igual
+                val cached = sessionManager.getCachedUser()
+                if (cached != null) {
+                    sessionManager.saveUser(
+                        id = cached.id,
+                        email = cached.email,
+                        firstName = _uiState.value.firstName,
+                        lastName = _uiState.value.lastName,
+                        major = _uiState.value.major,
+                        phoneNumber = _uiState.value.phoneNumber
+                    )
+                }
                 _uiState.value = _uiState.value.copy(
                     isSaving = false,
-                    errorMessage = "Error al guardar: ${error.message}"
+                    saveSuccess = true,
+                    errorMessage = "Guardado localmente. Se sincronizará cuando haya conexión."
                 )
             }
         }
