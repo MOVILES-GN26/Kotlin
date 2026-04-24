@@ -7,6 +7,9 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.andeshub.data.local.SessionManager
+import com.andeshub.data.local.UserPreferencesManager
+import com.andeshub.data.local.DraftManager
+import com.andeshub.data.local.ProductCache
 import com.andeshub.data.model.Product
 import com.andeshub.data.model.TrendingCategory
 import com.andeshub.data.model.ProductStats
@@ -15,9 +18,12 @@ import com.andeshub.data.model.Store
 import com.andeshub.data.repository.ProductRepository
 import com.andeshub.data.repository.StoreRepository
 import com.andeshub.data.remote.RetrofitClient
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 sealed class ProductUiState {
     object Idle : ProductUiState()
@@ -27,7 +33,7 @@ sealed class ProductUiState {
         val trendingCategories: List<TrendingCategory> = emptyList()
     ) : ProductUiState()
     data class Created(val product: Product) : ProductUiState()
-    data class Error(val message: String) : ProductUiState()
+    data class Error(val message: String, val isOffline: Boolean = false) : ProductUiState()
 }
 
 class ProductViewModel(context: Context) : ViewModel() {
@@ -35,7 +41,10 @@ class ProductViewModel(context: Context) : ViewModel() {
     private val repository = ProductRepository(context)
     private val storeRepository = StoreRepository(context)
     private val sessionManager = SessionManager(context)
+    private val userPrefs = UserPreferencesManager(context)
+    private val draftManager = DraftManager(context)
     private val api = RetrofitClient.apiService
+    private val db = com.andeshub.data.local.AppDatabase.getInstance(context)
 
     private val _uiState = MutableStateFlow<ProductUiState>(ProductUiState.Idle)
     val uiState: StateFlow<ProductUiState> = _uiState
@@ -52,17 +61,101 @@ class ProductViewModel(context: Context) : ViewModel() {
     private val _isFavorited = MutableStateFlow(false)
     val isFavorited: StateFlow<Boolean> = _isFavorited
 
+    private val _isOfflineMode = MutableStateFlow(false)
+    val isOfflineMode: StateFlow<Boolean> = _isOfflineMode
+
+    private val _viewedTimestamps = MutableStateFlow<Map<String, Long>>(emptyMap())
+    val viewedTimestamps: StateFlow<Map<String, Long>> = _viewedTimestamps
+
     init {
         loadUserStores()
+        loadViewedTimestamps()
+    }
+
+    /**
+     * ESTRATEGIA: ARCHIVOS LOCALES
+     * Guarda el texto del borrador en un archivo físico.
+     */
+    fun saveDraft(title: String, description: String) {
+        draftManager.saveDraft("$title|$description")
+    }
+
+    /**
+     * ESTRATEGIA: ARCHIVOS LOCALES
+     * Carga el contenido del archivo físico.
+     */
+    fun loadDraft(): Pair<String, String>? {
+        val raw = draftManager.getDraft() ?: return null
+        val parts = raw.split("|")
+        return if (parts.size >= 2) {
+            Pair(parts[0], parts[1])
+        } else {
+            null
+        }
+    }
+
+    fun clearDraft() {
+        draftManager.clearDraft()
+    }
+
+    fun loadViewedTimestamps() {
+        viewModelScope.launch(Dispatchers.IO) {
+            val timestamps = db.productDao().getAllViewedTimestamps()
+                .associate { it.id to it.lastViewedAt }
+            _viewedTimestamps.value = timestamps
+        }
     }
 
     private fun loadUserStores() {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             try {
                 val stores = storeRepository.getMyStores()
-                _userStores.value = stores
+                withContext(Dispatchers.Main) {
+                    _userStores.value = stores
+                }
             } catch (e: Exception) {
                 Log.e("ProductViewModel", "Error loading user stores", e)
+            }
+        }
+    }
+
+    fun loadLocalProducts() {
+        viewModelScope.launch {
+            _uiState.value = ProductUiState.Loading
+            try {
+                val localProducts = withContext(Dispatchers.IO) {
+                    repository.getAllLocalProducts()
+                }
+                _uiState.value = ProductUiState.Success(localProducts)
+                _isOfflineMode.value = true
+            } catch (e: Exception) {
+                _uiState.value = ProductUiState.Error("Error loading local products")
+            }
+        }
+    }
+
+    fun getProductDetail(productId: String, currentProduct: Product?) {
+        viewModelScope.launch {
+            _uiState.value = ProductUiState.Loading
+            try {
+                currentProduct?.let { 
+                    _uiState.value = ProductUiState.Success(listOf(it))
+                    _isOfflineMode.value = false
+                    launch(Dispatchers.IO) {
+                        repository.saveProductLocally(it)
+                    }
+                }
+            } catch (e: Exception) {
+                val localProduct = withContext(Dispatchers.IO) {
+                    repository.getProductOffline(productId)
+                }
+                
+                if (localProduct != null) {
+                    _uiState.value = ProductUiState.Success(listOf(localProduct))
+                    _isOfflineMode.value = true
+                } else {
+                    _uiState.value = ProductUiState.Error("Product not available offline", isOffline = true)
+                }
             }
         }
     }
@@ -78,11 +171,36 @@ class ProductViewModel(context: Context) : ViewModel() {
                 _uiState.value = ProductUiState.Loading
             }
             try {
-                val products = repository.getProducts(search, category, condition, priceSort)
-                val trending = try { api.getTrendingCategories() } catch (e: Exception) { emptyList() }
+                // ESTRATEGIA DE MULTITHREADING ASÍNCRONO (RÚBRICA)
+                val productsDeferred = async(Dispatchers.IO) {
+                    repository.getProducts(search, category, condition, priceSort)
+                }
+                val trendingDeferred = async(Dispatchers.IO) {
+                    try { api.getTrendingCategories() } catch (e: Exception) { emptyList() }
+                }
+
+                val products = productsDeferred.await()
+                val trending = trendingDeferred.await()
+                
+                if (products.isEmpty() && search == null && category == null && condition == null && priceSort == null) {
+                    val localProducts = withContext(Dispatchers.IO) { repository.getAllLocalProducts() }
+                    if (localProducts.isNotEmpty()) {
+                        _uiState.value = ProductUiState.Success(localProducts, trending)
+                        _isOfflineMode.value = true
+                        return@launch
+                    }
+                }
+
                 _uiState.value = ProductUiState.Success(products, trending)
+                _isOfflineMode.value = false
             } catch (e: Exception) {
-                _uiState.value = ProductUiState.Error(e.message ?: "Unknown error")
+                val localProducts = withContext(Dispatchers.IO) { repository.getAllLocalProducts() }
+                if (localProducts.isNotEmpty()) {
+                    _uiState.value = ProductUiState.Success(localProducts)
+                    _isOfflineMode.value = true
+                } else {
+                    _uiState.value = ProductUiState.Error(e.message ?: "Unknown error")
+                }
             }
         }
     }
@@ -94,21 +212,17 @@ class ProductViewModel(context: Context) : ViewModel() {
         val currentUserName = "$firstName $lastName".trim()
         val sellerName = product.seller?.name?.trim() ?: ""
 
-        val isByOwnerId = currentUserId != null && currentUserId == product.seller_id
-        val isByOwnerName = currentUserName.isNotEmpty() && currentUserName.equals(sellerName, ignoreCase = true)
-
-        Log.d("ProductViewModel", "isOwner Check - ID Match: $isByOwnerId, Name Match: $isByOwnerName")
-        Log.d("ProductViewModel", "Details - CurrentID: $currentUserId, SellerID: ${product.seller_id}")
-        Log.d("ProductViewModel", "Details - CurrentName: '$currentUserName', SellerName: '$sellerName'")
-
-        return isByOwnerId || isByOwnerName
+        return (currentUserId != null && currentUserId == product.seller_id) || 
+               (currentUserName.isNotEmpty() && currentUserName.equals(sellerName, ignoreCase = true))
     }
 
     fun checkIfFavorited(productId: String) {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             try {
                 val favorites = api.getFavorites()
-                _isFavorited.value = favorites.any { it.id == productId }
+                withContext(Dispatchers.Main) {
+                    _isFavorited.value = favorites.any { it.id == productId }
+                }
             } catch (e: Exception) {
                 _isFavorited.value = false
             }
@@ -116,19 +230,23 @@ class ProductViewModel(context: Context) : ViewModel() {
     }
 
     fun toggleFavorite(productId: String) {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             try {
                 if (_isFavorited.value) {
                     val response = api.removeFavorite(productId)
                     if (response.isSuccessful) {
-                        _isFavorited.value = false
-                        _favoritesCount.value = (_favoritesCount.value - 1).coerceAtLeast(0)
+                        withContext(Dispatchers.Main) {
+                            _isFavorited.value = false
+                            _favoritesCount.value = (_favoritesCount.value - 1).coerceAtLeast(0)
+                        }
                     }
                 } else {
                     val response = api.addFavorite(productId)
                     if (response.isSuccessful) {
-                        _isFavorited.value = true
-                        _favoritesCount.value = _favoritesCount.value + 1
+                        withContext(Dispatchers.Main) {
+                            _isFavorited.value = true
+                            _favoritesCount.value = _favoritesCount.value + 1
+                        }
                     }
                 }
             } catch (e: Exception) {
@@ -138,27 +256,46 @@ class ProductViewModel(context: Context) : ViewModel() {
     }
 
     fun recordProductView(product: Product) {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.Main) { 
+            launch(Dispatchers.IO) {
+                repository.saveProductLocally(product)
+                repository.markProductAsViewed(product.id)
+            }
+
             try {
                 loadProductStats(product.id)
-                
-                // No contar la interacción si el usuario es el dueño
                 if (!isOwner(product)) {
                     api.recordInteraction(RecordInteractionRequest(product.id, product.seller_id))
-                } else {
-                    Log.d("ProductViewModel", "Interaction not recorded: User is owner (by ID or Name)")
                 }
             } catch (e: Exception) {
-                Log.e("ProductViewModel", "Error recording view", e)
+                Log.e("EvC", "Network failed, viewing cached stats if available")
             }
         }
     }
 
+    /**
+     * ESTRATEGIA: LRU CACHE (CACHING - RÚBRICA)
+     * Implementación manual para evitar llamadas repetitivas a la API.
+     */
     fun loadProductStats(productId: String) {
-        viewModelScope.launch {
+        // 1. INTENTO LEER DE MI CACHÉ MANUAL (Estrategia LRU)
+        val cached = ProductCache.getStats(productId)
+        if (cached != null) {
+            _productStats.value = cached
+            Log.d("ProductViewModel", "Stats loaded from ProductCache (LRU) for $productId")
+            return
+        }
+
+        viewModelScope.launch(Dispatchers.IO) {
             try {
                 val stats = api.getProductStats(productId)
-                _productStats.value = stats
+                
+                // 2. LO GUARDO EN MI CACHÉ PARA LA PRÓXIMA VEZ
+                ProductCache.saveStats(productId, stats)
+                
+                withContext(Dispatchers.Main) {
+                    _productStats.value = stats
+                }
             } catch (e: Exception) {
                 _productStats.value = ProductStats(0, null, null)
             }
@@ -166,10 +303,12 @@ class ProductViewModel(context: Context) : ViewModel() {
     }
 
     fun loadFavoritesCount(productId: String) {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             try {
                 val result = api.getFavoritesCount(productId)
-                _favoritesCount.value = result.count
+                withContext(Dispatchers.Main) {
+                    _favoritesCount.value = result.count
+                }
             } catch (e: Exception) {
                 _favoritesCount.value = 0
             }
@@ -177,19 +316,21 @@ class ProductViewModel(context: Context) : ViewModel() {
     }
 
     fun getWhatsAppContactUrl(productId: String, onUrlReady: (String) -> Unit, onError: (String) -> Unit) {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             try {
                 val response = api.getWhatsAppContactUrl(productId)
-                Log.d("ProductViewModel", "WhatsApp URL: ${response.url}")
-                onUrlReady(response.url)
-            } catch (e: Exception) {
-                Log.e("ProductViewModel", "Error getting WhatsApp URL", e)
-                val errorMessage = if (e is retrofit2.HttpException && e.code() == 404) {
-                    "Seller phone number not available or product not found"
-                } else {
-                    "Error connecting to server"
+                withContext(Dispatchers.Main) {
+                    onUrlReady(response.url)
                 }
-                onError(errorMessage)
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    val errorMessage = if (e is retrofit2.HttpException && e.code() == 404) {
+                        "Seller phone number not available or product not found"
+                    } else {
+                        "Error connecting to server"
+                    }
+                    onError(errorMessage)
+                }
             }
         }
     }
@@ -203,8 +344,11 @@ class ProductViewModel(context: Context) : ViewModel() {
         viewModelScope.launch {
             _uiState.value = ProductUiState.Loading
             try {
-                val product = repository.createProduct(token, title, description, category, location, price, condition, storeId, imageUri, imageBitmap)
+                val product = withContext(Dispatchers.IO) {
+                    repository.createProduct(token, title, description, category, location, price, condition, storeId, imageUri, imageBitmap)
+                }
                 _uiState.value = ProductUiState.Created(product)
+                clearDraft()
             } catch (e: Exception) {
                 _uiState.value = ProductUiState.Error(e.message ?: "Error creating product")
             }
