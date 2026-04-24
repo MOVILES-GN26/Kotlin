@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 import androidx.core.content.edit
+import com.andeshub.data.model.CachedUser
 
 class SessionManager(context: Context) {
 
@@ -72,4 +73,20 @@ class SessionManager(context: Context) {
     fun getUserMajor(): String? = prefs.getString("user_major", null)
     fun getUserId(): String? = prefs.getString("user_id", null)
     fun getUserPhone(): String? = prefs.getString("user_phone", null)
+    fun getCachedUser(): CachedUser? {
+        val id = getUserId() ?: return null
+        return CachedUser(
+            id = id,
+            email = getUserEmail() ?: "",
+            firstName = getUserFirstName() ?: "",
+            lastName = getUserLastName() ?: "",
+            major = getUserMajor() ?: "",
+            phoneNumber = getUserPhone()
+        )
+    }
+    fun setBiometricEnabled(enabled: Boolean) {
+        prefs.edit { putBoolean("biometric_enabled", enabled) }
+    }
+
+    fun isBiometricEnabled(): Boolean = prefs.getBoolean("biometric_enabled", false)
 }
