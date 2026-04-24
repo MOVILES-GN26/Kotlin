@@ -27,10 +27,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.andeshub.data.getRecommendedCategories
 import com.andeshub.data.local.SessionManager
@@ -56,7 +57,8 @@ fun CatalogScreen(
         }
     )
 
-    val uiState by productViewModel.uiState.collectAsState()
+    val uiState by productViewModel.uiState.collectAsStateWithLifecycle()
+    val viewedTimestamps by productViewModel.viewedTimestamps.collectAsStateWithLifecycle()
 
     var searchQuery by remember { mutableStateOf("") }
     var selectedCategory by remember { mutableStateOf<String?>(null) }
@@ -79,6 +81,7 @@ fun CatalogScreen(
                 else -> null
             }
         )
+        productViewModel.loadViewedTimestamps()
     }
 
     val products = if (uiState is ProductUiState.Success) {
@@ -196,6 +199,10 @@ fun CatalogScreen(
                     }
                 }
                 is ProductUiState.Error -> {
+                    // Si hay error (posiblemente offline), intentamos cargar de la DB local
+                    LaunchedEffect(Unit) {
+                        productViewModel.loadLocalProducts()
+                    }
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Text(
@@ -221,7 +228,6 @@ fun CatalogScreen(
                             Text("No products found", color = MaterialTheme.colorScheme.secondary)
                         }
                     } else {
-                        // Smart feature: reordenar por carrera solo si no hay filtros activos
                         val sortedProducts = if (selectedCategory == null && searchQuery.isEmpty()) {
                             val major = SessionManager(context).getUserMajor()
                             val recommendedCategories = getRecommendedCategories(major)
@@ -242,6 +248,7 @@ fun CatalogScreen(
                             items(sortedProducts) { product ->
                                 CatalogProductItem(
                                     product = product,
+                                    localLastViewed = null, // Ya no mostramos el tiempo local en CatalogScreen
                                     onClick = { onProductClick(product) }
                                 )
                             }
@@ -474,7 +481,7 @@ fun CategoryIconItem(
 }
 
 @Composable
-fun CatalogProductItem(product: Product, onClick: () -> Unit) {
+fun CatalogProductItem(product: Product, localLastViewed: Long? = null, onClick: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -512,6 +519,23 @@ fun CatalogProductItem(product: Product, onClick: () -> Unit) {
                         .align(Alignment.BottomEnd)
                         .background(Color(0xFF6DA025).copy(alpha = 0.6f))
                 )
+            }
+
+            if (localLastViewed != null) {
+                Surface(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(8.dp),
+                    color = Color.Black.copy(alpha = 0.6f),
+                    shape = RoundedCornerShape(4.dp)
+                ) {
+                    Text(
+                        text = com.andeshub.ui.components.formatTimeAgoLocal(localLastViewed),
+                        color = Color.White,
+                        style = Typography.labelSmall.copy(fontSize = 10.sp),
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                    )
+                }
             }
         }
         Spacer(modifier = Modifier.height(8.dp))

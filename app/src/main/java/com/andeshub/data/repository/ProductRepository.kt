@@ -23,35 +23,44 @@ class ProductRepository(private val context: Context) {
         condition: String? = null,
         priceSort: String? = null
     ): List<Product> {
-        return try {
-            val response = api.getProducts(search, category, condition, priceSort)
-            response.items ?: emptyList()
-        } catch (e: Exception) {
-            // Si falla la red, podríamos retornar algo vacío o manejarlo en el ViewModel
-            emptyList()
-        }
+        val response = api.getProducts(search, category, condition, priceSort)
+        return response.items ?: emptyList()
     }
 
     suspend fun getProductOffline(productId: String): Product? {
         val entity = productDao.getProductById(productId)
-        return entity?.let {
-            Product(
-                id = it.id,
-                title = it.title,
-                description = it.description,
-                price = it.price,
-                category = it.category,
-                condition = it.condition,
-                building_location = it.location,
-                image_urls = listOfNotNull(it.imageUrl),
-                seller_id = it.sellerId,
-                store_id = it.storeId,
-                created_at = it.createdAt
-            )
+        return entity?.let { mapEntityToProduct(it) }
+    }
+
+    suspend fun getAllLocalProducts(): List<Product> {
+        return productDao.getAllProducts().map { mapEntityToProduct(it) }
+    }
+
+    suspend fun markProductAsViewed(productId: String) {
+        val entity = productDao.getProductById(productId)
+        entity?.let {
+            productDao.insertProduct(it.copy(lastViewedAt = System.currentTimeMillis()))
         }
     }
 
+    private fun mapEntityToProduct(it: ProductEntity): Product {
+        return Product(
+            id = it.id,
+            title = it.title,
+            description = it.description,
+            price = it.price,
+            category = it.category,
+            condition = it.condition,
+            building_location = it.location,
+            image_urls = listOfNotNull(it.imageUrl),
+            seller_id = it.sellerId,
+            store_id = it.storeId,
+            created_at = it.createdAt
+        )
+    }
+
     suspend fun saveProductLocally(product: Product) {
+        val existing = productDao.getProductById(product.id)
         val entity = ProductEntity(
             id = product.id,
             title = product.title,
@@ -63,7 +72,9 @@ class ProductRepository(private val context: Context) {
             imageUrl = product.image_urls.firstOrNull(),
             sellerId = product.seller_id,
             storeId = product.store_id,
-            createdAt = product.created_at
+            createdAt = product.created_at,
+            isFavorite = existing?.isFavorite ?: false,
+            lastViewedAt = existing?.lastViewedAt ?: System.currentTimeMillis()
         )
         productDao.insertProduct(entity)
     }

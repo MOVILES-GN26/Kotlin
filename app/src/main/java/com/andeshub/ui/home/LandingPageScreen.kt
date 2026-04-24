@@ -5,6 +5,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.DirectionsBike
 import androidx.compose.material.icons.automirrored.outlined.MenuBook
@@ -27,25 +29,26 @@ import com.andeshub.ui.components.CategoryChip
 import com.andeshub.ui.components.ProductCard
 import com.andeshub.ui.components.SearchBar
 import com.andeshub.ui.theme.*
-import com.andeshub.data.model.Product
 
 @Composable
 fun LandingPageScreen(
     viewModel: HomeViewModel = viewModel(),
     onProductClick: (com.andeshub.data.model.Product) -> Unit = {}
-
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
+    val viewedTimestamps by viewModel.viewedTimestamps.collectAsStateWithLifecycle()
 
     LaunchedEffect(Unit) {
         viewModel.loadData()
+        viewModel.loadViewedTimestamps()
     }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
+            .verticalScroll(rememberScrollState())
     ) {
         Text(
             text = "AndesHub",
@@ -96,6 +99,7 @@ fun LandingPageScreen(
         }
 
         Spacer(modifier = Modifier.height(24.dp))
+        
         Text(
             text = "Trending Categories",
             style = MaterialTheme.typography.titleMedium,
@@ -104,7 +108,6 @@ fun LandingPageScreen(
         )
         Spacer(modifier = Modifier.height(12.dp))
 
-        // Sección de Trending Categories Dinámica
         when (uiState) {
             is HomeUiState.Success -> {
                 val trending = (uiState as HomeUiState.Success).trendingCategories
@@ -143,7 +146,7 @@ fun LandingPageScreen(
             }
         }
 
-        // Sección Recently Added
+        // Sección Recently Added (REMOTO)
         Spacer(modifier = Modifier.height(24.dp))
         Text(
             text = "Recently Added",
@@ -179,27 +182,31 @@ fun LandingPageScreen(
             }
             is HomeUiState.Success -> {
                 val products = (uiState as HomeUiState.Success).products.filter { product ->
-                    product.title.contains(searchQuery, ignoreCase = true) || product.description.contains(searchQuery, ignoreCase = true) || product.category.contains(searchQuery, ignoreCase = true)
+                    product.title.contains(searchQuery, ignoreCase = true) || 
+                    product.description.contains(searchQuery, ignoreCase = true) || 
+                    product.category.contains(searchQuery, ignoreCase = true)
                 }
                 LazyRow(
                     contentPadding = PaddingValues(horizontal = 20.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    modifier = Modifier.height(160.dp)
                 ) {
                     items(products) { product ->
                         ProductCard(
                             product = product,
-                            onClick = { onProductClick(product) }  // ← este es el cambio
+                            showStats = false, // Ocultar estadísticas y tiempo en el catálogo
+                            onClick = { onProductClick(product) }
                         )
                     }
                 }
             }
             else -> {}
         }
+        
+        Spacer(modifier = Modifier.height(24.dp))
     }
 }
 
-// SINCRONIZACIÓN DE ICONOS:
-// Se mapean exactamente las categorías del Catálogo con sus iconos correspondientes.
 fun getIconForCategory(category: String): ImageVector {
     return when (category) {
         "Books & Supplies" -> Icons.AutoMirrored.Outlined.MenuBook
@@ -218,7 +225,7 @@ fun getIconForCategory(category: String): ImageVector {
 
 @Preview(showBackground = true)
 @Composable
-fun LandingPageScreenPreview() {
+fun LandingPagePreview() {
     AndesHubTheme {
         LandingPageScreen()
     }

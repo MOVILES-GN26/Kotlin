@@ -1,16 +1,17 @@
 package com.andeshub.ui.home
 
-import androidx.lifecycle.ViewModel
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.andeshub.data.model.Product
 import com.andeshub.data.model.TrendingCategory
 import com.andeshub.data.remote.RetrofitClient
+import com.andeshub.data.repository.ProductRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 sealed class HomeUiState {
     object Idle    : HomeUiState()
@@ -22,9 +23,10 @@ sealed class HomeUiState {
     data class Error(val message: String) : HomeUiState()
 }
 
-class HomeViewModel : ViewModel() {
+class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     private val api = RetrofitClient.apiService
+    private val repository = ProductRepository(application)
 
     private val _uiState = MutableStateFlow<HomeUiState>(HomeUiState.Idle)
     val uiState: StateFlow<HomeUiState> = _uiState
@@ -32,42 +34,50 @@ class HomeViewModel : ViewModel() {
     private val _searchQuery = MutableStateFlow("")
     val searchQuery: StateFlow<String> = _searchQuery
 
+    private val _viewedTimestamps = MutableStateFlow<Map<String, Long>>(emptyList<Pair<String, Long>>().toMap())
+    val viewedTimestamps: StateFlow<Map<String, Long>> = _viewedTimestamps
+
     init {
         loadData()
+        loadViewedTimestamps()
+    }
+
+    fun loadViewedTimestamps() {
+        viewModelScope.launch(Dispatchers.IO) {
+            val timestamps = com.andeshub.data.local.AppDatabase.getInstance(getApplication())
+                .productDao().getAllViewedTimestamps()
+                .associate { it.id to it.lastViewedAt }
+            _viewedTimestamps.value = timestamps
+        }
     }
 
     fun loadData() {
-        viewModelScope.launch(Dispatchers.Main) { // ← corrutina en Main (UI)
+        viewModelScope.launch(Dispatchers.Main) {
             if (_uiState.value !is HomeUiState.Success) {
                 _uiState.value = HomeUiState.Loading
             }
 
-            // Dos corrutinas anidadas en IO, corriendo en paralelo (async/await)
             val productsDeferred = async(Dispatchers.IO) {
-                api.getProducts()
+                try { api.getProducts() } catch (e: Exception) { null }
             }
             val trendingDeferred = async(Dispatchers.IO) {
                 try { api.getTrendingCategories() } catch (e: Exception) { emptyList<TrendingCategory>() }
             }
 
             try {
-                val products = productsDeferred.await()
+                val productsResponse = productsDeferred.await()
                 val trending = trendingDeferred.await()
 
-                // De vuelta en Main para actualizar la UI
-                withContext(Dispatchers.Main) {
-                    _uiState.value = HomeUiState.Success(
-                        products = products.items ?: emptyList(),
-                        trendingCategories = trending
-                    )
-                }
+                _uiState.value = HomeUiState.Success(
+                    products = productsResponse?.items ?: emptyList(),
+                    trendingCategories = trending
+                )
             } catch (e: Exception) {
-                withContext(Dispatchers.Main) {
-                    _uiState.value = HomeUiState.Error(e.message ?: "Error desconocido")
-                }
+                _uiState.value = HomeUiState.Error(e.message ?: "Error desconocido")
             }
         }
     }
+
     fun onSearchQueryChange(query: String) {
         _searchQuery.value = query
     }

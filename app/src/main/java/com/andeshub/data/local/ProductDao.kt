@@ -28,4 +28,18 @@ interface ProductDao {
 
     @Query("SELECT * FROM products WHERE id = :productId LIMIT 1")
     suspend fun getProductById(productId: String): ProductEntity?
+
+    @Query("SELECT * FROM products ORDER BY id DESC")
+    suspend fun getAllProducts(): List<ProductEntity>
+
+    @Query("SELECT * FROM products WHERE lastViewedAt IS NOT NULL ORDER BY lastViewedAt DESC LIMIT 10")
+    suspend fun getRecentlyViewedProducts(): List<ProductEntity>
+
+    @Query("SELECT id, lastViewedAt FROM products WHERE lastViewedAt IS NOT NULL")
+    suspend fun getAllViewedTimestamps(): List<ViewedTimestamp>
 }
+
+data class ViewedTimestamp(
+    val id: String,
+    val lastViewedAt: Long
+)

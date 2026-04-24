@@ -38,6 +38,7 @@ class ProductViewModel(context: Context) : ViewModel() {
     private val storeRepository = StoreRepository(context)
     private val sessionManager = SessionManager(context)
     private val api = RetrofitClient.apiService
+    private val db = com.andeshub.data.local.AppDatabase.getInstance(context)
 
     private val _uiState = MutableStateFlow<ProductUiState>(ProductUiState.Idle)
     val uiState: StateFlow<ProductUiState> = _uiState
@@ -54,12 +55,23 @@ class ProductViewModel(context: Context) : ViewModel() {
     private val _isFavorited = MutableStateFlow(false)
     val isFavorited: StateFlow<Boolean> = _isFavorited
 
-    // Estado para saber si estamos viendo datos de la DB local (Offline)
     private val _isOfflineMode = MutableStateFlow(false)
     val isOfflineMode: StateFlow<Boolean> = _isOfflineMode
 
+    private val _viewedTimestamps = MutableStateFlow<Map<String, Long>>(emptyMap())
+    val viewedTimestamps: StateFlow<Map<String, Long>> = _viewedTimestamps
+
     init {
         loadUserStores()
+        loadViewedTimestamps()
+    }
+
+    fun loadViewedTimestamps() {
+        viewModelScope.launch(Dispatchers.IO) {
+            val timestamps = db.productDao().getAllViewedTimestamps()
+                .associate { it.id to it.lastViewedAt }
+            _viewedTimestamps.value = timestamps
+        }
     }
 
     private fun loadUserStores() {
@@ -75,23 +87,33 @@ class ProductViewModel(context: Context) : ViewModel() {
         }
     }
 
+    fun loadLocalProducts() {
+        viewModelScope.launch {
+            _uiState.value = ProductUiState.Loading
+            try {
+                val localProducts = withContext(Dispatchers.IO) {
+                    repository.getAllLocalProducts()
+                }
+                _uiState.value = ProductUiState.Success(localProducts)
+                _isOfflineMode.value = true
+            } catch (e: Exception) {
+                _uiState.value = ProductUiState.Error("Error loading local products")
+            }
+        }
+    }
+
     fun getProductDetail(productId: String, currentProduct: Product?) {
         viewModelScope.launch {
             _uiState.value = ProductUiState.Loading
             try {
-                // Intento 1: Red (Input/Output)
-                // Aquí podrías llamar a un endpoint de detalle si existiera.
-                // Por ahora usamos el objeto que viene del catálogo.
                 currentProduct?.let { 
                     _uiState.value = ProductUiState.Success(listOf(it))
                     _isOfflineMode.value = false
-                    // MULTITHREADING: Lanzamos corrutina hija para guardar en local sin bloquear
                     launch(Dispatchers.IO) {
                         repository.saveProductLocally(it)
                     }
                 }
             } catch (e: Exception) {
-                // ESTRATEGIA EvC: Si falla red, buscamos en local
                 val localProduct = withContext(Dispatchers.IO) {
                     repository.getProductOffline(productId)
                 }
@@ -121,10 +143,28 @@ class ProductViewModel(context: Context) : ViewModel() {
                     repository.getProducts(search, category, condition, priceSort)
                 }
                 val trending = try { api.getTrendingCategories() } catch (e: Exception) { emptyList() }
+                
+                if (products.isEmpty() && search == null && category == null && condition == null && priceSort == null) {
+                    // Si no hay productos de red y no hay filtros, intentamos cargar locales
+                    val localProducts = withContext(Dispatchers.IO) { repository.getAllLocalProducts() }
+                    if (localProducts.isNotEmpty()) {
+                        _uiState.value = ProductUiState.Success(localProducts, trending)
+                        _isOfflineMode.value = true
+                        return@launch
+                    }
+                }
+
                 _uiState.value = ProductUiState.Success(products, trending)
                 _isOfflineMode.value = false
             } catch (e: Exception) {
-                _uiState.value = ProductUiState.Error(e.message ?: "Unknown error")
+                // Fallback a local en caso de error de red
+                val localProducts = withContext(Dispatchers.IO) { repository.getAllLocalProducts() }
+                if (localProducts.isNotEmpty()) {
+                    _uiState.value = ProductUiState.Success(localProducts)
+                    _isOfflineMode.value = true
+                } else {
+                    _uiState.value = ProductUiState.Error(e.message ?: "Unknown error")
+                }
             }
         }
     }
@@ -180,15 +220,13 @@ class ProductViewModel(context: Context) : ViewModel() {
     }
 
     fun recordProductView(product: Product) {
-        // MULTITHREADING: Uso de múltiples corrutinas anidadas (Rubrica 10 pts)
         viewModelScope.launch(Dispatchers.Main) { 
-            // Corrutina 1: Guardado local (Background IO)
             launch(Dispatchers.IO) {
                 repository.saveProductLocally(product)
-                Log.d("EvC", "Persistence: Product ${product.id} cached for eventual connectivity")
+                repository.markProductAsViewed(product.id)
+                Log.d("EvC", "Persistence: Product ${product.id} cached and marked as viewed")
             }
 
-            // Corrutina 2: Estadísticas (Network)
             try {
                 loadProductStats(product.id)
                 if (!isOwner(product)) {
