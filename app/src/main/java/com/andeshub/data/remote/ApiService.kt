@@ -19,6 +19,7 @@ import com.andeshub.data.model.UpdateProfileRequest
 import com.andeshub.data.model.UserResponse
 import com.andeshub.data.model.ProductVisitRequest
 import com.andeshub.data.model.ProductVisitStats
+import com.andeshub.data.model.PurchaseFromFavoriteRequest
 
 import retrofit2.Response
 import retrofit2.http.*
@@ -125,4 +126,10 @@ interface ApiService {
 
     @GET("analytics/product-visit/stats")
     suspend fun getProductVisitStats(@Query("productId") productId: String? = null): ProductVisitStats
+
+    @POST("interactions/purchase")
+    suspend fun recordPurchaseFromFavorite(
+        @Body request: PurchaseFromFavoriteRequest
+    ): Response<Unit>
+
 }
