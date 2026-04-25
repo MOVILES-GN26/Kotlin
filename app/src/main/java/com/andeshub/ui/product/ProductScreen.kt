@@ -15,26 +15,19 @@ import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.andeshub.data.model.Product
-import com.andeshub.data.model.UserProfile
 import com.andeshub.data.remote.RetrofitClient
 import com.andeshub.ui.theme.*
 
@@ -57,6 +50,8 @@ fun ProductDetailScreen(
     val stats by productViewModel.productStats.collectAsState()
     val isFavorited by productViewModel.isFavorited.collectAsState()
     val favoritesCount by productViewModel.favoritesCount.collectAsState()
+    val toggleFavoriteError by productViewModel.toggleFavoriteError.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(product.id) {
         productViewModel.recordProductView(product)
@@ -64,7 +59,15 @@ fun ProductDetailScreen(
         productViewModel.loadFavoritesCount(product.id)
     }
 
+    LaunchedEffect(toggleFavoriteError) {
+        toggleFavoriteError?.let {
+            snackbarHostState.showSnackbar(it)
+            productViewModel.clearToggleFavoriteError()
+        }
+    }
+
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             CenterAlignedTopAppBar(
                 title = {
@@ -162,7 +165,7 @@ fun ProductDetailScreen(
                     val baseUrl = RetrofitClient.getBaseUrl().removeSuffix("/")
                     val hostPort = baseUrl.split("//").last()
                     val rawUrl = product.image_urls.first()
-                    
+
                     val imageUrl = rawUrl
                         .replace("localhost:3000", hostPort)
                         .replace("127.0.0.1:3000", hostPort)
@@ -316,7 +319,7 @@ fun ProductDetailScreen(
                     style = Typography.labelLarge,
                     color = MaterialTheme.colorScheme.primary
                 )
-                
+
                 Text(
                     text = "Location: ${product.building_location}",
                     style = Typography.labelLarge,

@@ -47,13 +47,16 @@ fun CreateStoreScreen(
 
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
-    var storeName        by remember { mutableStateOf("") }
-    var description      by remember { mutableStateOf("") }
-    var category         by remember { mutableStateOf("") }
+    // Carga el borrador al abrir la pantalla
+    val draft = remember { viewModel.loadDraft() }
+
+    var storeName        by remember { mutableStateOf(draft?.first ?: "") }
+    var description      by remember { mutableStateOf(draft?.second ?: "") }
+    var category         by remember { mutableStateOf(draft?.third ?: "") }
     var storeNameError   by remember { mutableStateOf("") }
     var descriptionError by remember { mutableStateOf("") }
     var expanded         by remember { mutableStateOf(false) }
-    var logoUri by remember { mutableStateOf<Uri?>(null) }
+    var logoUri          by remember { mutableStateOf<Uri?>(null) }
 
     val categories = listOf("Clothing", "Accessories", "Food", "Technology", "Home", "Entertainment")
 
@@ -65,6 +68,7 @@ fun CreateStoreScreen(
 
     LaunchedEffect(uiState) {
         if (uiState is StoreUiState.Success) {
+            viewModel.clearDraft() // borra el borrador al crear exitosamente
             onClose()
         }
     }
@@ -96,6 +100,40 @@ fun CreateStoreScreen(
                 color = MaterialTheme.colorScheme.onBackground,
                 modifier = Modifier.align(Alignment.Center)
             )
+        }
+
+        // Aviso de borrador si hay datos guardados
+        if (draft != null && (draft.first.isNotEmpty() || draft.second.isNotEmpty() || draft.third.isNotEmpty())) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 4.dp)
+                    .background(
+                        MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
+                        RoundedCornerShape(8.dp)
+                    )
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = "Draft restored",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Text(
+                    text = "Clear",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.clickable {
+                        viewModel.clearDraft()
+                        storeName = ""
+                        description = ""
+                        category = ""
+                    }
+                )
+            }
+            Spacer(modifier = Modifier.height(8.dp))
         }
 
         Text(
@@ -145,6 +183,7 @@ fun CreateStoreScreen(
             onValueChange = {
                 storeName = it
                 storeNameError = if (it.length > 120) "Maximum 120 characters" else ""
+                viewModel.saveDraft(it, description, category)
             },
             placeholder = "Name",
             modifier = Modifier.padding(horizontal = 20.dp)
@@ -165,6 +204,7 @@ fun CreateStoreScreen(
             onValueChange = {
                 description = it
                 descriptionError = if (it.length > 120) "Maximum 120 characters" else ""
+                viewModel.saveDraft(storeName, it, category)
             },
             placeholder = "Description",
             singleLine = false,
@@ -229,6 +269,7 @@ fun CreateStoreScreen(
                         onClick = {
                             category = option
                             expanded = false
+                            viewModel.saveDraft(storeName, description, option)
                         }
                     )
                 }

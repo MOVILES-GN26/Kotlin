@@ -57,4 +57,16 @@ class StoreViewModel(private val context: Context) : ViewModel() {
             }
         }
     }
+
+    fun saveDraft(name: String, description: String, category: String) {
+        StoreLogger.saveDraft(context, name, description, category)
+    }
+
+    fun loadDraft(): Triple<String, String, String>? {
+        return StoreLogger.loadDraft(context)
+    }
+
+    fun clearDraft() {
+        StoreLogger.clearDraft(context)
+    }
 }

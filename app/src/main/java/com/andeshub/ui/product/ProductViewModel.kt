@@ -26,6 +26,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import com.andeshub.data.local.FavoritesEvent
 import kotlinx.coroutines.supervisorScope
 
 sealed class ProductUiState {
@@ -73,6 +74,13 @@ class ProductViewModel(private val context: Context) : ViewModel() {
     private val _isGridView = MutableStateFlow(userPrefs.isGridViewEnabled())
     val isGridView: StateFlow<Boolean> = _isGridView
 
+    private val _toggleFavoriteError = MutableStateFlow<String?>(null)
+    val toggleFavoriteError: StateFlow<String?> = _toggleFavoriteError
+
+    fun clearToggleFavoriteError() {
+        _toggleFavoriteError.value = null
+    }
+
     init {
         loadUserStores()
         loadViewedTimestamps()
@@ -98,7 +106,7 @@ class ProductViewModel(private val context: Context) : ViewModel() {
             } catch (e: Exception) {
                 emptyList<Product>()
             }
-            
+
             val filteredLocal = localProducts.filter { product ->
                 val matchesSearch = search == null || product.title.contains(search, ignoreCase = true)
                 val matchesCategory = category == null || product.category == category
@@ -129,12 +137,12 @@ class ProductViewModel(private val context: Context) : ViewModel() {
                     try {
                         val remoteProducts = productsDeferred.await()
                         val trending = trendingDeferred.await()
-                        
+
                         _uiState.value = ProductUiState.Success(remoteProducts, trending)
                         _isOfflineMode.value = false
-                        
+
                         launch(Dispatchers.IO) {
-                            remoteProducts.forEach { 
+                            remoteProducts.forEach {
                                 try { repository.saveProductLocally(it) } catch (e: Exception) {}
                             }
                         }
@@ -252,22 +260,35 @@ class ProductViewModel(private val context: Context) : ViewModel() {
     }
 
     fun checkIfFavorited(productId: String) {
-        if (!isNetworkAvailable()) return
         viewModelScope.launch(Dispatchers.IO) {
+            if (!isNetworkAvailable()) {
+                // Sin internet: verifica directamente en Room
+                val product = db.productDao().getProductById(productId)
+                withContext(Dispatchers.Main) {
+                    _isFavorited.value = product?.isFavorite == true
+                }
+                return@launch
+            }
             try {
                 val favorites = api.getFavorites()
+                favorites.forEach { product ->
+                    db.productDao().markAsFavorite(product.id)
+                }
                 withContext(Dispatchers.Main) {
                     _isFavorited.value = favorites.any { it.id == productId }
                 }
             } catch (e: Exception) {
-                _isFavorited.value = false
+                val product = db.productDao().getProductById(productId)
+                withContext(Dispatchers.Main) {
+                    _isFavorited.value = product?.isFavorite == true
+                }
             }
         }
     }
 
     fun toggleFavorite(productId: String) {
         if (!isNetworkAvailable()) {
-            Log.d("ProductViewModel", "Favoriting requires internet")
+            _toggleFavoriteError.value = "No internet connection. Try again later."
             return
         }
         viewModelScope.launch(Dispatchers.IO) {
@@ -275,21 +296,30 @@ class ProductViewModel(private val context: Context) : ViewModel() {
                 if (_isFavorited.value) {
                     val response = api.removeFavorite(productId)
                     if (response.isSuccessful) {
+                        db.productDao().unmarkAsFavorite(productId) // actualiza Room
                         withContext(Dispatchers.Main) {
                             _isFavorited.value = false
                             _favoritesCount.value = (_favoritesCount.value - 1).coerceAtLeast(0)
+                            FavoritesEvent.notifyChanged()
                         }
                     }
                 } else {
                     val response = api.addFavorite(productId)
                     if (response.isSuccessful) {
+                        db.productDao().markAsFavorite(productId) // actualiza Room
                         withContext(Dispatchers.Main) {
                             _isFavorited.value = true
                             _favoritesCount.value = _favoritesCount.value + 1
+                            FavoritesEvent.notifyChanged()
                         }
                     }
                 }
             } catch (e: Exception) {
+                if (!_isFavorited.value) {
+                    withContext(Dispatchers.Main) {
+                        _toggleFavoriteError.value = "No internet connection. Try again later."
+                    }
+                }
                 Log.e("ProductViewModel", "Error toggling favorite: ${e.message}")
             }
         }

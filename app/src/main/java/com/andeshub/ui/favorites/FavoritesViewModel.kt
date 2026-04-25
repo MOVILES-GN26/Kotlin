@@ -3,6 +3,7 @@ package com.andeshub.ui.favorites
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.andeshub.data.local.FavoritesEvent
 import com.andeshub.data.model.Product
 import com.andeshub.data.repository.FavoritesRepository
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -25,6 +26,11 @@ class FavoritesViewModel(application: Application) : AndroidViewModel(applicatio
 
     init {
         getFavorites()
+        viewModelScope.launch {
+            FavoritesEvent.favoriteChanged.collect {
+                getFavorites()
+            }
+        }
     }
 
     fun getFavorites() {
