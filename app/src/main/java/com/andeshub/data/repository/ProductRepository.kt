@@ -6,6 +6,7 @@ import android.net.Uri
 import com.andeshub.data.local.AppDatabase
 import com.andeshub.data.local.ProductEntity
 import com.andeshub.data.model.Product
+import com.andeshub.data.model.UserProfile
 import com.andeshub.data.remote.RetrofitClient
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
@@ -53,6 +54,7 @@ class ProductRepository(private val context: Context) {
                             listOf(it.localImagePath) 
                          else listOfNotNull(it.imageUrl),
             seller_id = it.sellerId,
+            seller = if (it.sellerName != null) UserProfile(id = it.sellerId ?: "", name = it.sellerName, major = it.sellerMajor) else null,
             store_id = it.storeId,
             created_at = it.createdAt
         )
@@ -89,6 +91,8 @@ class ProductRepository(private val context: Context) {
                 imageUrl = product.image_urls.firstOrNull(),
                 localImagePath = localPath ?: existing?.localImagePath,
                 sellerId = product.seller_id ?: product.seller?.id,
+                sellerName = product.seller?.name ?: existing?.sellerName,
+                sellerMajor = product.seller?.major ?: existing?.sellerMajor,
                 storeId = product.store_id,
                 createdAt = product.created_at,
                 isFavorite = existing?.isFavorite ?: false,
