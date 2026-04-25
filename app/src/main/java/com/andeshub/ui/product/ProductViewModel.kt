@@ -12,11 +12,7 @@ import com.andeshub.data.local.SessionManager
 import com.andeshub.data.local.UserPreferencesManager
 import com.andeshub.data.local.DraftManager
 import com.andeshub.data.local.ProductCache
-import com.andeshub.data.model.Product
-import com.andeshub.data.model.TrendingCategory
-import com.andeshub.data.model.ProductStats
-import com.andeshub.data.model.RecordInteractionRequest
-import com.andeshub.data.model.Store
+import com.andeshub.data.model.*
 import com.andeshub.data.repository.ProductRepository
 import com.andeshub.data.repository.StoreRepository
 import com.andeshub.data.remote.RetrofitClient
@@ -77,6 +73,9 @@ class ProductViewModel(private val context: Context) : ViewModel() {
     private val _toggleFavoriteError = MutableStateFlow<String?>(null)
     val toggleFavoriteError: StateFlow<String?> = _toggleFavoriteError
 
+    private val _visitStats = MutableStateFlow<ProductVisitStats?>(null)
+    val visitStats: StateFlow<ProductVisitStats?> = _visitStats
+
     fun clearToggleFavoriteError() {
         _toggleFavoriteError.value = null
     }
@@ -86,7 +85,7 @@ class ProductViewModel(private val context: Context) : ViewModel() {
         loadViewedTimestamps()
     }
 
-    private fun isNetworkAvailable(): Boolean {
+    fun isNetworkAvailable(): Boolean {
         val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
         val network = connectivityManager.activeNetwork ?: return false
         val capabilities = connectivityManager.getNetworkCapabilities(network) ?: return false
@@ -100,7 +99,6 @@ class ProductViewModel(private val context: Context) : ViewModel() {
         priceSort: String? = null
     ) {
         viewModelScope.launch {
-            // 1. Carga inmediata de datos locales
             val localProducts = try {
                 withContext(Dispatchers.IO) { repository.getAllLocalProducts() }
             } catch (e: Exception) {
@@ -114,17 +112,13 @@ class ProductViewModel(private val context: Context) : ViewModel() {
                 matchesSearch && matchesCategory && matchesCondition
             }
 
-            // Mostrar lo local inmediatamente para que no haya parpadeos
             _uiState.value = ProductUiState.Success(filteredLocal)
 
-            // 2. Si NO hay internet, no intentamos nada más. Ahorramos tiempo de espera.
             if (!isNetworkAvailable()) {
                 _isOfflineMode.value = true
-                Log.d("ProductViewModel", "Offline mode: skipping network request")
                 return@launch
             }
 
-            // 3. Si hay internet, intentamos actualizar en segundo plano
             try {
                 supervisorScope {
                     val productsDeferred = async(Dispatchers.IO) {
@@ -147,7 +141,6 @@ class ProductViewModel(private val context: Context) : ViewModel() {
                             }
                         }
                     } catch (netEx: Exception) {
-                        // Si falla la red (timeout), ya estamos mostrando lo local así que solo marcamos offline
                         _isOfflineMode.value = true
                     }
                 }
@@ -262,7 +255,6 @@ class ProductViewModel(private val context: Context) : ViewModel() {
     fun checkIfFavorited(productId: String) {
         viewModelScope.launch(Dispatchers.IO) {
             if (!isNetworkAvailable()) {
-                // Sin internet: verifica directamente en Room
                 val product = db.productDao().getProductById(productId)
                 withContext(Dispatchers.Main) {
                     _isFavorited.value = product?.isFavorite == true
@@ -298,7 +290,7 @@ class ProductViewModel(private val context: Context) : ViewModel() {
                 if (_isFavorited.value) {
                     val response = api.removeFavorite(productId)
                     if (response.isSuccessful) {
-                        db.productDao().unmarkAsFavorite(productId) // actualiza Room
+                        db.productDao().unmarkAsFavorite(productId)
                         withContext(Dispatchers.Main) {
                             _isFavorited.value = false
                             _favoritesCount.value = (_favoritesCount.value - 1).coerceAtLeast(0)
@@ -308,7 +300,7 @@ class ProductViewModel(private val context: Context) : ViewModel() {
                 } else {
                     val response = api.addFavorite(productId)
                     if (response.isSuccessful) {
-                        db.productDao().markAsFavorite(productId) // actualiza Room
+                        db.productDao().markAsFavorite(productId)
                         withContext(Dispatchers.Main) {
                             _isFavorited.value = true
                             _favoritesCount.value = _favoritesCount.value + 1
@@ -322,17 +314,19 @@ class ProductViewModel(private val context: Context) : ViewModel() {
                         _toggleFavoriteError.value = "No internet connection. Try again later."
                     }
                 }
-                Log.e("ProductViewModel", "Error toggling favorite: ${e.message}")
             }
         }
     }
 
-    fun recordProductView(product: Product) {
+    fun recordProductView(product: Product, source: String? = null) {
         viewModelScope.launch(Dispatchers.Main) { 
             launch(Dispatchers.IO) {
                 try {
                     repository.saveProductLocally(product)
                     repository.markProductAsViewed(product.id)
+                    if (isNetworkAvailable() && source != null) {
+                        api.recordProductVisit(ProductVisitRequest(product.id, source))
+                    }
                 } catch (e: Exception) {}
             }
 
@@ -363,6 +357,20 @@ class ProductViewModel(private val context: Context) : ViewModel() {
                 }
             } catch (e: Exception) {
                 _productStats.value = ProductStats(0, null, null)
+            }
+        }
+    }
+
+    fun loadVisitStats(productId: String? = null) {
+        if (!isNetworkAvailable()) return
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val stats = api.getProductVisitStats(productId)
+                withContext(Dispatchers.Main) {
+                    _visitStats.value = stats
+                }
+            } catch (e: Exception) {
+                Log.e("ProductViewModel", "Error loading visit stats", e)
             }
         }
     }
