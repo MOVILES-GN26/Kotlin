@@ -3,6 +3,7 @@ package com.andeshub.data.local
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 import com.andeshub.data.model.Product
+import com.andeshub.data.model.UserProfile
 
 @Entity(tableName = "products")
 data class ProductEntity(
@@ -17,6 +18,8 @@ data class ProductEntity(
     val imageUrl: String?,
     val localImagePath: String? = null,
     val sellerId: String?,
+    val sellerName: String? = null,
+    val sellerMajor: String? = null,
     val storeId: String?,
     val createdAt: String?,
     val isFavorite: Boolean = false,
@@ -33,6 +36,7 @@ data class ProductEntity(
             building_location = location,
             image_urls = if (localImagePath != null) listOf(localImagePath) else if (imageUrl != null) listOf(imageUrl) else emptyList(),
             seller_id = sellerId,
+            seller = if (sellerName != null) UserProfile(id = sellerId ?: "", name = sellerName, major = sellerMajor) else null,
             store_id = storeId,
             created_at = createdAt
         )
@@ -50,7 +54,9 @@ data class ProductEntity(
                 location = product.building_location,
                 imageUrl = product.image_urls.firstOrNull(),
                 localImagePath = localPath,
-                sellerId = product.seller_id,
+                sellerId = product.seller_id ?: product.seller?.id,
+                sellerName = product.seller?.name,
+                sellerMajor = product.seller?.major,
                 storeId = product.store_id,
                 createdAt = product.created_at
             )
