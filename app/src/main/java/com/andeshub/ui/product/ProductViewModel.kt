@@ -439,4 +439,18 @@ class ProductViewModel(private val context: Context) : ViewModel() {
             }
         }
     }
+
+    fun recordPurchaseFromFavorite(productId: String, wasFavorited: Boolean) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                api.recordPurchaseFromFavorite(
+                    PurchaseFromFavoriteRequest(productId, wasFavorited)
+                )
+                Log.d("ProductViewModel", "Purchase recorded — wasFavorited: $wasFavorited")
+            } catch (e: Exception) {
+                Log.e("ProductViewModel", "Error recording purchase: ${e.message}")
+            }
+        }
+    }
+
 }

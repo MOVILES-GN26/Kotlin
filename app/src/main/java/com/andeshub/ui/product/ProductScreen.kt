@@ -101,7 +101,10 @@ fun ProductDetailScreen(
                     .navigationBarsPadding()
             ) {
                 Button(
-                    onClick = { onBuyClick(product) },
+                    onClick = {
+                        productViewModel.recordPurchaseFromFavorite(product.id, isFavorited)
+                        onBuyClick(product)
+                    },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(50.dp),
