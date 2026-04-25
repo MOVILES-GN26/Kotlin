@@ -1,5 +1,7 @@
 package com.andeshub.ui.store
 
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
@@ -49,7 +51,13 @@ fun CreateStoreScreen(
 
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
-    // Carga el borrador al abrir la pantalla
+    val isConnected = remember {
+        val connectivityManager = context.getSystemService(ConnectivityManager::class.java)
+        val network = connectivityManager.activeNetwork
+        val capabilities = connectivityManager.getNetworkCapabilities(network)
+        capabilities?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true
+    }
+
     val draft = remember { viewModel.loadDraft() }
 
     var storeName        by remember { mutableStateOf(draft?.first ?: "") }
@@ -70,7 +78,7 @@ fun CreateStoreScreen(
 
     LaunchedEffect(uiState) {
         if (uiState is StoreUiState.Success) {
-            viewModel.clearDraft() // borra el borrador al crear exitosamente
+            viewModel.clearDraft()
             onClose()
         }
     }
@@ -104,8 +112,8 @@ fun CreateStoreScreen(
             )
         }
 
-        // Aviso de falta de conexión si hay error de tipo isOffline
-        if (uiState is StoreUiState.Error && (uiState as StoreUiState.Error).isOffline) {
+        // Banner de sin conexión (Proactivo y Reactivo)
+        if (!isConnected || (uiState is StoreUiState.Error && (uiState as StoreUiState.Error).isOffline)) {
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -124,7 +132,7 @@ fun CreateStoreScreen(
                         tint = MaterialTheme.colorScheme.error
                     )
                     Text(
-                        text = (uiState as StoreUiState.Error).message,
+                        text = "Internet connection is required to create a store.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onErrorContainer
                     )
@@ -329,7 +337,8 @@ fun CreateStoreScreen(
             enabled = storeName.isNotEmpty() &&
                     description.isNotEmpty() &&
                     category.isNotEmpty() &&
-                    uiState !is StoreUiState.Loading,
+                    uiState !is StoreUiState.Loading &&
+                    isConnected,
             modifier = Modifier
                 .fillMaxWidth()
                 .height(52.dp)
