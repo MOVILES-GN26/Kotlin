@@ -72,7 +72,11 @@ fun ProductDetailScreen(
 
     LaunchedEffect(toggleFavoriteError) {
         toggleFavoriteError?.let {
-            snackbarHostState.showSnackbar(it)
+            snackbarHostState.currentSnackbarData?.dismiss()
+            snackbarHostState.showSnackbar(
+                message = it,
+                duration = SnackbarDuration.Short
+            )
             productViewModel.clearToggleFavoriteError()
         }
     }
