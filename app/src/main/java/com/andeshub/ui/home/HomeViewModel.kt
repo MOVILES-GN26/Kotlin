@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.andeshub.data.local.AppDatabase
+import com.andeshub.data.local.HomeLruCache
 import com.andeshub.data.local.SearchPreferences
 import com.andeshub.data.model.Product
 import com.andeshub.data.model.TrendingCategory
@@ -47,7 +48,6 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     val selectedCategory: StateFlow<String?> = _selectedCategory
 
     init {
-        // Carga el historial de búsquedas desde DataStore
         viewModelScope.launch {
             searchPreferences.searchHistory.collect { history ->
                 _searchHistory.value = history
@@ -76,13 +76,11 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 _uiState.value = HomeUiState.Loading
             }
 
-            // ESTRATEGIA DE MULTITHREADING PARALELO (RÚBRICA)
             val productsDeferred = async(Dispatchers.IO) {
-                try { 
-                    repository.getProducts() 
-                } catch (e: Exception) { 
-                    // Fallback automático a local si falla la red al cargar el inicio
-                    repository.getAllLocalProducts() 
+                try {
+                    repository.getProducts()
+                } catch (e: Exception) {
+                    repository.getAllLocalProducts()
                 }
             }
             val trendingDeferred = async(Dispatchers.IO) {
@@ -116,21 +114,40 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             val currentState = _uiState.value
             val currentTrending = if (currentState is HomeUiState.Success) currentState.trendingCategories else emptyList()
 
-            if (_searchQuery.value.isNotBlank()) {
-                searchPreferences.saveSearch(_searchQuery.value)
+            val query = _searchQuery.value
+
+            // Guarda en historial DataStore
+            if (query.isNotBlank()) {
+                searchPreferences.saveSearch(query)
             }
 
+            // Revisa si ya está en el LRU
+            val cached = HomeLruCache.get(query)
+            if (cached != null) {
+                android.util.Log.d("HomeLruCache", "Cargado desde caché: '$query'")
+                _uiState.value = HomeUiState.Success(
+                    products = cached,
+                    trendingCategories = currentTrending
+                )
+                return@launch
+            }
+
+            // Si no está en caché llama a la API
             _uiState.value = HomeUiState.Loading
             try {
-                val products = repository.getProducts(search = _searchQuery.value)
+                val products = repository.getProducts(search = query)
+
+                // Guarda en LRU para la próxima vez
+                HomeLruCache.put(query, products)
+
                 _uiState.value = HomeUiState.Success(
                     products = products,
                     trendingCategories = currentTrending
                 )
             } catch (e: Exception) {
                 // Fallback a búsqueda local si falla la red
-                val localProducts = repository.getAllLocalProducts().filter { 
-                    it.title.contains(_searchQuery.value, ignoreCase = true) 
+                val localProducts = repository.getAllLocalProducts().filter {
+                    it.title.contains(query, ignoreCase = true)
                 }
                 _uiState.value = HomeUiState.Success(
                     products = localProducts,
