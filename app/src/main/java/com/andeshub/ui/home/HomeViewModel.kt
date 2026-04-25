@@ -41,17 +41,15 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private val _searchHistory = MutableStateFlow<List<String>>(emptyList())
     val searchHistory: StateFlow<List<String>> = _searchHistory
 
-    private val _viewedTimestamps = MutableStateFlow<Map<String, Long>>(emptyList<Pair<String, Long>>().toMap())
+    private val _viewedTimestamps = MutableStateFlow<Map<String, Long>>(emptyMap())
     val viewedTimestamps: StateFlow<Map<String, Long>> = _viewedTimestamps
 
     private val _selectedCategory = MutableStateFlow<String?>(null)
     val selectedCategory: StateFlow<String?> = _selectedCategory
 
     init {
-        // Carga el historial de búsquedas desde DataStore
         viewModelScope.launch {
             searchPreferences.searchHistory.collect { history ->
-                android.util.Log.d("DataStore", "Historial cargado: $history")
                 _searchHistory.value = history
             }
         }
@@ -61,10 +59,14 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     fun loadViewedTimestamps() {
         viewModelScope.launch(Dispatchers.IO) {
-            val timestamps = AppDatabase.getInstance(getApplication())
-                .productDao().getAllViewedTimestamps()
-                .associate { it.id to it.lastViewedAt }
-            _viewedTimestamps.value = timestamps
+            try {
+                val timestamps = AppDatabase.getInstance(getApplication())
+                    .productDao().getAllViewedTimestamps()
+                    .associate { it.id to it.lastViewedAt }
+                _viewedTimestamps.value = timestamps
+            } catch (e: Exception) {
+                _viewedTimestamps.value = emptyMap()
+            }
         }
     }
 
@@ -75,18 +77,22 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             }
 
             val productsDeferred = async(Dispatchers.IO) {
-                try { api.getProducts() } catch (e: Exception) { null }
+                try {
+                    repository.getProducts()
+                } catch (e: Exception) {
+                    repository.getAllLocalProducts()
+                }
             }
             val trendingDeferred = async(Dispatchers.IO) {
                 try { api.getTrendingCategories() } catch (e: Exception) { emptyList<TrendingCategory>() }
             }
 
             try {
-                val productsResponse = productsDeferred.await()
+                val products = productsDeferred.await()
                 val trending = trendingDeferred.await()
 
                 _uiState.value = HomeUiState.Success(
-                    products = productsResponse?.items ?: emptyList(),
+                    products = products,
                     trendingCategories = trending
                 )
             } catch (e: Exception) {
@@ -97,7 +103,6 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     fun onSearchQueryChange(query: String) {
         _searchQuery.value = query
-        // Ya no guarda mientras escribe
     }
 
     fun onCategorySelected(category: String) {
@@ -119,7 +124,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             // Revisa si ya está en el LRU
             val cached = HomeLruCache.get(query)
             if (cached != null) {
-                android.util.Log.d("LruCache", "Cargado desde caché: '$query'")
+                android.util.Log.d("HomeLruCache", "Cargado desde caché: '$query'")
                 _uiState.value = HomeUiState.Success(
                     products = cached,
                     trendingCategories = currentTrending
@@ -127,11 +132,10 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 return@launch
             }
 
-            // Si no está en caché, llama a la API
+            // Si no está en caché llama a la API
             _uiState.value = HomeUiState.Loading
             try {
-                val response = api.getProducts(search = query)
-                val products = response.items ?: emptyList()
+                val products = repository.getProducts(search = query)
 
                 // Guarda en LRU para la próxima vez
                 HomeLruCache.put(query, products)
@@ -141,7 +145,14 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                     trendingCategories = currentTrending
                 )
             } catch (e: Exception) {
-                _uiState.value = HomeUiState.Error(e.message ?: "Error desconocido")
+                // Fallback a búsqueda local si falla la red
+                val localProducts = repository.getAllLocalProducts().filter {
+                    it.title.contains(query, ignoreCase = true)
+                }
+                _uiState.value = HomeUiState.Success(
+                    products = localProducts,
+                    trendingCategories = currentTrending
+                )
             }
         }
     }

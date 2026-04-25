@@ -4,6 +4,7 @@ import com.andeshub.data.remote.ApiService
 import okhttp3.OkHttpClient
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
+import java.util.concurrent.TimeUnit
 
 object RetrofitClient {
     private const val BASE_URL = "http://157.253.212.152:3000/"
@@ -17,6 +18,9 @@ object RetrofitClient {
     }
 
     private val okHttpClient = OkHttpClient.Builder()
+        .connectTimeout(5, TimeUnit.SECONDS)
+        .readTimeout(5, TimeUnit.SECONDS)
+        .writeTimeout(5, TimeUnit.SECONDS)
         .addInterceptor { chain ->
             val request = chain.request().newBuilder().apply {
                 token?.let { addHeader("Authorization", "Bearer $it") }

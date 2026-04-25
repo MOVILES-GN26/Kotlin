@@ -42,6 +42,7 @@ import com.andeshub.ui.components.SearchBar
 import com.andeshub.ui.product.ProductUiState
 import com.andeshub.ui.product.ProductViewModel
 import com.andeshub.ui.theme.*
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -70,17 +71,23 @@ fun CatalogScreen(
     var selectedCondition by remember { mutableStateOf<String?>(null) }
     var selectedSort by remember { mutableStateOf<String?>(null) }
 
+    // OPTIMIZACIÓN: Debounce de búsqueda para evitar peticiones excesivas
+    val debouncedSearchQuery by produceState(initialValue = searchQuery, searchQuery) {
+        delay(500)
+        value = searchQuery
+    }
+
     val sheetState = rememberModalBottomSheetState()
     val scope = rememberCoroutineScope()
     var showFilterSheet by remember { mutableStateOf(false) }
     var sheetType by remember { mutableStateOf("all") }
 
-    LaunchedEffect(searchQuery, selectedCategory, selectedCondition, selectedSort) {
+    LaunchedEffect(debouncedSearchQuery, selectedCategory, selectedCondition, selectedSort) {
         // Persistimos la categoría cada vez que cambie
         userPrefs.saveLastCategory(selectedCategory)
 
         productViewModel.getProducts(
-            search = searchQuery.ifEmpty { null },
+            search = debouncedSearchQuery.ifEmpty { null },
             category = selectedCategory,
             condition = selectedCondition,
             priceSort = when (selectedSort) {
@@ -202,36 +209,41 @@ fun CatalogScreen(
 
             when (uiState) {
                 is ProductUiState.Loading -> {
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+                    // Si ya tenemos productos (de la DB), no mostramos el loader gigante
+                    if (products.isEmpty()) {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+                        }
                     }
                 }
                 is ProductUiState.Error -> {
-                    // Si hay error (posiblemente offline), intentamos cargar de la DB local
+                    // Intento de fallback automático a local ante error de red
                     LaunchedEffect(Unit) {
-                        productViewModel.loadLocalProducts()
+                        if (products.isEmpty()) productViewModel.loadLocalProducts()
                     }
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(
-                                text = "Error: " + (uiState as ProductUiState.Error).message,
-                                color = Color.Red
-                            )
-                            Button(
-                                onClick = {
-                                    productViewModel.getProducts(
-                                        searchQuery, selectedCategory, selectedCondition, selectedSort
-                                    )
-                                },
-                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-                            ) {
-                                Text("Retry", color = MaterialTheme.colorScheme.onPrimary)
+                    if (products.isEmpty()) {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text(
+                                    text = "Error: " + (uiState as ProductUiState.Error).message,
+                                    color = Color.Red
+                                )
+                                Button(
+                                    onClick = {
+                                        productViewModel.getProducts(
+                                            searchQuery, selectedCategory, selectedCondition, selectedSort
+                                        )
+                                    },
+                                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                                ) {
+                                    Text("Retry", color = MaterialTheme.colorScheme.onPrimary)
+                                }
                             }
                         }
                     }
                 }
                 else -> {
-                    if (products.isEmpty()) {
+                    if (products.isEmpty() && uiState !is ProductUiState.Loading) {
                         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                             Text("No products found", color = MaterialTheme.colorScheme.secondary)
                         }
@@ -256,7 +268,7 @@ fun CatalogScreen(
                             items(sortedProducts) { product ->
                                 CatalogProductItem(
                                     product = product,
-                                    localLastViewed = null, // Ya no mostramos el tiempo local en CatalogScreen
+                                    localLastViewed = null,
                                     onClick = { onProductClick(product) }
                                 )
                             }

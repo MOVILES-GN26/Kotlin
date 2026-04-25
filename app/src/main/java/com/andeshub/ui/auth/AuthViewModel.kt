@@ -32,13 +32,13 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
     private val _uiState = MutableStateFlow<AuthUiState>(AuthUiState.Idle)
     val uiState: StateFlow<AuthUiState> = _uiState
 
-    fun login(email: String, password: String) {
+    fun login(email: String, password: String, isNfc: Boolean = false) {
         viewModelScope.launch { // Main
             _uiState.value = AuthUiState.Loading
             try {
                 val response = withContext(Dispatchers.IO) { // IO  llamada de red
                     coroutineScope {
-                        val loginDeferred = async { repository.login(email, password) }
+                        val loginDeferred = async { repository.login(email, password, isNfc) }
                         val cacheDeferred = async { sessionManager.getCachedUser() }
                         cacheDeferred.await()
                         loginDeferred.await()
