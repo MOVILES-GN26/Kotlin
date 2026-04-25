@@ -48,10 +48,10 @@ class FavoritesViewModel(application: Application) : AndroidViewModel(applicatio
                 _uiState.value = FavoritesUiState.Success(remoteFavorites)
             } catch (e: Exception) {
                 if (localFavorites.isEmpty()) {
-                    _uiState.value = FavoritesUiState.Error(
-                        e.message ?: "No se pudieron cargar los favoritos"
-                    )
+                    // No mostramos el error técnico, solo lista vacía
+                    _uiState.value = FavoritesUiState.Success(emptyList())
                 }
+                // Si hay locales ya están mostrándose, no hacemos nada
             }
         }
     }
