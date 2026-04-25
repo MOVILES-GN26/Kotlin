@@ -78,11 +78,20 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
             val productsDeferred = async(Dispatchers.IO) {
                 try {
-                    repository.getProducts()
+                    // Intenta traer de la API
+                    val products = repository.getProducts()
+                    // Guarda en Room para uso offline
+                    products.forEach {
+                        try { repository.saveProductLocally(it) } catch (e: Exception) { }
+                    }
+                    products
                 } catch (e: Exception) {
+                    // Sin internet: devuelve los productos guardados en Room
+                    android.util.Log.d("HomeViewModel", "Sin internet, cargando desde Room")
                     repository.getAllLocalProducts()
                 }
             }
+
             val trendingDeferred = async(Dispatchers.IO) {
                 try { api.getTrendingCategories() } catch (e: Exception) { emptyList<TrendingCategory>() }
             }
