@@ -33,6 +33,7 @@ import com.andeshub.ui.components.ProductCard
 import com.andeshub.ui.components.SearchBar
 import com.andeshub.ui.theme.*
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun LandingPageScreen(
     viewModel: HomeViewModel = viewModel(),
@@ -193,22 +194,20 @@ fun LandingPageScreen(
                             val trendingList = trending.map { tc ->
                                 Category(tc.category, getIconForCategory(tc.category))
                             }
-                            val rows = trendingList.chunked(3)
-                            Column {
-                                rows.forEach { row ->
-                                    Row(
-                                        modifier = Modifier.padding(horizontal = 20.dp),
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                    ) {
-                                        row.forEach { category ->
-                                            CategoryChip(
-                                                category = category,
-                                                isSelected = selectedCategory == category.label,
-                                                onClick = { viewModel.onCategorySelected(category.label) }
-                                            )
-                                        }
-                                    }
-                                    Spacer(modifier = Modifier.height(8.dp))
+                            
+                            FlowRow(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 20.dp),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                trendingList.forEach { category ->
+                                    CategoryChip(
+                                        category = category,
+                                        isSelected = selectedCategory == category.label,
+                                        onClick = { viewModel.onCategorySelected(category.label) }
+                                    )
                                 }
                             }
                         } else {

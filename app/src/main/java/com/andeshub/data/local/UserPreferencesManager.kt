@@ -39,4 +39,32 @@ class UserPreferencesManager(context: Context) {
     fun getLastCategory(): String? {
         return prefs.getString("last_selected_category", null)
     }
+
+    /**
+     * Guarda el último ordenamiento seleccionado.
+     */
+    fun saveLastSort(sort: String?) {
+        prefs.edit().putString("last_selected_sort", sort).apply()
+    }
+
+    /**
+     * Recupera el último ordenamiento seleccionado.
+     */
+    fun getLastSort(): String? {
+        return prefs.getString("last_selected_sort", null)
+    }
+
+    /**
+     * Guarda la última condición seleccionada.
+     */
+    fun saveLastCondition(condition: String?) {
+        prefs.edit().putString("last_selected_condition", condition).apply()
+    }
+
+    /**
+     * Recupera la última condición seleccionada.
+     */
+    fun getLastCondition(): String? {
+        return prefs.getString("last_selected_condition", null)
+    }
 }

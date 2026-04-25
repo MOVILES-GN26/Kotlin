@@ -105,11 +105,20 @@ class ProductViewModel(private val context: Context) : ViewModel() {
                 emptyList<Product>()
             }
 
-            val filteredLocal = localProducts.filter { product ->
+            var filteredLocal = localProducts.filter { product ->
                 val matchesSearch = search == null || product.title.contains(search, ignoreCase = true)
                 val matchesCategory = category == null || product.category == category
                 val matchesCondition = condition == null || product.condition == condition
                 matchesSearch && matchesCategory && matchesCondition
+            }
+
+            // Aplicar ordenamiento localmente por precio
+            if (priceSort != null) {
+                filteredLocal = if (priceSort == "asc") {
+                    filteredLocal.sortedBy { it.price }
+                } else {
+                    filteredLocal.sortedByDescending { it.price }
+                }
             }
 
             _uiState.value = ProductUiState.Success(filteredLocal)
