@@ -64,8 +64,9 @@ fun ProductDetailScreen(
         }
     }
 
-    LaunchedEffect(product.id) {
-        productViewModel.recordProductView(product)
+    LaunchedEffect(product.id, source) {
+        // ACTUALIZACIÓN: Ahora pasamos el 'source' para registrar desde dónde entró el usuario (Home, Catalog, etc.)
+        productViewModel.recordProductView(product, source)
         productViewModel.checkIfFavorited(product.id)
         productViewModel.loadFavoritesCount(product.id)
     }
@@ -107,7 +108,6 @@ fun ProductDetailScreen(
             )
         },
         bottomBar = {
-            // SOLO MOSTRAR BOTONES SI NO ES EL DUEÑO
             if (!productViewModel.isOwner(product)) {
                 Column(
                     modifier = Modifier
