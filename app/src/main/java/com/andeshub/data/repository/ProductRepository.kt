@@ -88,7 +88,7 @@ class ProductRepository(private val context: Context) {
                 location = product.building_location,
                 imageUrl = product.image_urls.firstOrNull(),
                 localImagePath = localPath ?: existing?.localImagePath,
-                sellerId = product.seller_id,
+                sellerId = product.seller_id ?: product.seller?.id,
                 storeId = product.store_id,
                 createdAt = product.created_at,
                 isFavorite = existing?.isFavorite ?: false,
@@ -163,9 +163,22 @@ class ProductRepository(private val context: Context) {
     suspend fun getProductsByUser(userId: String): Result<List<Product>> {
         return try {
             val response = api.getProductsByUser(userId)
-            Result.success(response.items ?: emptyList())
+            val products = response.items ?: emptyList()
+            android.util.Log.d("ProductRepository", "Online: guardando ${products.size} productos para sellerId=$userId")
+            // Guardar en Room como cache
+            products.forEach {
+                android.util.Log.d("ProductRepository", "Producto del backend: id=${it.id} seller_id=${it.seller_id} seller=${it.seller?.id}")
+            }
+            Result.success(products)
         } catch (e: Exception) {
-            Result.failure(e)
+            // Estando Offline se usan productos cache de Room
+            val cached = productDao.getProductsBySeller(userId).map { mapEntityToProduct(it) }
+            android.util.Log.d("ProductRepository", "Room devolvió ${cached.size} productos")
+            if (cached.isNotEmpty()) {
+                Result.success(cached)
+            } else {
+                Result.failure(e)
+            }
         }
     }
 
