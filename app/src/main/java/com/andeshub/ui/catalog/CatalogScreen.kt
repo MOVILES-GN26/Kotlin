@@ -66,10 +66,10 @@ fun CatalogScreen(
     val viewedTimestamps by productViewModel.viewedTimestamps.collectAsStateWithLifecycle()
 
     var searchQuery by remember { mutableStateOf("") }
-    // Cargamos la última categoría persistida al iniciar
+    // Cargamos los filtros persistidos al iniciar
     var selectedCategory by remember { mutableStateOf<String?>(userPrefs.getLastCategory()) }
-    var selectedCondition by remember { mutableStateOf<String?>(null) }
-    var selectedSort by remember { mutableStateOf<String?>(null) }
+    var selectedCondition by remember { mutableStateOf<String?>(userPrefs.getLastCondition()) }
+    var selectedSort by remember { mutableStateOf<String?>(userPrefs.getLastSort()) }
 
     // OPTIMIZACIÓN: Debounce de búsqueda para evitar peticiones excesivas
     val debouncedSearchQuery by produceState(initialValue = searchQuery, searchQuery) {
@@ -83,8 +83,10 @@ fun CatalogScreen(
     var sheetType by remember { mutableStateOf("all") }
 
     LaunchedEffect(debouncedSearchQuery, selectedCategory, selectedCondition, selectedSort) {
-        // Persistimos la categoría cada vez que cambie
+        // Persistimos los filtros cada vez que cambien
         userPrefs.saveLastCategory(selectedCategory)
+        userPrefs.saveLastCondition(selectedCondition)
+        userPrefs.saveLastSort(selectedSort)
 
         productViewModel.getProducts(
             search = debouncedSearchQuery.ifEmpty { null },
