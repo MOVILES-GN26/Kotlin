@@ -1,5 +1,9 @@
 package com.andeshub.ui.auth
 
+import android.content.Context
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
+import android.util.Patterns
 import androidx.biometric.BiometricPrompt
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -30,10 +34,20 @@ fun LoginScreen(
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     val uiState by viewModel.uiState.collectAsState()
-    
+    var emailError by remember { mutableStateOf<String?>(null) }
+    var passwordError by remember { mutableStateOf<String?>(null) }
+    var connectivityError by remember { mutableStateOf<String?>(null) }
+
     val context = LocalContext.current
     val activity = context as? FragmentActivity
     val isBiometricEnabled = viewModel.isBiometricEnabled()
+
+    fun isNetworkAvailable(): Boolean {
+        val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val network = cm.activeNetwork ?: return false
+        val caps = cm.getNetworkCapabilities(network) ?: return false
+        return caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+    }
 
     Box(
         modifier = Modifier
@@ -59,20 +73,22 @@ fun LoginScreen(
 
             InputField(
                 value = email,
-                onValueChange = { email = it },
+                onValueChange = { email = it; emailError = null },
                 placeholder = "Enter your email",
                 label = "Email",
-                keyboardType = KeyboardType.Email
+                keyboardType = KeyboardType.Email,
+                errorMessage = emailError
             )
 
             Spacer(modifier = Modifier.height(16.dp))
 
             InputField(
                 value = password,
-                onValueChange = { password = it },
+                onValueChange = { password = it; passwordError = null },
                 placeholder = "Enter your password",
                 label = "Password",
-                isPassword = true
+                isPassword = true,
+                errorMessage = passwordError
             )
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -89,7 +105,21 @@ fun LoginScreen(
             Spacer(modifier = Modifier.height(32.dp))
 
             Button(
-                onClick = { viewModel.login(email, password) },
+                onClick = {
+                    emailError = when {
+                        email.isBlank() -> "Email is required"
+                        !Patterns.EMAIL_ADDRESS.matcher(email).matches() -> "Enter a valid email address"
+                        else -> null
+                    }
+                    passwordError = if (password.isBlank()) "Password is required" else null
+                    connectivityError = if (!isNetworkAvailable())
+                        "No internet connection. Please check your network and try again."
+                    else null
+
+                    if (emailError == null && passwordError == null && connectivityError == null) {
+                        viewModel.login(email, password)
+                    }
+                },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(52.dp),
@@ -139,7 +169,14 @@ fun LoginScreen(
                 )
             }
 
-            if (uiState is AuthUiState.Error) {
+            if (connectivityError != null) {
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = connectivityError!!,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.error
+                )
+            } else if (uiState is AuthUiState.Error) {
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(
                     text = (uiState as AuthUiState.Error).message,
