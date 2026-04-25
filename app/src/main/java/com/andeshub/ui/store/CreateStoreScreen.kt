@@ -1,5 +1,7 @@
 package com.andeshub.ui.store
 
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
@@ -47,7 +49,13 @@ fun CreateStoreScreen(
 
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
-    // Carga el borrador al abrir la pantalla
+    val isConnected = remember {
+        val connectivityManager = context.getSystemService(ConnectivityManager::class.java)
+        val network = connectivityManager.activeNetwork
+        val capabilities = connectivityManager.getNetworkCapabilities(network)
+        capabilities?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true
+    }
+
     val draft = remember { viewModel.loadDraft() }
 
     var storeName        by remember { mutableStateOf(draft?.first ?: "") }
@@ -68,7 +76,7 @@ fun CreateStoreScreen(
 
     LaunchedEffect(uiState) {
         if (uiState is StoreUiState.Success) {
-            viewModel.clearDraft() // borra el borrador al crear exitosamente
+            viewModel.clearDraft()
             onClose()
         }
     }
@@ -102,7 +110,6 @@ fun CreateStoreScreen(
             )
         }
 
-        // Aviso de borrador si hay datos guardados
         if (draft != null && (draft.first.isNotEmpty() || draft.second.isNotEmpty() || draft.third.isNotEmpty())) {
             Row(
                 modifier = Modifier
@@ -131,6 +138,28 @@ fun CreateStoreScreen(
                         description = ""
                         category = ""
                     }
+                )
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+        }
+
+        // Banner de sin conexión
+        if (!isConnected) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 4.dp)
+                    .background(
+                        MaterialTheme.colorScheme.error.copy(alpha = 0.1f),
+                        RoundedCornerShape(8.dp)
+                    )
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "No internet connection. You can fill in the form but cannot create the store until you're back online.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error
                 )
             }
             Spacer(modifier = Modifier.height(8.dp))
@@ -299,7 +328,8 @@ fun CreateStoreScreen(
             enabled = storeName.isNotEmpty() &&
                     description.isNotEmpty() &&
                     category.isNotEmpty() &&
-                    uiState !is StoreUiState.Loading,
+                    uiState !is StoreUiState.Loading &&
+                    isConnected,
             modifier = Modifier
                 .fillMaxWidth()
                 .height(52.dp)

@@ -1,6 +1,8 @@
 package com.andeshub.ui.store
 
 import android.content.Context
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -25,20 +27,28 @@ class StoreViewModel(private val context: Context) : ViewModel() {
     private val _uiState = MutableStateFlow<StoreUiState>(StoreUiState.Idle)
     val uiState: StateFlow<StoreUiState> = _uiState
 
+    private fun isNetworkAvailable(): Boolean {
+        val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val network = connectivityManager.activeNetwork ?: return false
+        val capabilities = connectivityManager.getNetworkCapabilities(network) ?: return false
+        return capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+    }
+
     fun createStore(
         name: String,
         description: String,
         category: String,
         logoUri: Uri?
     ) {
+        if (!isNetworkAvailable()) {
+            _uiState.value = StoreUiState.Error("No internet connection. Please try again later.")
+            return
+        }
         viewModelScope.launch {
             _uiState.value = StoreUiState.Loading
             try {
                 val store = repository.createStore(name, description, category, logoUri)
-
-                // Guarda el log local
                 StoreLogger.logCreatedStore(context, store)
-
                 _uiState.value = StoreUiState.Success(store)
             } catch (e: Exception) {
                 _uiState.value = StoreUiState.Error(e.message ?: "Error desconocido")
