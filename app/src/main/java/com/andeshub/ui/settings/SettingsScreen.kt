@@ -1,5 +1,8 @@
 package com.andeshub.ui.settings
 
+import android.content.Context
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -27,9 +30,12 @@ import com.andeshub.ui.theme.ErrorRed
 import com.andeshub.ui.theme.Yellow
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.foundation.lazy.grid.items
+import kotlinx.coroutines.launch
 
 @Composable
 fun SettingsScreen(
@@ -39,7 +45,18 @@ fun SettingsScreen(
     viewModel: SettingsViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+    val context = LocalContext.current
 
+    fun isNetworkAvailable(): Boolean {
+        val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val network = cm.activeNetwork ?: return false
+        val caps = cm.getNetworkCapabilities(network) ?: return false
+        return caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+    }
+
+    Box(modifier = Modifier.fillMaxSize()) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -213,7 +230,15 @@ fun SettingsScreen(
                                     .size(28.dp)
                                     .clip(CircleShape)
                                     .background(MutedOlive)
-                                    .clickable { productToDelete = product.id },
+                                    .clickable {
+                                        if (isNetworkAvailable()) {
+                                            productToDelete = product.id
+                                        } else {
+                                            scope.launch {
+                                                snackbarHostState.showSnackbar("No internet connection. Please try again later.")
+                                            }
+                                        }
+                                    },
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
@@ -253,5 +278,10 @@ fun SettingsScreen(
         }
 
         Spacer(modifier = Modifier.height(32.dp))
+    }
+    SnackbarHost(
+        hostState = snackbarHostState,
+        modifier = Modifier.align(Alignment.BottomCenter)
+    )
     }
 }

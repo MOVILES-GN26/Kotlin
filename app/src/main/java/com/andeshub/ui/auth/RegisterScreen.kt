@@ -1,5 +1,8 @@
 package com.andeshub.ui.auth
 
+import android.content.Context
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -72,6 +75,16 @@ fun RegisterScreen(
     var passwordError by remember { mutableStateOf<String?>(null) }
     var phoneNumber by remember { mutableStateOf("") }
     var phoneError by remember { mutableStateOf<String?>(null) }
+    var connectivityError by remember { mutableStateOf<String?>(null) }
+
+    val context = androidx.compose.ui.platform.LocalContext.current
+
+    fun isNetworkAvailable(): Boolean {
+        val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val network = cm.activeNetwork ?: return false
+        val caps = cm.getNetworkCapabilities(network) ?: return false
+        return caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+    }
 
     LaunchedEffect(uiState) {
         when (uiState) {
@@ -264,9 +277,13 @@ fun RegisterScreen(
                 phoneError = if (phoneNumber.isBlank()) "Phone number is required"
                 else if (!phoneNumber.matches(Regex("\\d{7,20}"))) "Only digits, 7-20 characters"
                 else null
+                connectivityError = if (!isNetworkAvailable())
+                    "No internet connection. Please check your network and try again."
+                else null
 
                 if (fullNameError == null && emailError == null &&
-                    majorError == null && passwordError == null && phoneError == null) {
+                    majorError == null && passwordError == null && phoneError == null &&
+                    connectivityError == null) {
                     val nameParts = fullName.trim().split(" ")
                     val firstName = nameParts.firstOrNull() ?: ""
                     val lastName = nameParts.drop(1).joinToString(" ")
@@ -287,7 +304,15 @@ fun RegisterScreen(
                 color = MaterialTheme.colorScheme.onPrimary
             )
         }
-        if (uiState is AuthUiState.Error) {
+        if (connectivityError != null) {
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = connectivityError!!,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.error,
+                modifier = Modifier.fillMaxWidth()
+            )
+        } else if (uiState is AuthUiState.Error) {
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = (uiState as AuthUiState.Error).message,
