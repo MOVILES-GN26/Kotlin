@@ -40,6 +40,8 @@ interface ProductDao {
 
     @Query("UPDATE products SET lastViewedAt = :timestamp WHERE id = :productId")
     suspend fun updateLastViewed(productId: String, timestamp: Long)
+    @Query("SELECT * FROM products WHERE sellerId = :sellerId")
+    suspend fun getProductsBySeller(sellerId: String): List<ProductEntity>
 }
 
 data class ViewedTimestamp(

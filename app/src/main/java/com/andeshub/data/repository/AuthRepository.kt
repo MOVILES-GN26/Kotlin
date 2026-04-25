@@ -29,7 +29,7 @@ class AuthRepository(private val sessionManager: SessionManager) {
     }
 
     suspend fun login(email: String, password: String, isNfc: Boolean = false): AuthResponse {
-        return authService.login(LoginRequest(email, password, loginType = if (isNfc) "NFC" else "email_password"))
+        return authService.login(LoginRequest(email, password, loginType = if (isNfc) "NFC" else "email-password"))
     }
 
     suspend fun register(
