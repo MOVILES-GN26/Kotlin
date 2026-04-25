@@ -36,6 +36,7 @@ import kotlinx.coroutines.delay
 @Composable
 fun ProductDetailScreen(
     product: Product,
+    source: String? = null,
     onBackClick: () -> Unit = {},
     onBuyClick: (Product) -> Unit = {}
 ) {
@@ -111,23 +112,18 @@ fun ProductDetailScreen(
             ) {
                 Button(
                     onClick = { 
-                        if (isOnline.value) {
-                            onBuyClick(product)
-                        } else {
-                            Toast.makeText(context, "Internet connection required to buy", Toast.LENGTH_SHORT).show()
-                        }
+                        onBuyClick(product)
                     },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(50.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = if (isOnline.value) MaterialTheme.colorScheme.primary else Color.Gray
+                        containerColor = MaterialTheme.colorScheme.primary
                     ),
-                    enabled = isOnline.value,
                     shape = RoundedCornerShape(12.dp)
                 ) {
                     Text(
-                        text = if (isOnline.value) "Buy Now" else "Offline - Cannot Buy",
+                        text = "Buy Now",
                         style = Typography.titleSmall.copy(fontWeight = FontWeight.Bold),
                         color = MaterialTheme.colorScheme.onPrimary
                     )
