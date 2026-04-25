@@ -1,6 +1,7 @@
 package com.andeshub.ui.product
 
 import android.net.Uri
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -19,10 +20,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.andeshub.data.model.Product
 import com.andeshub.ui.theme.*
@@ -34,12 +39,27 @@ fun CheckoutScreen(
     onBackClick: () -> Unit = {},
     onSubmitProof: (Uri) -> Unit = {}
 ) {
+    val context = LocalContext.current
+    val viewModel: ProductViewModel = viewModel(
+        factory = object : ViewModelProvider.Factory {
+            override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                return ProductViewModel(context) as T
+            }
+        }
+    )
+
     var imageUri by remember { mutableStateOf<Uri?>(null) }
+    val isOnline = remember { mutableStateOf(viewModel.isNetworkAvailable()) }
     
     val galleryLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
         imageUri = uri
+    }
+
+    LaunchedEffect(Unit) {
+        // Refresh online status
+        isOnline.value = viewModel.isNetworkAvailable()
     }
 
     Scaffold(
@@ -78,6 +98,22 @@ fun CheckoutScreen(
         ) {
             Spacer(modifier = Modifier.height(16.dp))
 
+            if (!isOnline.value) {
+                Surface(
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
+                    color = MaterialTheme.colorScheme.errorContainer,
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text(
+                        text = "You are offline. Connectivity is required to complete the purchase.",
+                        modifier = Modifier.padding(12.dp),
+                        style = Typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onErrorContainer,
+                        textAlign = TextAlign.Center
+                    )
+                }
+            }
+
             // Product Summary Row
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -101,7 +137,7 @@ fun CheckoutScreen(
                     modifier = Modifier
                         .size(100.dp, 60.dp)
                         .clip(RoundedCornerShape(8.dp))
-                        .background(Color(0xFFF5D6B6)) // Similar to the peach color in image
+                        .background(Color(0xFFF5D6B6))
                 ) {
                     if (product.image_urls.isNotEmpty()) {
                         AsyncImage(
@@ -137,7 +173,7 @@ fun CheckoutScreen(
                         shape = RoundedCornerShape(16.dp)
                     )
                     .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.5f))
-                    .clickable { galleryLauncher.launch("image/*") },
+                    .clickable(enabled = isOnline.value) { galleryLauncher.launch("image/*") },
                 contentAlignment = Alignment.Center
             ) {
                 if (imageUri == null) {
@@ -156,14 +192,15 @@ fun CheckoutScreen(
                         Spacer(modifier = Modifier.height(16.dp))
                         Surface(
                             shape = RoundedCornerShape(20.dp),
-                            color = MaterialTheme.colorScheme.surface,
+                            color = if (isOnline.value) MaterialTheme.colorScheme.surface else Color.Gray.copy(alpha = 0.3f),
                             tonalElevation = 2.dp
                         ) {
                             Text(
                                 "Upload",
                                 modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
                                 style = Typography.labelLarge,
-                                fontWeight = FontWeight.Bold
+                                fontWeight = FontWeight.Bold,
+                                color = if (isOnline.value) MaterialTheme.colorScheme.onSurface else Color.Gray
                             )
                         }
                     }
@@ -203,15 +240,23 @@ fun CheckoutScreen(
             Spacer(modifier = Modifier.height(48.dp))
 
             Button(
-                onClick = { imageUri?.let { onSubmitProof(it) } },
+                onClick = { 
+                    if (viewModel.isNetworkAvailable()) {
+                        imageUri?.let { onSubmitProof(it) }
+                    } else {
+                        Toast.makeText(context, "No internet connection", Toast.LENGTH_SHORT).show()
+                        isOnline.value = false
+                    }
+                },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp),
-                enabled = imageUri != null,
+                enabled = imageUri != null && isOnline.value,
                 shape = RoundedCornerShape(28.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFFE6E64B), // Similar to the yellow in image
-                    contentColor = Color.Black
+                    containerColor = Color(0xFFE6E64B),
+                    contentColor = Color.Black,
+                    disabledContainerColor = Color.Gray.copy(alpha = 0.3f)
                 )
             ) {
                 Text(

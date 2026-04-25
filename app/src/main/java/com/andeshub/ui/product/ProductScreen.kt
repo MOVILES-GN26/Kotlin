@@ -35,6 +35,7 @@ import com.andeshub.ui.theme.*
 @Composable
 fun ProductDetailScreen(
     product: Product,
+    source: String? = null,
     onBackClick: () -> Unit = {},
     onBuyClick: (Product) -> Unit = {}
 ) {
@@ -54,7 +55,7 @@ fun ProductDetailScreen(
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(product.id) {
-        productViewModel.recordProductView(product)
+        productViewModel.recordProductView(product, source)
         productViewModel.checkIfFavorited(product.id)
         productViewModel.loadFavoritesCount(product.id)
     }

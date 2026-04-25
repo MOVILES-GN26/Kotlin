@@ -136,7 +136,7 @@ fun AppNavigation(nfcCredentials: StateFlow<Pair<String, String>?> = MutableStat
                 LandingPageScreen(
                     viewModel = homeViewModel,
                     onProductClick = { product ->
-                        val route = AppDestinations.ProductDetail.createRoute(product.id)
+                        val route = AppDestinations.ProductDetail.createRoute(product.id, "home")
                         navController.navigate(route)
                         navController.getBackStackEntry(route).savedStateHandle["product"] = product
                     }
@@ -145,7 +145,7 @@ fun AppNavigation(nfcCredentials: StateFlow<Pair<String, String>?> = MutableStat
             composable(AppDestinations.Catalog.route) {
                 CatalogScreen(
                     onProductClick = { product ->
-                        val route = AppDestinations.ProductDetail.createRoute(product.id)
+                        val route = AppDestinations.ProductDetail.createRoute(product.id, "catalog")
                         navController.navigate(route)
                         navController.getBackStackEntry(route).savedStateHandle["product"] = product
                     }
@@ -153,12 +153,22 @@ fun AppNavigation(nfcCredentials: StateFlow<Pair<String, String>?> = MutableStat
             }
             composable(
                 route = AppDestinations.ProductDetail.route,
-                arguments = listOf(navArgument("productId") { type = NavType.StringType })
+                arguments = listOf(
+                    navArgument("productId") { type = NavType.StringType },
+                    navArgument("source") { 
+                        type = NavType.StringType
+                        nullable = true
+                        defaultValue = null
+                    }
+                )
             ) { backStackEntry ->
                 val product = backStackEntry.savedStateHandle.get<Product>("product")
+                val source = backStackEntry.arguments?.getString("source")
+                
                 if (product != null) {
                     ProductDetailScreen(
                         product = product,
+                        source = source,
                         onBackClick = { navController.popBackStack() },
                         onBuyClick = { selectedProduct ->
                             val route = AppDestinations.Checkout.createRoute(selectedProduct.id)
@@ -206,7 +216,7 @@ fun AppNavigation(nfcCredentials: StateFlow<Pair<String, String>?> = MutableStat
                 FavoritesScreen(
                     viewModel = favoritesViewModel,
                     onProductClick = { product ->
-                        val route = AppDestinations.ProductDetail.createRoute(product.id)
+                        val route = AppDestinations.ProductDetail.createRoute(product.id, "favorites")
                         navController.navigate(route)
                         navController.getBackStackEntry(route).savedStateHandle["product"] = product
                     }
@@ -216,7 +226,7 @@ fun AppNavigation(nfcCredentials: StateFlow<Pair<String, String>?> = MutableStat
                 ProfileScreen(
                     onSettingsClick = { navController.navigate(AppDestinations.Settings.route) },
                     onListingClick = { product ->
-                        val route = AppDestinations.ProductDetail.createRoute(product.id)
+                        val route = AppDestinations.ProductDetail.createRoute(product.id, "catalog")
                         navController.navigate(route)
                         navController.getBackStackEntry(route).savedStateHandle["product"] = product
                     },
@@ -237,7 +247,7 @@ fun AppNavigation(nfcCredentials: StateFlow<Pair<String, String>?> = MutableStat
                     storeId = storeId,
                     onBack = { navController.popBackStack() },
                     onProductClick = { product ->
-                        val route = AppDestinations.ProductDetail.createRoute(product.id)
+                        val route = AppDestinations.ProductDetail.createRoute(product.id, "catalog")
                         navController.navigate(route)
                         navController.getBackStackEntry(route).savedStateHandle["product"] = product
                     }

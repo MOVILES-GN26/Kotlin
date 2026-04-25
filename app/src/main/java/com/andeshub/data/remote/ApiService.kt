@@ -17,6 +17,8 @@ import retrofit2.http.DELETE
 import retrofit2.http.Query
 import com.andeshub.data.model.UpdateProfileRequest
 import com.andeshub.data.model.UserResponse
+import com.andeshub.data.model.ProductVisitRequest
+import com.andeshub.data.model.ProductVisitStats
 
 import retrofit2.Response
 import retrofit2.http.*
@@ -117,4 +119,10 @@ interface ApiService {
         @Path("id") productId: String,
         @Query("redirect") redirect: String = "false"
     ): WhatsAppContactResponse
+
+    @POST("analytics/product-visit")
+    suspend fun recordProductVisit(@Body request: ProductVisitRequest): Response<Unit>
+
+    @GET("analytics/product-visit/stats")
+    suspend fun getProductVisitStats(@Query("productId") productId: String? = null): ProductVisitStats
 }
