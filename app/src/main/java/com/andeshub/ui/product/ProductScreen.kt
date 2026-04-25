@@ -30,6 +30,7 @@ import coil.compose.AsyncImage
 import com.andeshub.data.model.Product
 import com.andeshub.data.remote.RetrofitClient
 import com.andeshub.ui.theme.*
+import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -54,8 +55,17 @@ fun ProductDetailScreen(
     val toggleFavoriteError by productViewModel.toggleFavoriteError.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
 
+    // MONITOREO DE CONEXIÓN
+    val isOnline = remember { mutableStateOf(productViewModel.isNetworkAvailable()) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            isOnline.value = productViewModel.isNetworkAvailable()
+            delay(2000)
+        }
+    }
+
     LaunchedEffect(product.id) {
-        productViewModel.recordProductView(product, source)
+        productViewModel.recordProductView(product)
         productViewModel.checkIfFavorited(product.id)
         productViewModel.loadFavoritesCount(product.id)
     }
@@ -101,8 +111,7 @@ fun ProductDetailScreen(
                     .navigationBarsPadding()
             ) {
                 Button(
-                    onClick = {
-                        productViewModel.recordPurchaseFromFavorite(product.id, isFavorited)
+                    onClick = { 
                         onBuyClick(product)
                     },
                     modifier = Modifier
@@ -122,31 +131,36 @@ fun ProductDetailScreen(
                 Spacer(modifier = Modifier.height(12.dp))
                 OutlinedButton(
                     onClick = {
-                        productViewModel.getWhatsAppContactUrl(
-                            productId = product.id,
-                            onUrlReady = { url ->
-                                try {
-                                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
-                                    context.startActivity(intent)
-                                } catch (e: Exception) {
-                                    Toast.makeText(context, "WhatsApp is not installed", Toast.LENGTH_SHORT).show()
+                        if (isOnline.value) {
+                            productViewModel.getWhatsAppContactUrl(
+                                productId = product.id,
+                                onUrlReady = { url ->
+                                    try {
+                                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                                        context.startActivity(intent)
+                                    } catch (e: Exception) {
+                                        Toast.makeText(context, "WhatsApp is not installed", Toast.LENGTH_SHORT).show()
+                                    }
+                                },
+                                onError = { message ->
+                                    Toast.makeText(context, message, Toast.LENGTH_LONG).show()
                                 }
-                            },
-                            onError = { message ->
-                                Toast.makeText(context, message, Toast.LENGTH_LONG).show()
-                            }
-                        )
+                            )
+                        } else {
+                            Toast.makeText(context, "Internet connection required to contact seller", Toast.LENGTH_SHORT).show()
+                        }
                     },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(50.dp),
+                    enabled = isOnline.value,
                     shape = RoundedCornerShape(25.dp),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.surface)
+                    border = BorderStroke(1.dp, if (isOnline.value) MaterialTheme.colorScheme.surface else Color.Gray.copy(alpha = 0.5f))
                 ) {
                     Text(
-                        text = "Contact Seller via WhatsApp",
+                        text = if (isOnline.value) "Contact Seller via WhatsApp" else "Offline - Contact Unavailable",
                         style = Typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
-                        color = MaterialTheme.colorScheme.onBackground
+                        color = if (isOnline.value) MaterialTheme.colorScheme.onBackground else Color.Gray
                     )
                 }
             }
@@ -252,7 +266,15 @@ fun ProductDetailScreen(
                         modifier = Modifier.padding(top = 4.dp)
                     ) {
                         if (!productViewModel.isOwner(product)) {
-                            IconButton(onClick = { productViewModel.toggleFavorite(product.id) }) {
+                            IconButton(
+                                onClick = { 
+                                    if (isOnline.value) {
+                                        productViewModel.toggleFavorite(product.id)
+                                    } else {
+                                        Toast.makeText(context, "Internet connection required for favorites", Toast.LENGTH_SHORT).show()
+                                    }
+                                }
+                            ) {
                                 Icon(
                                     imageVector = if (isFavorited) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
                                     contentDescription = "Favorite",

@@ -31,6 +31,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.andeshub.data.model.Product
 import com.andeshub.ui.theme.*
+import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -49,17 +50,21 @@ fun CheckoutScreen(
     )
 
     var imageUri by remember { mutableStateOf<Uri?>(null) }
+    
+    // ESTRATEGIA: MONITOREO DE CONEXIÓN PROACTIVO
     val isOnline = remember { mutableStateOf(viewModel.isNetworkAvailable()) }
+    
+    LaunchedEffect(Unit) {
+        while (true) {
+            isOnline.value = viewModel.isNetworkAvailable()
+            delay(2000) // Verifica cada 2 segundos
+        }
+    }
     
     val galleryLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
         imageUri = uri
-    }
-
-    LaunchedEffect(Unit) {
-        // Refresh online status
-        isOnline.value = viewModel.isNetworkAvailable()
     }
 
     Scaffold(
@@ -169,25 +174,27 @@ fun CheckoutScreen(
                     .clip(RoundedCornerShape(16.dp))
                     .border(
                         width = 1.dp,
-                        color = MaterialTheme.colorScheme.outlineVariant,
+                        color = if (isOnline.value) MaterialTheme.colorScheme.outlineVariant else Color.Gray.copy(alpha = 0.3f),
                         shape = RoundedCornerShape(16.dp)
                     )
-                    .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.5f))
-                    .clickable(enabled = isOnline.value) { galleryLauncher.launch("image/*") },
+                    .background(if (isOnline.value) MaterialTheme.colorScheme.surface.copy(alpha = 0.5f) else Color.Gray.copy(alpha = 0.1f))
+                    .clickable(enabled = isOnline.value) { 
+                        galleryLauncher.launch("image/*") 
+                    },
                 contentAlignment = Alignment.Center
             ) {
                 if (imageUri == null) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
-                            text = "Upload Receipt/Screenshot",
+                            text = if (isOnline.value) "Upload Receipt/Screenshot" else "Offline - Upload Disabled",
                             style = Typography.titleMedium,
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onBackground
+                            color = if (isOnline.value) MaterialTheme.colorScheme.onBackground else Color.Gray
                         )
                         Text(
                             text = "Comprobante de Pago",
                             style = Typography.bodySmall,
-                            color = MaterialTheme.colorScheme.secondary
+                            color = if (isOnline.value) MaterialTheme.colorScheme.secondary else Color.Gray.copy(alpha = 0.5f)
                         )
                         Spacer(modifier = Modifier.height(16.dp))
                         Surface(
@@ -254,13 +261,13 @@ fun CheckoutScreen(
                 enabled = imageUri != null && isOnline.value,
                 shape = RoundedCornerShape(28.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFFE6E64B),
+                    containerColor = if (isOnline.value) Color(0xFFE6E64B) else Color.Gray,
                     contentColor = Color.Black,
                     disabledContainerColor = Color.Gray.copy(alpha = 0.3f)
                 )
             ) {
                 Text(
-                    "Submit Proof",
+                    text = if (isOnline.value) "Submit Proof" else "Offline - Cannot Submit",
                     style = Typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
