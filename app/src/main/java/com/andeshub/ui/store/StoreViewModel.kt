@@ -1,6 +1,8 @@
 package com.andeshub.ui.store
 
 import android.content.Context
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -15,7 +17,7 @@ sealed class StoreUiState {
     object Idle    : StoreUiState()
     object Loading : StoreUiState()
     data class Success(val store: Store) : StoreUiState()
-    data class Error(val message: String) : StoreUiState()
+    data class Error(val message: String, val isOffline: Boolean = false) : StoreUiState()
 }
 
 class StoreViewModel(private val context: Context) : ViewModel() {
@@ -25,12 +27,24 @@ class StoreViewModel(private val context: Context) : ViewModel() {
     private val _uiState = MutableStateFlow<StoreUiState>(StoreUiState.Idle)
     val uiState: StateFlow<StoreUiState> = _uiState
 
+    fun isNetworkAvailable(): Boolean {
+        val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val network = connectivityManager.activeNetwork ?: return false
+        val capabilities = connectivityManager.getNetworkCapabilities(network) ?: return false
+        return capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+    }
+
     fun createStore(
         name: String,
         description: String,
         category: String,
         logoUri: Uri?
     ) {
+        if (!isNetworkAvailable()) {
+            _uiState.value = StoreUiState.Error("Internet connection is required to create a store.", isOffline = true)
+            return
+        }
+
         viewModelScope.launch {
             _uiState.value = StoreUiState.Loading
             try {
@@ -41,7 +55,7 @@ class StoreViewModel(private val context: Context) : ViewModel() {
 
                 _uiState.value = StoreUiState.Success(store)
             } catch (e: Exception) {
-                _uiState.value = StoreUiState.Error(e.message ?: "Error desconocido")
+                _uiState.value = StoreUiState.Error(e.message ?: "Unknown error")
             }
         }
     }
@@ -53,7 +67,7 @@ class StoreViewModel(private val context: Context) : ViewModel() {
                 val store = repository.getStore(id)
                 _uiState.value = StoreUiState.Success(store)
             } catch (e: Exception) {
-                _uiState.value = StoreUiState.Error(e.message ?: "Error desconocido")
+                _uiState.value = StoreUiState.Error(e.message ?: "Unknown error")
             }
         }
     }
