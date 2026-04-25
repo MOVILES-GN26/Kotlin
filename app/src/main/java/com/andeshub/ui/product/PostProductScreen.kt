@@ -35,6 +35,7 @@ import coil.compose.AsyncImage
 import com.andeshub.data.model.Store
 import com.andeshub.data.model.UserProfile
 import com.andeshub.ui.theme.*
+import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -53,6 +54,16 @@ fun PostProductScreen(
 
     val uiState by productViewModel.uiState.collectAsState()
     val userStores by productViewModel.userStores.collectAsState()
+    
+    // ESTRATEGIA: MONITOREO DE CONEXIÓN (Mejorado para ser proactivo)
+    val isOnline = remember { mutableStateOf(productViewModel.isNetworkAvailable()) }
+    
+    LaunchedEffect(Unit) {
+        while (true) {
+            isOnline.value = productViewModel.isNetworkAvailable()
+            delay(2000) // Verifica cada 2 segundos para actualizar el botón proactivamente
+        }
+    }
 
     var title by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
@@ -566,6 +577,12 @@ fun PostProductScreen(
 
             Button(
                 onClick = {
+                    // Doble verificación de conexión justo antes de intentar publicar
+                    if (!productViewModel.isNetworkAvailable()) {
+                        isOnline.value = false
+                        return@Button
+                    }
+                    
                     if (validateForm()) {
                         productViewModel.createProduct(
                             title = title.trim(),
@@ -583,10 +600,10 @@ fun PostProductScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp),
-                enabled = uiState !is ProductUiState.Loading,
+                enabled = uiState !is ProductUiState.Loading && isOnline.value,
                 shape = RoundedCornerShape(16.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
+                    containerColor = if (isOnline.value) MaterialTheme.colorScheme.primary else Color.Gray,
                     contentColor = MaterialTheme.colorScheme.onPrimary
                 )
             ) {
@@ -597,7 +614,7 @@ fun PostProductScreen(
                     )
                 } else {
                     Text(
-                        "Post Item",
+                        text = if (isOnline.value) "Post Item" else "No connection to post",
                         style = Typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
