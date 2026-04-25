@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.andeshub.data.local.AppDatabase
 import com.andeshub.data.local.HomeLruCache
 import com.andeshub.data.local.SearchPreferences
+import com.andeshub.data.local.TrendingCategoriesPreferences
 import com.andeshub.data.model.Product
 import com.andeshub.data.model.TrendingCategory
 import com.andeshub.data.remote.RetrofitClient
@@ -46,6 +47,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _selectedCategory = MutableStateFlow<String?>(null)
     val selectedCategory: StateFlow<String?> = _selectedCategory
+    private val trendingPreferences = TrendingCategoriesPreferences(application)
 
     init {
         viewModelScope.launch {
@@ -93,7 +95,13 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             }
 
             val trendingDeferred = async(Dispatchers.IO) {
-                try { api.getTrendingCategories() } catch (e: Exception) { emptyList<TrendingCategory>() }
+                try {
+                    val trending = api.getTrendingCategories()
+                    trendingPreferences.save(trending) // guarda para uso offline
+                    trending
+                } catch (e: Exception) {
+                    trendingPreferences.load() // sin internet: carga desde DataStore
+                }
             }
 
             try {
