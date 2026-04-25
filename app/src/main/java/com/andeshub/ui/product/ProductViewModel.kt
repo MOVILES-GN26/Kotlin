@@ -281,6 +281,7 @@ class ProductViewModel(private val context: Context) : ViewModel() {
     fun toggleFavorite(productId: String) {
         if (!isNetworkAvailable()) {
             viewModelScope.launch(Dispatchers.Main) {
+                _toggleFavoriteError.value = null // primero lo limpia
                 _toggleFavoriteError.value = "No internet connection. Try again later."
             }
             return
