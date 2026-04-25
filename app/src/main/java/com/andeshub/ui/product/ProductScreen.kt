@@ -107,65 +107,68 @@ fun ProductDetailScreen(
             )
         },
         bottomBar = {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(MaterialTheme.colorScheme.background)
-                    .padding(horizontal = 24.dp, vertical = 16.dp)
-                    .navigationBarsPadding()
-            ) {
-                Button(
-                    onClick = { 
-                        onBuyClick(product)
-                    },
+            // SOLO MOSTRAR BOTONES SI NO ES EL DUEÑO
+            if (!productViewModel.isOwner(product)) {
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(50.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primary
-                    ),
-                    shape = RoundedCornerShape(12.dp)
+                        .background(MaterialTheme.colorScheme.background)
+                        .padding(horizontal = 24.dp, vertical = 16.dp)
+                        .navigationBarsPadding()
                 ) {
-                    Text(
-                        text = "Buy Now",
-                        style = Typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                        color = MaterialTheme.colorScheme.onPrimary
-                    )
-                }
-                Spacer(modifier = Modifier.height(12.dp))
-                OutlinedButton(
-                    onClick = {
-                        if (isOnline.value) {
-                            productViewModel.getWhatsAppContactUrl(
-                                productId = product.id,
-                                onUrlReady = { url ->
-                                    try {
-                                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
-                                        context.startActivity(intent)
-                                    } catch (e: Exception) {
-                                        Toast.makeText(context, "WhatsApp is not installed", Toast.LENGTH_SHORT).show()
+                    Button(
+                        onClick = { 
+                            onBuyClick(product)
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(50.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primary
+                        ),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text(
+                            text = "Buy Now",
+                            style = Typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                            color = MaterialTheme.colorScheme.onPrimary
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(12.dp))
+                    OutlinedButton(
+                        onClick = {
+                            if (isOnline.value) {
+                                productViewModel.getWhatsAppContactUrl(
+                                    productId = product.id,
+                                    onUrlReady = { url ->
+                                        try {
+                                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                                            context.startActivity(intent)
+                                        } catch (e: Exception) {
+                                            Toast.makeText(context, "WhatsApp is not installed", Toast.LENGTH_SHORT).show()
+                                        }
+                                    },
+                                    onError = { message ->
+                                        Toast.makeText(context, message, Toast.LENGTH_LONG).show()
                                     }
-                                },
-                                onError = { message ->
-                                    Toast.makeText(context, message, Toast.LENGTH_LONG).show()
-                                }
-                            )
-                        } else {
-                            Toast.makeText(context, "Internet connection required to contact seller", Toast.LENGTH_SHORT).show()
-                        }
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(50.dp),
-                    enabled = isOnline.value,
-                    shape = RoundedCornerShape(25.dp),
-                    border = BorderStroke(1.dp, if (isOnline.value) MaterialTheme.colorScheme.surface else Color.Gray.copy(alpha = 0.5f))
-                ) {
-                    Text(
-                        text = if (isOnline.value) "Contact Seller via WhatsApp" else "Offline - Contact Unavailable",
-                        style = Typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
-                        color = if (isOnline.value) MaterialTheme.colorScheme.onBackground else Color.Gray
-                    )
+                                )
+                            } else {
+                                Toast.makeText(context, "Internet connection required to contact seller", Toast.LENGTH_SHORT).show()
+                            }
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(50.dp),
+                        enabled = isOnline.value,
+                        shape = RoundedCornerShape(25.dp),
+                        border = BorderStroke(1.dp, if (isOnline.value) MaterialTheme.colorScheme.surface else Color.Gray.copy(alpha = 0.5f))
+                    ) {
+                        Text(
+                            text = if (isOnline.value) "Contact Seller via WhatsApp" else "Offline - Contact Unavailable",
+                            style = Typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+                            color = if (isOnline.value) MaterialTheme.colorScheme.onBackground else Color.Gray
+                        )
+                    }
                 }
             }
         },
