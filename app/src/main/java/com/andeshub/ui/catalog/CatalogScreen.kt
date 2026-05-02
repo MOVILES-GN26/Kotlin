@@ -1,5 +1,9 @@
 package com.andeshub.ui.catalog
 
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -17,6 +21,7 @@ import androidx.compose.material.icons.automirrored.outlined.DirectionsBike
 import androidx.compose.material.icons.automirrored.outlined.MenuBook
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -29,6 +34,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -42,6 +48,8 @@ import com.andeshub.ui.components.SearchBar
 import com.andeshub.ui.product.ProductUiState
 import com.andeshub.ui.product.ProductViewModel
 import com.andeshub.ui.theme.*
+import com.andeshub.utils.LocationUtils
+import com.google.android.gms.location.LocationServices
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -70,6 +78,43 @@ fun CatalogScreen(
     var selectedCategory by remember { mutableStateOf<String?>(userPrefs.getLastCategory()) }
     var selectedCondition by remember { mutableStateOf<String?>(userPrefs.getLastCondition()) }
     var selectedSort by remember { mutableStateOf<String?>(userPrefs.getLastSort()) }
+
+    // Ubicación actual
+    var nearbyBuilding by remember { mutableStateOf<String?>(null) }
+    val fusedLocationClient = remember { LocationServices.getFusedLocationProviderClient(context) }
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        if (permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
+            permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true) {
+            // Permiso concedido, intentamos obtener ubicación
+            try {
+                fusedLocationClient.lastLocation.addOnSuccessListener { location ->
+                    location?.let {
+                        nearbyBuilding = LocationUtils.getNearbyBuilding(it.latitude, it.longitude)
+                    }
+                }
+            } catch (e: SecurityException) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        if (ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+            fusedLocationClient.lastLocation.addOnSuccessListener { location ->
+                location?.let {
+                    nearbyBuilding = LocationUtils.getNearbyBuilding(it.latitude, it.longitude)
+                }
+            }
+        } else {
+            permissionLauncher.launch(arrayOf(
+                Manifest.permission.ACCESS_FINE_LOCATION,
+                Manifest.permission.ACCESS_COARSE_LOCATION
+            ))
+        }
+    }
 
     // OPTIMIZACIÓN: Debounce de búsqueda para evitar peticiones excesivas
     val debouncedSearchQuery by produceState(initialValue = searchQuery, searchQuery) {
@@ -134,6 +179,35 @@ fun CatalogScreen(
                 onQueryChange = { searchQuery = it },
                 modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)
             )
+
+            // Indicador de ubicación actual si estamos cerca de un edificio
+            nearbyBuilding?.let { building ->
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 24.dp, vertical = 4.dp),
+                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            Icons.Default.LocationOn,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp),
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Showing items near $building",
+                            style = Typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    }
+                }
+            }
 
             Row(
                 modifier = Modifier
@@ -250,12 +324,29 @@ fun CatalogScreen(
                             Text("No products found", color = MaterialTheme.colorScheme.secondary)
                         }
                     } else {
+                        // LÓGICA DE ORDENAMIENTO POR UBICACIÓN Y RECOMENDACIÓN
                         val sortedProducts = if (selectedCategory == null && searchQuery.isEmpty()) {
+                            // 1. Filtrar por edificio cercano si existe
+                            val nearProducts = if (nearbyBuilding != null) {
+                                products.filter { it.building_location == nearbyBuilding }
+                            } else {
+                                emptyList()
+                            }
+                            
+                            val restOfProducts = if (nearbyBuilding != null) {
+                                products.filter { it.building_location != nearbyBuilding }
+                            } else {
+                                products
+                            }
+
+                            // 2. Aplicar recomendación por carrera al resto
                             val major = SessionManager(context).getUserMajor()
                             val recommendedCategories = getRecommendedCategories(major)
-                            val recommended = products.filter { it.category in recommendedCategories }
-                            val rest = products.filter { it.category !in recommendedCategories }
-                            recommended + rest
+                            
+                            val recommended = restOfProducts.filter { it.category in recommendedCategories }
+                            val nonRecommended = restOfProducts.filter { it.category !in recommendedCategories }
+                            
+                            nearProducts + recommended + nonRecommended
                         } else {
                             products
                         }
@@ -271,6 +362,7 @@ fun CatalogScreen(
                                 CatalogProductItem(
                                     product = product,
                                     localLastViewed = null,
+                                    isNearMe = nearbyBuilding != null && product.building_location == nearbyBuilding,
                                     onClick = { onProductClick(product) }
                                 )
                             }
@@ -503,7 +595,12 @@ fun CategoryIconItem(
 }
 
 @Composable
-fun CatalogProductItem(product: Product, localLastViewed: Long? = null, onClick: () -> Unit) {
+fun CatalogProductItem(
+    product: Product, 
+    localLastViewed: Long? = null, 
+    isNearMe: Boolean = false,
+    onClick: () -> Unit
+) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -543,6 +640,35 @@ fun CatalogProductItem(product: Product, localLastViewed: Long? = null, onClick:
                 )
             }
 
+            // Etiqueta "Cerca de mí"
+            if (isNearMe) {
+                Surface(
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .padding(8.dp),
+                    color = MaterialTheme.colorScheme.primary,
+                    shape = RoundedCornerShape(4.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            Icons.Default.LocationOn,
+                            contentDescription = null,
+                            modifier = Modifier.size(10.dp),
+                            tint = Color.White
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "Near you",
+                            color = Color.White,
+                            style = Typography.labelSmall.copy(fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                        )
+                    }
+                }
+            }
+
             if (localLastViewed != null) {
                 Surface(
                     modifier = Modifier
@@ -571,6 +697,12 @@ fun CatalogProductItem(product: Product, localLastViewed: Long? = null, onClick:
             text = "$${product.price.toInt()}",
             style = Typography.labelMedium,
             color = MaterialTheme.colorScheme.secondary
+        )
+        // Opcional: mostrar el edificio debajo
+        Text(
+            text = product.building_location,
+            style = Typography.labelSmall,
+            color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.7f)
         )
     }
 }
