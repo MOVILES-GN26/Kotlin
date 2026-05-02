@@ -74,6 +74,8 @@ fun PostProductScreen(
     var imageUri by remember { mutableStateOf<Uri?>(null) }
     var imageBitmap by remember { mutableStateOf<Bitmap?>(null) }
     var selectedStore by remember { mutableStateOf<Store?>(null) }
+    
+    val draftRestored = remember { mutableStateOf(false) }
 
     // Validation States
     var titleError by remember { mutableStateOf<String?>(null) }
@@ -100,9 +102,10 @@ fun PostProductScreen(
     // ESTRATEGIA: ARCHIVOS LOCALES - Cargar borrador al iniciar
     LaunchedEffect(Unit) {
         val draft = productViewModel.loadDraft()
-        if (draft != null) {
+        if (draft != null && (draft.first.isNotEmpty() || draft.second.isNotEmpty())) {
             title = draft.first
             description = draft.second
+            draftRestored.value = true
         }
     }
 
@@ -251,6 +254,39 @@ fun PostProductScreen(
                 .padding(horizontal = 24.dp)
                 .verticalScroll(rememberScrollState())
         ) {
+            if (draftRestored.value) {
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 12.dp),
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = "Draft restored",
+                            style = Typography.bodySmall,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        Text(
+                            text = "Clear",
+                            style = Typography.bodySmall.copy(fontWeight = FontWeight.Bold),
+                            color = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.clickable {
+                                title = ""
+                                description = ""
+                                productViewModel.clearDraft()
+                                draftRestored.value = false
+                            }
+                        )
+                    }
+                }
+            }
+
             Text(
                 text = "Photos",
                 style = Typography.titleMedium,

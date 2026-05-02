@@ -29,6 +29,7 @@ import com.andeshub.utils.BiometricHelper
 fun LoginScreen(
     onSignUpClick: () -> Unit,
     onForgotPasswordClick: () -> Unit,
+    onLoginSuccess: () -> Unit = {},
     viewModel: AuthViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
 ) {
     var email by remember { mutableStateOf("") }
@@ -37,16 +38,60 @@ fun LoginScreen(
     var emailError by remember { mutableStateOf<String?>(null) }
     var passwordError by remember { mutableStateOf<String?>(null) }
     var connectivityError by remember { mutableStateOf<String?>(null) }
+    var showBiometricDialog by remember { mutableStateOf(false) }
 
     val context = LocalContext.current
     val activity = context as? FragmentActivity
     val isBiometricEnabled = viewModel.isBiometricEnabled()
+    
+    // Check if device supports biometrics (weak or strong)
+    val canUseBiometrics = remember(activity) { 
+        activity?.let { BiometricHelper.canAuthenticate(it) } ?: false 
+    }
 
     fun isNetworkAvailable(): Boolean {
         val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
         val network = cm.activeNetwork ?: return false
         val caps = cm.getNetworkCapabilities(network) ?: return false
         return caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+    }
+
+    LaunchedEffect(uiState) {
+        if (uiState is AuthUiState.Success) {
+            if (canUseBiometrics && !isBiometricEnabled) {
+                showBiometricDialog = true
+            } else {
+                onLoginSuccess()
+            }
+        }
+    }
+
+    if (showBiometricDialog) {
+        AlertDialog(
+            onDismissRequest = { 
+                showBiometricDialog = false
+                onLoginSuccess()
+            },
+            title = { Text("Enable Biometrics") },
+            text = { Text("Would you like to use fingerprint or face recognition for faster login next time?") },
+            confirmButton = {
+                Button(onClick = {
+                    viewModel.enableBiometric(true)
+                    showBiometricDialog = false
+                    onLoginSuccess()
+                }) {
+                    Text("Yes, enable")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    showBiometricDialog = false
+                    onLoginSuccess()
+                }) {
+                    Text("Not now")
+                }
+            }
+        )
     }
 
     Box(
@@ -141,7 +186,7 @@ fun LoginScreen(
             }
 
             // Biometric Login Option
-            if (isBiometricEnabled) {
+            if (isBiometricEnabled && canUseBiometrics) {
                 Spacer(modifier = Modifier.height(24.dp))
                 IconButton(
                     onClick = {

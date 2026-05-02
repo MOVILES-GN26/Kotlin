@@ -33,15 +33,14 @@ android {
         targetCompatibility = JavaVersion.VERSION_11
     }
 
-    // New way to set jvmTarget in AGP 9.x with built-in Kotlin
-    kotlin {
-        compilerOptions {
-            jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11)
-        }
-    }
-
     buildFeatures {
         compose = true
+    }
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11)
     }
 }
 

@@ -12,6 +12,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AddAPhoto
 import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.filled.WifiOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -30,6 +31,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import android.net.Uri
 import androidx.compose.foundation.clickable
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import coil.compose.AsyncImage
 
@@ -110,6 +112,35 @@ fun CreateStoreScreen(
             )
         }
 
+        // Banner de sin conexión (Proactivo y Reactivo)
+        if (!isConnected || (uiState is StoreUiState.Error && (uiState as StoreUiState.Error).isOffline)) {
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 8.dp),
+                color = MaterialTheme.colorScheme.errorContainer,
+                shape = RoundedCornerShape(8.dp)
+            ) {
+                Row(
+                    modifier = Modifier.padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.WifiOff,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.error
+                    )
+                    Text(
+                        text = "Internet connection is required to create a store.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onErrorContainer
+                    )
+                }
+            }
+        }
+
+        // Aviso de borrador si hay datos guardados
         if (draft != null && (draft.first.isNotEmpty() || draft.second.isNotEmpty() || draft.third.isNotEmpty())) {
             Row(
                 modifier = Modifier
@@ -138,28 +169,6 @@ fun CreateStoreScreen(
                         description = ""
                         category = ""
                     }
-                )
-            }
-            Spacer(modifier = Modifier.height(8.dp))
-        }
-
-        // Banner de sin conexión
-        if (!isConnected) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 4.dp)
-                    .background(
-                        MaterialTheme.colorScheme.error.copy(alpha = 0.1f),
-                        RoundedCornerShape(8.dp)
-                    )
-                    .padding(horizontal = 12.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "No internet connection. You can fill in the form but cannot create the store until you're back online.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.error
                 )
             }
             Spacer(modifier = Modifier.height(8.dp))
@@ -307,7 +316,7 @@ fun CreateStoreScreen(
 
         Spacer(modifier = Modifier.height(32.dp))
 
-        if (uiState is StoreUiState.Error) {
+        if (uiState is StoreUiState.Error && !(uiState as StoreUiState.Error).isOffline) {
             Text(
                 text = (uiState as StoreUiState.Error).message,
                 style = MaterialTheme.typography.labelSmall,
