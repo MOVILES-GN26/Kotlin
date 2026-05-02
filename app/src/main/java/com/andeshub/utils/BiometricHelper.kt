@@ -1,5 +1,6 @@
 package com.andeshub.utils
 
+import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricPrompt
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
@@ -26,7 +27,6 @@ object BiometricHelper {
 
                 override fun onAuthenticationFailed() {
                     super.onAuthenticationFailed()
-                    // Intentos fallidos sin cerrar el prompt
                 }
             })
 
@@ -34,15 +34,16 @@ object BiometricHelper {
             .setTitle("AndesHub Quick Access")
             .setSubtitle("Use your face or fingerprint to sign in")
             .setNegativeButtonText("Use Password")
-            .setAllowedAuthenticators(androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_STRONG)
+            .setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_STRONG or BiometricManager.Authenticators.BIOMETRIC_WEAK)
             .build()
 
         biometricPrompt.authenticate(promptInfo)
     }
 
     fun canAuthenticate(activity: FragmentActivity): Boolean {
-        val biometricManager = androidx.biometric.BiometricManager.from(activity)
-        return biometricManager.canAuthenticate(androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_STRONG) == 
-                androidx.biometric.BiometricManager.BIOMETRIC_SUCCESS
+        val biometricManager = BiometricManager.from(activity)
+        val authenticators = BiometricManager.Authenticators.BIOMETRIC_STRONG or BiometricManager.Authenticators.BIOMETRIC_WEAK
+        val status = biometricManager.canAuthenticate(authenticators)
+        return status == BiometricManager.BIOMETRIC_SUCCESS
     }
 }
