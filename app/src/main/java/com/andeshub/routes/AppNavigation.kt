@@ -94,20 +94,9 @@ fun AppNavigation(nfcCredentials: StateFlow<Pair<String, String>?> = MutableStat
                 val authViewModel: com.andeshub.ui.auth.AuthViewModel =
                     androidx.lifecycle.viewmodel.compose.viewModel()
 
-                val uiState by authViewModel.uiState.collectAsState()
-
                 LaunchedEffect(credentials) {
                     credentials?.let { (email, password) ->
                         authViewModel.login(email, password, isNfc = true)
-                    }
-                }
-
-                LaunchedEffect(uiState) {
-                    if (uiState is com.andeshub.ui.auth.AuthUiState.Success) {
-                        (context as? MainActivity)?.clearNfcCredentials()
-                        navController.navigate(AppDestinations.Home.route) {
-                            popUpTo(AppDestinations.Login.route) { inclusive = true }
-                        }
                     }
                 }
 
@@ -116,6 +105,12 @@ fun AppNavigation(nfcCredentials: StateFlow<Pair<String, String>?> = MutableStat
                         navController.navigate(AppDestinations.Register.route)
                     },
                     onForgotPasswordClick = {},
+                    onLoginSuccess = {
+                        (context as? MainActivity)?.clearNfcCredentials()
+                        navController.navigate(AppDestinations.Home.route) {
+                            popUpTo(AppDestinations.Login.route) { inclusive = true }
+                        }
+                    },
                     viewModel = authViewModel
                 )
             }
@@ -190,7 +185,6 @@ fun AppNavigation(nfcCredentials: StateFlow<Pair<String, String>?> = MutableStat
                         product = product,
                         onBackClick = { navController.popBackStack() },
                         onSubmitProof = { uri ->
-                            // Here you would handle the submission to the server
                             navController.popBackStack(AppDestinations.Home.route, false)
                         }
                     )

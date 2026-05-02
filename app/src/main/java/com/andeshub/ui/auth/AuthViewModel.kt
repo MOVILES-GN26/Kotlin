@@ -33,10 +33,10 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
     val uiState: StateFlow<AuthUiState> = _uiState
 
     fun login(email: String, password: String, isNfc: Boolean = false) {
-        viewModelScope.launch { // Main
+        viewModelScope.launch { 
             _uiState.value = AuthUiState.Loading
             try {
-                val response = withContext(Dispatchers.IO) { // IO  llamada de red
+                val response = withContext(Dispatchers.IO) { 
                     coroutineScope {
                         val loginDeferred = async { repository.login(email, password, isNfc) }
                         val cacheDeferred = async { sessionManager.getCachedUser() }
@@ -55,8 +55,6 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                     phoneNumber = response.user.phoneNumber
                 )
 
-                // Habilitamos biometría para la próxima vez tras un login exitoso
-                sessionManager.setBiometricEnabled(true)
                 repository.cacheUser(
                     CachedUser(
                         id = response.user.id,
@@ -69,37 +67,39 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                 )
 
                 _uiState.value = AuthUiState.Success(response)
-            } catch (e: retrofit2.HttpException) {
-                val errorBody = e.response()?.errorBody()?.string()
-                val message = try {
-                    val json = org.json.JSONObject(errorBody ?: "")
-                    json.optString("message", "Incorrect email or password.")
-                } catch (_: Exception) { "Incorrect email or password." }
-                _uiState.value = AuthUiState.Error(message)
             } catch (e: Exception) {
-                _uiState.value = AuthUiState.Error("Connection error. Check your network.")
+                _uiState.value = AuthUiState.Error("Login failed. Please check your credentials.")
             }
         }
     }
 
+    fun enableBiometric(enabled: Boolean) {
+        sessionManager.setBiometricEnabled(enabled)
+    }
+
     fun loginWithBiometric() {
-        if (sessionManager.isLoggedIn()) {
-            _uiState.value = AuthUiState.Success(
-                AuthResponse(
-                    accessToken = sessionManager.getAccessToken() ?: "",
-                    refreshToken = sessionManager.getRefreshToken() ?: "",
-                    user = UserResponse(
-                        id = sessionManager.getUserId() ?: "",
-                        email = sessionManager.getUserEmail() ?: "",
-                        firstName = sessionManager.getUserFirstName() ?: "",
-                        lastName = sessionManager.getUserLastName() ?: "",
-                        major = sessionManager.getUserMajor() ?: "",
-                        phoneNumber = sessionManager.getUserPhone()
-                    )
+        val cachedUser = sessionManager.getCachedUser()
+        
+        // Si tenemos un usuario guardado (cacheado), permitimos entrar con huella
+        if (cachedUser != null) {
+            val response = AuthResponse(
+                accessToken = sessionManager.getAccessToken() ?: "biometric-session", 
+                refreshToken = sessionManager.getRefreshToken() ?: "",
+                user = UserResponse(
+                    id = cachedUser.id,
+                    email = cachedUser.email,
+                    firstName = cachedUser.firstName,
+                    lastName = cachedUser.lastName,
+                    major = cachedUser.major,
+                    phoneNumber = cachedUser.phoneNumber
                 )
             )
+            // Restauramos el token en Retrofit para las llamadas de red
+            RetrofitClient.setToken(response.accessToken)
+            _uiState.value = AuthUiState.Success(response)
         } else {
-            _uiState.value = AuthUiState.Error("Please login with password first")
+            _uiState.value = AuthUiState.Error("No biometric record found. Login with password once.")
+            sessionManager.setBiometricEnabled(false)
         }
     }
 
@@ -111,10 +111,10 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         password: String,
         phoneNumber: String
     ) {
-        viewModelScope.launch { // Main — actualiza UI
+        viewModelScope.launch { 
             _uiState.value = AuthUiState.Loading
             try {
-                val response = withContext(Dispatchers.IO) { // IO — llamada de red
+                val response = withContext(Dispatchers.IO) { 
                     repository.register(email, firstName, lastName, major, password, phoneNumber)
                 }
                 sessionManager.saveTokens(response.accessToken, response.refreshToken)
@@ -127,7 +127,6 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                     major = response.user.major,
                     phoneNumber = response.user.phoneNumber
                 )
-                android.util.Log.d("AuthViewModel", "Success: ${response.user.email}")
                 repository.cacheUser(
                     CachedUser(
                         id = response.user.id,
@@ -139,24 +138,17 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                     )
                 )
                 _uiState.value = AuthUiState.Success(response)
-            } catch (e: retrofit2.HttpException) {
-                val errorBody = e.response()?.errorBody()?.string()
-                val message = try {
-                    val json = org.json.JSONObject(errorBody ?: "")
-                    json.optString("message", "This email is already registered.")
-                } catch (_: Exception) {
-                    "This email is already registered."
-                }
-                _uiState.value = AuthUiState.Error(message)
+            } catch (e: Exception) {
+                _uiState.value = AuthUiState.Error("Registration failed.")
             }
         }
     }
 
     fun nfcLogin(userId: String) {
-        viewModelScope.launch { // Main — actualiza UI
+        viewModelScope.launch { 
             _uiState.value = AuthUiState.Loading
             try {
-                val response = withContext(Dispatchers.IO) { // IO — llamada de red
+                val response = withContext(Dispatchers.IO) { 
                     coroutineScope {
                         val loginDeferred = async { repository.nfcLogin(userId) }
                         val cacheDeferred = async { sessionManager.getCachedUser() }
@@ -186,28 +178,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                 )
                 _uiState.value = AuthUiState.Success(response)
             } catch (e: Exception) {
-                // Eventual connectivity — si falla la red, usar cache local
-                val cached = sessionManager.getCachedUser()
-                if (cached != null && sessionManager.isLoggedIn()) {
-                    android.util.Log.d("AuthViewModel", "Sin red — usando usuario cacheado: ${cached.email}")
-                    _uiState.value = AuthUiState.Success(
-                        AuthResponse(
-                            accessToken = sessionManager.getAccessToken() ?: "",
-                            refreshToken = sessionManager.getRefreshToken() ?: "",
-                            user = UserResponse(
-                                id = cached.id,
-                                email = cached.email,
-                                firstName = cached.firstName,
-                                lastName = cached.lastName,
-                                major = cached.major,
-                                phoneNumber = cached.phoneNumber
-                            )
-                        )
-                    )
-                } else {
-                    android.util.Log.e("AuthViewModel", "NFC Error: ${e.message}")
-                    _uiState.value = AuthUiState.Error("NFC login failed: ${e.message}")
-                }
+                _uiState.value = AuthUiState.Error("NFC login failed.")
             }
         }
     }
