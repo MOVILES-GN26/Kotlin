@@ -117,7 +117,8 @@ fun ProductDetailScreen(
                         .navigationBarsPadding()
                 ) {
                     Button(
-                        onClick = { 
+                        onClick = {
+                            productViewModel.recordPurchaseFromFavorite(product.id, isFavorited)
                             onBuyClick(product)
                         },
                         modifier = Modifier
