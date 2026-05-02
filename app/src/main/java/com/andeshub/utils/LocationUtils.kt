@@ -9,17 +9,27 @@ data class BuildingLocation(
 )
 
 object LocationUtils {
-    private val buildings = listOf(
-        BuildingLocation("Mario Laserna", 4.6027, -74.0655),
-        BuildingLocation("Santo Domingo", 4.6015, -74.0645),
-        BuildingLocation("Centro del Japón", 4.6010, -74.0660),
-        BuildingLocation("Biblioteca General", 4.6030, -74.0640),
-        BuildingLocation("Cafetería Central", 4.6020, -74.0650)
+    val buildings = listOf(
+        BuildingLocation("Mario Laserna", 4.60273, -74.06550),
+        BuildingLocation("Santo Domingo", 4.60155, -74.06450),
+        BuildingLocation("Centro del Japón", 4.60100, -74.06600),
+        BuildingLocation("Biblioteca General", 4.60300, -74.06400),
+        BuildingLocation("Cafetería Central", 4.60200, -74.06500)
     )
 
-    /**
-     * Retorna el nombre del edificio si el usuario está a menos de 150 metros.
-     */
+    fun getBuildingCoordinates(name: String): BuildingLocation? {
+        // Buscamos coincidencia exacta o contenida (ej: "Edificio Mario Laserna" -> "Mario Laserna")
+        return buildings.find { 
+            name.contains(it.name, ignoreCase = true) || it.name.contains(name, ignoreCase = true)
+        }
+    }
+
+    fun getDistance(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Float {
+        val results = FloatArray(1)
+        Location.distanceBetween(lat1, lon1, lat2, lon2, results)
+        return results[0]
+    }
+
     fun getNearbyBuilding(userLat: Double, userLon: Double): String? {
         val userLocation = Location("").apply {
             latitude = userLat
@@ -32,7 +42,7 @@ object LocationUtils {
                 longitude = building.longitude
             }
             building.name to userLocation.distanceTo(buildingLoc)
-        }.filter { it.second < 150 } // Umbral de 150 metros
+        }.filter { it.second < 200 } // Aumentamos un poco el rango a 200m
             .minByOrNull { it.second }?.first
     }
 }

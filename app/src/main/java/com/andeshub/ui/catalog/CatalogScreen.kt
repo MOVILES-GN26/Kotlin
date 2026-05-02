@@ -2,6 +2,7 @@ package com.andeshub.ui.catalog
 
 import android.Manifest
 import android.content.pm.PackageManager
+import android.location.Location
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
@@ -52,8 +53,9 @@ import com.andeshub.utils.LocationUtils
 import com.google.android.gms.location.LocationServices
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import java.util.Locale
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun CatalogScreen(
     onProductClick: (Product) -> Unit = {}
@@ -67,20 +69,18 @@ fun CatalogScreen(
         }
     )
 
-    // ESTRATEGIA: PREFERENCES (5 pts)
     val userPrefs = remember { UserPreferencesManager(context) }
-    
     val uiState by productViewModel.uiState.collectAsStateWithLifecycle()
     val viewedTimestamps by productViewModel.viewedTimestamps.collectAsStateWithLifecycle()
 
     var searchQuery by remember { mutableStateOf("") }
-    // Cargamos los filtros persistidos al iniciar
     var selectedCategory by remember { mutableStateOf<String?>(userPrefs.getLastCategory()) }
     var selectedCondition by remember { mutableStateOf<String?>(userPrefs.getLastCondition()) }
     var selectedSort by remember { mutableStateOf<String?>(userPrefs.getLastSort()) }
 
-    // Ubicación actual
-    var nearbyBuilding by remember { mutableStateOf<String?>(null) }
+    // Ubicación y Proximidad
+    var userLocation by remember { mutableStateOf<Location?>(null) }
+    var nearbyBuildingName by remember { mutableStateOf<String?>(null) }
     val fusedLocationClient = remember { LocationServices.getFusedLocationProviderClient(context) }
 
     val permissionLauncher = rememberLauncherForActivityResult(
@@ -88,16 +88,14 @@ fun CatalogScreen(
     ) { permissions ->
         if (permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
             permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true) {
-            // Permiso concedido, intentamos obtener ubicación
             try {
                 fusedLocationClient.lastLocation.addOnSuccessListener { location ->
                     location?.let {
-                        nearbyBuilding = LocationUtils.getNearbyBuilding(it.latitude, it.longitude)
+                        userLocation = it
+                        nearbyBuildingName = LocationUtils.getNearbyBuilding(it.latitude, it.longitude)
                     }
                 }
-            } catch (e: SecurityException) {
-                e.printStackTrace()
-            }
+            } catch (e: SecurityException) { e.printStackTrace() }
         }
     }
 
@@ -105,18 +103,15 @@ fun CatalogScreen(
         if (ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
             fusedLocationClient.lastLocation.addOnSuccessListener { location ->
                 location?.let {
-                    nearbyBuilding = LocationUtils.getNearbyBuilding(it.latitude, it.longitude)
+                    userLocation = it
+                    nearbyBuildingName = LocationUtils.getNearbyBuilding(it.latitude, it.longitude)
                 }
             }
         } else {
-            permissionLauncher.launch(arrayOf(
-                Manifest.permission.ACCESS_FINE_LOCATION,
-                Manifest.permission.ACCESS_COARSE_LOCATION
-            ))
+            permissionLauncher.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION))
         }
     }
 
-    // OPTIMIZACIÓN: Debounce de búsqueda para evitar peticiones excesivas
     val debouncedSearchQuery by produceState(initialValue = searchQuery, searchQuery) {
         delay(500)
         value = searchQuery
@@ -128,7 +123,6 @@ fun CatalogScreen(
     var sheetType by remember { mutableStateOf("all") }
 
     LaunchedEffect(debouncedSearchQuery, selectedCategory, selectedCondition, selectedSort) {
-        // Persistimos los filtros cada vez que cambien
         userPrefs.saveLastCategory(selectedCategory)
         userPrefs.saveLastCondition(selectedCondition)
         userPrefs.saveLastSort(selectedSort)
@@ -161,208 +155,87 @@ fun CatalogScreen(
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
-                title = {
-                    Text(text = "AndesHub", style = Typography.titleLarge, color = MaterialTheme.colorScheme.onBackground)
-                },
+                title = { Text(text = "AndesHub", style = Typography.titleLarge, color = MaterialTheme.colorScheme.onBackground) },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = MaterialTheme.colorScheme.background)
             )
         },
         containerColor = MaterialTheme.colorScheme.background
     ) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-        ) {
-            SearchBar(
-                query = searchQuery,
-                onQueryChange = { searchQuery = it },
-                modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)
-            )
+        Column(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
+            SearchBar(query = searchQuery, onQueryChange = { searchQuery = it }, modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp))
 
-            // Indicador de ubicación actual si estamos cerca de un edificio
-            nearbyBuilding?.let { building ->
+            // Banner de ubicación
+            nearbyBuildingName?.let { building ->
                 Surface(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 24.dp, vertical = 4.dp),
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 4.dp),
                     color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f),
                     shape = RoundedCornerShape(8.dp)
                 ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            Icons.Default.LocationOn,
-                            contentDescription = null,
-                            modifier = Modifier.size(16.dp),
-                            tint = MaterialTheme.colorScheme.primary
-                        )
+                    Row(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.LocationOn, contentDescription = null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.primary)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "Showing items near $building",
-                            style = Typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer
-                        )
+                        Text(text = "Showing items near $building", style = Typography.labelMedium, color = MaterialTheme.colorScheme.onPrimaryContainer)
                     }
                 }
             }
 
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 24.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                IconButton(
-                    onClick = {
-                        sheetType = "all"
-                        showFilterSheet = true
-                    },
-                    modifier = Modifier
-                        .size(36.dp)
-                        .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(8.dp))
-                        .border(1.dp, MaterialTheme.colorScheme.surface, RoundedCornerShape(8.dp))
-                ) {
+            Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                IconButton(onClick = { sheetType = "all"; showFilterSheet = true }, modifier = Modifier.size(36.dp).background(MaterialTheme.colorScheme.surface, RoundedCornerShape(8.dp)).border(1.dp, MaterialTheme.colorScheme.surface, RoundedCornerShape(8.dp))) {
                     Icon(Icons.Outlined.Tune, contentDescription = null, modifier = Modifier.size(18.dp))
                 }
-
-                FilterChip(
-                    label = selectedSort ?: "Sort",
-                    icon = Icons.Default.KeyboardArrowDown,
-                    onClick = {
-                        sheetType = "sort"
-                        showFilterSheet = true
-                    }
-                )
-                FilterChip(
-                    label = selectedCondition ?: "Condition",
-                    icon = Icons.Default.KeyboardArrowDown,
-                    onClick = {
-                        sheetType = "condition"
-                        showFilterSheet = true
-                    }
-                )
+                FilterChip(label = selectedSort ?: "Sort", icon = Icons.Default.KeyboardArrowDown, onClick = { sheetType = "sort"; showFilterSheet = true })
+                FilterChip(label = selectedCondition ?: "Condition", icon = Icons.Default.KeyboardArrowDown, onClick = { sheetType = "condition"; showFilterSheet = true })
             }
 
-            LazyRow(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 16.dp),
-                contentPadding = PaddingValues(horizontal = 24.dp),
-                horizontalArrangement = Arrangement.spacedBy(24.dp)
-            ) {
-                val originalCategories = listOf(
-                    "Books & Supplies" to Icons.AutoMirrored.Outlined.MenuBook,
-                    "Clothing & Accessories" to Icons.Outlined.Checkroom,
-                    "Electronics" to Icons.Outlined.Laptop,
-                    "Food & Drinks" to Icons.Outlined.Restaurant,
-                    "Furniture" to Icons.Outlined.Chair,
-                    "Sports & Outdoors" to Icons.Outlined.SportsSoccer,
-                    "Tickets & Events" to Icons.Outlined.ConfirmationNumber,
-                    "Transportation" to Icons.AutoMirrored.Outlined.DirectionsBike,
-                    "Tutoring & Services" to Icons.Outlined.EditNote,
-                    "Other" to Icons.Outlined.MoreHoriz
-                )
-
-                val sortedCategories = originalCategories.sortedBy { (label, _) ->
-                    val index = trendingRanking.indexOf(label)
-                    if (index != -1) index else 100
-                }
-
-                items(sortedCategories) { (label, icon) ->
-                    CategoryIconItem(
-                        label = label,
-                        icon = icon,
-                        isSelected = selectedCategory == label,
-                        onClick = {
-                            selectedCategory = if (selectedCategory == label) null else label
-                        }
-                    )
-                }
+            LazyRow(modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp), contentPadding = PaddingValues(horizontal = 24.dp), horizontalArrangement = Arrangement.spacedBy(24.dp)) {
+                val originalCategories = listOf("Books & Supplies" to Icons.AutoMirrored.Outlined.MenuBook, "Clothing & Accessories" to Icons.Outlined.Checkroom, "Electronics" to Icons.Outlined.Laptop, "Food & Drinks" to Icons.Outlined.Restaurant, "Furniture" to Icons.Outlined.Chair, "Sports & Outdoors" to Icons.Outlined.SportsSoccer, "Tickets & Events" to Icons.Outlined.ConfirmationNumber, "Transportation" to Icons.AutoMirrored.Outlined.DirectionsBike, "Tutoring & Services" to Icons.Outlined.EditNote, "Other" to Icons.Outlined.MoreHoriz)
+                val sortedCategories = originalCategories.sortedBy { (label, _) -> val index = trendingRanking.indexOf(label); if (index != -1) index else 100 }
+                items(sortedCategories) { (label, icon) -> CategoryIconItem(label = label, icon = icon, isSelected = selectedCategory == label, onClick = { selectedCategory = if (selectedCategory == label) null else label }) }
             }
 
             when (uiState) {
-                is ProductUiState.Loading -> {
-                    // Si ya tenemos productos (de la DB), no mostramos el loader gigante
-                    if (products.isEmpty()) {
-                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
-                        }
-                    }
-                }
+                is ProductUiState.Loading -> { if (products.isEmpty()) { Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = MaterialTheme.colorScheme.primary) } } }
                 is ProductUiState.Error -> {
-                    // Intento de fallback automático a local ante error de red
-                    LaunchedEffect(Unit) {
-                        if (products.isEmpty()) productViewModel.loadLocalProducts()
-                    }
-                    if (products.isEmpty()) {
-                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text(
-                                    text = "Error: " + (uiState as ProductUiState.Error).message,
-                                    color = Color.Red
-                                )
-                                Button(
-                                    onClick = {
-                                        productViewModel.getProducts(
-                                            searchQuery, selectedCategory, selectedCondition, selectedSort
-                                        )
-                                    },
-                                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-                                ) {
-                                    Text("Retry", color = MaterialTheme.colorScheme.onPrimary)
-                                }
-                            }
-                        }
-                    }
+                    LaunchedEffect(Unit) { if (products.isEmpty()) productViewModel.loadLocalProducts() }
+                    if (products.isEmpty()) { Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Column(horizontalAlignment = Alignment.CenterHorizontally) { Text(text = "Error: " + (uiState as ProductUiState.Error).message, color = Color.Red); Button(onClick = { productViewModel.getProducts(searchQuery, selectedCategory, selectedCondition, selectedSort) }, colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)) { Text("Retry", color = MaterialTheme.colorScheme.onPrimary) } } } }
                 }
                 else -> {
                     if (products.isEmpty() && uiState !is ProductUiState.Loading) {
-                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            Text("No products found", color = MaterialTheme.colorScheme.secondary)
-                        }
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("No products found", color = MaterialTheme.colorScheme.secondary) }
                     } else {
-                        // LÓGICA DE ORDENAMIENTO POR UBICACIÓN Y RECOMENDACIÓN
-                        val sortedProducts = if (selectedCategory == null && searchQuery.isEmpty()) {
-                            // 1. Filtrar por edificio cercano si existe
-                            val nearProducts = if (nearbyBuilding != null) {
-                                products.filter { it.building_location == nearbyBuilding }
-                            } else {
-                                emptyList()
+                        // LÓGICA DE ORDENAMIENTO: Proximidad si no hay filtros activos
+                        val noFiltersActive = debouncedSearchQuery.isEmpty() && selectedCategory == null && selectedCondition == null && selectedSort == null
+                        
+                        val sortedProducts = if (noFiltersActive && userLocation != null) {
+                            products.sortedBy { product ->
+                                val buildingCoords = LocationUtils.getBuildingCoordinates(product.building_location)
+                                if (buildingCoords != null) {
+                                    LocationUtils.getDistance(userLocation!!.latitude, userLocation!!.longitude, buildingCoords.latitude, buildingCoords.longitude)
+                                } else {
+                                    Float.MAX_VALUE
+                                }
                             }
-                            
-                            val restOfProducts = if (nearbyBuilding != null) {
-                                products.filter { it.building_location != nearbyBuilding }
-                            } else {
-                                products
-                            }
-
-                            // 2. Aplicar recomendación por carrera al resto
+                        } else if (noFiltersActive) {
+                            // Recomendación por carrera si no hay GPS
                             val major = SessionManager(context).getUserMajor()
                             val recommendedCategories = getRecommendedCategories(major)
-                            
-                            val recommended = restOfProducts.filter { it.category in recommendedCategories }
-                            val nonRecommended = restOfProducts.filter { it.category !in recommendedCategories }
-                            
-                            nearProducts + recommended + nonRecommended
+                            val recommended = products.filter { it.category in recommendedCategories }
+                            val rest = products.filter { it.category !in recommendedCategories }
+                            recommended + rest
                         } else {
                             products
                         }
 
-                        LazyVerticalGrid(
-                            columns = GridCells.Fixed(2),
-                            contentPadding = PaddingValues(24.dp),
-                            horizontalArrangement = Arrangement.spacedBy(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(24.dp),
-                            modifier = Modifier.fillMaxSize()
-                        ) {
+                        LazyVerticalGrid(columns = GridCells.Fixed(2), contentPadding = PaddingValues(24.dp), horizontalArrangement = Arrangement.spacedBy(16.dp), verticalArrangement = Arrangement.spacedBy(24.dp), modifier = Modifier.fillMaxSize()) {
                             items(sortedProducts) { product ->
+                                val buildingCoords = LocationUtils.getBuildingCoordinates(product.building_location)
+                                val distance = if (userLocation != null && buildingCoords != null) {
+                                    LocationUtils.getDistance(userLocation!!.latitude, userLocation!!.longitude, buildingCoords.latitude, buildingCoords.longitude)
+                                } else null
+
                                 CatalogProductItem(
                                     product = product,
-                                    localLastViewed = null,
-                                    isNearMe = nearbyBuilding != null && product.building_location == nearbyBuilding,
+                                    distance = distance,
                                     onClick = { onProductClick(product) }
                                 )
                             }
@@ -373,186 +246,74 @@ fun CatalogScreen(
         }
 
         if (showFilterSheet) {
-            ModalBottomSheet(
-                onDismissRequest = { showFilterSheet = false },
-                sheetState = sheetState,
-                containerColor = MaterialTheme.colorScheme.background,
-                dragHandle = null
-            ) {
-                FilterBottomSheetContent(
-                    type = sheetType,
-                    selectedCategory = selectedCategory,
-                    selectedSort = selectedSort,
-                    selectedCondition = selectedCondition,
-                    onApply = { cat, sort, cond ->
-                        selectedCategory = cat
-                        selectedSort = sort
-                        selectedCondition = cond
-                        scope.launch { sheetState.hide() }.invokeOnCompletion {
-                            showFilterSheet = false
-                        }
-                    },
-                    onClose = {
-                        scope.launch { sheetState.hide() }.invokeOnCompletion {
-                            showFilterSheet = false
-                        }
-                    }
-                )
+            ModalBottomSheet(onDismissRequest = { showFilterSheet = false }, sheetState = sheetState, containerColor = MaterialTheme.colorScheme.background, dragHandle = null) {
+                FilterBottomSheetContent(type = sheetType, selectedCategory = selectedCategory, selectedSort = selectedSort, selectedCondition = selectedCondition, onApply = { cat, sort, cond -> selectedCategory = cat; selectedSort = sort; selectedCondition = cond; scope.launch { sheetState.hide() }.invokeOnCompletion { showFilterSheet = false } }, onClose = { scope.launch { sheetState.hide() }.invokeOnCompletion { showFilterSheet = false } })
             }
         }
     }
 }
 
 @Composable
-fun FilterBottomSheetContent(
-    type: String,
-    selectedCategory: String?,
-    selectedSort: String?,
-    selectedCondition: String?,
-    onApply: (String?, String?, String?) -> Unit,
-    onClose: () -> Unit
+fun CatalogProductItem(
+    product: Product, 
+    distance: Float? = null,
+    onClick: () -> Unit
 ) {
-    var tempCategory by remember { mutableStateOf(selectedCategory) }
-    var tempSort by remember { mutableStateOf(selectedSort) }
-    var tempCondition by remember { mutableStateOf(selectedCondition) }
-
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(24.dp)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            IconButton(onClick = onClose) {
-                Icon(Icons.Default.Close, contentDescription = "Close")
+    Column(modifier = Modifier.fillMaxWidth().clickable(onClick = onClick)) {
+        Box(modifier = Modifier.fillMaxWidth().aspectRatio(1f).clip(RoundedCornerShape(12.dp)).background(Color(0xFFD9E8B6))) {
+            if (product.image_urls.isNotEmpty()) {
+                val baseUrl = RetrofitClient.getBaseUrl().removeSuffix("/")
+                val hostPort = baseUrl.split("//").last()
+                val rawUrl = product.image_urls.first()
+                val imageUrl = rawUrl.replace("localhost:3000", hostPort).replace("127.0.0.1:3000", hostPort).replace("157.253.225.221:3000", hostPort).replace("localhost", hostPort.split(":").first())
+                coil.compose.AsyncImage(model = imageUrl, contentDescription = product.title, modifier = Modifier.fillMaxSize(), contentScale = androidx.compose.ui.layout.ContentScale.Crop)
+            } else {
+                Box(modifier = Modifier.fillMaxWidth(0.6f).fillMaxHeight(0.7f).align(Alignment.BottomEnd).background(Color(0xFF6DA025).copy(alpha = 0.6f)))
             }
-            Text(
-                text = when (type) {
-                    "sort" -> "Sort by Price"
-                    "condition" -> "Condition"
-                    else -> "All Filters"
-                },
-                style = Typography.titleMedium,
-                fontWeight = FontWeight.Bold
-            )
-            TextButton(onClick = {
-                tempCategory = null
-                tempSort = null
-                tempCondition = null
-            }) {
-                Text("Clear", color = MaterialTheme.colorScheme.secondary)
-            }
-        }
 
-        Spacer(modifier = Modifier.height(16.dp))
-
-        if (type == "all" || type == "sort") {
-            Text("Sort by Price", style = Typography.bodyLarge, fontWeight = FontWeight.Bold)
-            Spacer(modifier = Modifier.height(12.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                listOf("Lowest Price", "Highest Price").forEach { option ->
-                    FilterOptionChip(
-                        label = option,
-                        isSelected = tempSort == option,
-                        onClick = { tempSort = if (tempSort == option) null else option }
-                    )
+            // Etiqueta de distancia dinámica
+            distance?.let { dist ->
+                Surface(
+                    modifier = Modifier.align(Alignment.TopStart).padding(8.dp),
+                    color = if (dist < 200) MaterialTheme.colorScheme.primary else Color.Black.copy(alpha = 0.6f),
+                    shape = RoundedCornerShape(4.dp)
+                ) {
+                    Row(modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.LocationOn, contentDescription = null, modifier = Modifier.size(10.dp), tint = Color.White)
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = if (dist < 50) "Very close" else if (dist < 1000) "${dist.toInt()}m" else String.format(Locale.US, "%.1fkm", dist/1000),
+                            color = Color.White,
+                            style = Typography.labelSmall.copy(fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                        )
+                    }
                 }
             }
-            Spacer(modifier = Modifier.height(24.dp))
         }
-
-        if (type == "all" || type == "condition") {
-            Text("Condition", style = Typography.bodyLarge, fontWeight = FontWeight.Bold)
-            Spacer(modifier = Modifier.height(12.dp))
-            FlowRow(mainAxisSpacing = 8.dp, crossAxisSpacing = 8.dp) {
-                listOf("New", "Like New", "Good", "Fair").forEach { cond ->
-                    FilterOptionChip(
-                        label = cond,
-                        isSelected = tempCondition == cond,
-                        onClick = { tempCondition = if (tempCondition == cond) null else cond }
-                    )
-                }
-            }
-            Spacer(modifier = Modifier.height(24.dp))
-        }
-
-        if (type == "all") {
-            Text("Category", style = Typography.bodyLarge, fontWeight = FontWeight.Bold)
-            Spacer(modifier = Modifier.height(12.dp))
-            FlowRow(mainAxisSpacing = 8.dp, crossAxisSpacing = 8.dp) {
-                listOf(
-                    "Books & Supplies", "Clothing & Accessories", "Electronics",
-                    "Food & Drinks", "Furniture", "Sports & Outdoors",
-                    "Tickets & Events", "Transportation", "Tutoring & Services", "Other"
-                ).forEach { cat ->
-                    FilterOptionChip(
-                        label = cat,
-                        isSelected = tempCategory == cat,
-                        onClick = { tempCategory = if (tempCategory == cat) null else cat }
-                    )
-                }
-            }
-            Spacer(modifier = Modifier.height(24.dp))
-        }
-
-        Button(
-            onClick = { onApply(tempCategory, tempSort, tempCondition) },
-            modifier = Modifier.fillMaxWidth().height(50.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-            shape = RoundedCornerShape(12.dp)
-        ) {
-            Text("Apply", color = MaterialTheme.colorScheme.onBackground, fontWeight = FontWeight.Bold)
-        }
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(text = product.title, style = Typography.titleSmall.copy(fontWeight = FontWeight.Bold), color = MaterialTheme.colorScheme.onSurface, maxLines = 1)
+        Text(text = "$${product.price.toInt()}", style = Typography.labelMedium, color = MaterialTheme.colorScheme.secondary)
+        Text(text = product.building_location, style = Typography.labelSmall, color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.7f))
     }
 }
 
 @Composable
 fun FilterOptionChip(label: String, isSelected: Boolean, onClick: () -> Unit) {
-    Surface(
-        onClick = onClick,
-        shape = RoundedCornerShape(20.dp),
-        color = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.2f) else MaterialTheme.colorScheme.background,
-        border = BorderStroke(1.dp, if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface),
-    ) {
-        Text(
-            text = label,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-            style = Typography.labelMedium,
-            color = MaterialTheme.colorScheme.onBackground
-        )
+    Surface(onClick = onClick, shape = RoundedCornerShape(20.dp), color = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.2f) else MaterialTheme.colorScheme.background, border = BorderStroke(1.dp, if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface)) {
+        Text(text = label, modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp), style = Typography.labelMedium, color = MaterialTheme.colorScheme.onBackground)
     }
 }
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun FlowRow(
-    mainAxisSpacing: androidx.compose.ui.unit.Dp,
-    crossAxisSpacing: androidx.compose.ui.unit.Dp,
-    content: @Composable () -> Unit
-) {
-    androidx.compose.foundation.layout.FlowRow(
-        horizontalArrangement = Arrangement.spacedBy(mainAxisSpacing),
-        verticalArrangement = Arrangement.spacedBy(crossAxisSpacing),
-        content = { content() }
-    )
+fun FlowRow(mainAxisSpacing: androidx.compose.ui.unit.Dp, crossAxisSpacing: androidx.compose.ui.unit.Dp, content: @Composable () -> Unit) {
+    androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(mainAxisSpacing), verticalArrangement = Arrangement.spacedBy(crossAxisSpacing), content = { content() })
 }
 
 @Composable
 fun FilterChip(label: String, icon: ImageVector, onClick: () -> Unit = {}) {
-    Surface(
-        onClick = onClick,
-        shape = RoundedCornerShape(20.dp),
-        color = MaterialTheme.colorScheme.surface,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.surface),
-        modifier = Modifier.height(36.dp)
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
+    Surface(onClick = onClick, shape = RoundedCornerShape(20.dp), color = MaterialTheme.colorScheme.surface, border = BorderStroke(1.dp, MaterialTheme.colorScheme.surface), modifier = Modifier.height(36.dp)) {
+        Row(modifier = Modifier.padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(text = label, style = Typography.labelMedium, color = MaterialTheme.colorScheme.onSurface)
             Icon(imageVector = icon, contentDescription = null, modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurface)
         }
@@ -560,149 +321,52 @@ fun FilterChip(label: String, icon: ImageVector, onClick: () -> Unit = {}) {
 }
 
 @Composable
-fun CategoryIconItem(
-    label: String,
-    icon: ImageVector,
-    isSelected: Boolean = false,
-    onClick: () -> Unit = {}
-) {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.clickable(onClick = onClick)
-    ) {
-        Box(
-            modifier = Modifier
-                .size(50.dp)
-                .clip(CircleShape)
-                .background(if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = label,
-                tint = MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.size(24.dp)
-            )
+fun CategoryIconItem(label: String, icon: ImageVector, isSelected: Boolean = false, onClick: () -> Unit = {}) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.clickable(onClick = onClick)) {
+        Box(modifier = Modifier.size(50.dp).clip(CircleShape).background(if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface), contentAlignment = Alignment.Center) {
+            Icon(imageVector = icon, contentDescription = label, tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(24.dp))
         }
         Spacer(modifier = Modifier.height(4.dp))
-        Text(
-            text = label.split(" ")[0],
-            style = Typography.labelSmall,
-            color = if (isSelected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.secondary,
-            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
-        )
+        Text(text = label.split(" ")[0], style = Typography.labelSmall, color = if (isSelected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.secondary, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal)
     }
 }
 
 @Composable
-fun CatalogProductItem(
-    product: Product, 
-    localLastViewed: Long? = null, 
-    isNearMe: Boolean = false,
-    onClick: () -> Unit
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .aspectRatio(1f)
-                .clip(RoundedCornerShape(12.dp))
-                .background(Color(0xFFD9E8B6))
-        ) {
-            if (product.image_urls.isNotEmpty()) {
-                val baseUrl = RetrofitClient.getBaseUrl().removeSuffix("/")
-                val hostPort = baseUrl.split("//").last()
-                val rawUrl = product.image_urls.first()
-                
-                val imageUrl = rawUrl
-                    .replace("localhost:3000", hostPort)
-                    .replace("127.0.0.1:3000", hostPort)
-                    .replace("157.253.225.221:3000", hostPort)
-                    .replace("localhost", hostPort.split(":").first())
-
-                coil.compose.AsyncImage(
-                    model = imageUrl,
-                    contentDescription = product.title,
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = androidx.compose.ui.layout.ContentScale.Crop
-                )
-            } else {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth(0.6f)
-                        .fillMaxHeight(0.7f)
-                        .align(Alignment.BottomEnd)
-                        .background(Color(0xFF6DA025).copy(alpha = 0.6f))
-                )
-            }
-
-            // Etiqueta "Cerca de mí"
-            if (isNearMe) {
-                Surface(
-                    modifier = Modifier
-                        .align(Alignment.TopStart)
-                        .padding(8.dp),
-                    color = MaterialTheme.colorScheme.primary,
-                    shape = RoundedCornerShape(4.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            Icons.Default.LocationOn,
-                            contentDescription = null,
-                            modifier = Modifier.size(10.dp),
-                            tint = Color.White
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = "Near you",
-                            color = Color.White,
-                            style = Typography.labelSmall.copy(fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                        )
-                    }
-                }
-            }
-
-            if (localLastViewed != null) {
-                Surface(
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(8.dp),
-                    color = Color.Black.copy(alpha = 0.6f),
-                    shape = RoundedCornerShape(4.dp)
-                ) {
-                    Text(
-                        text = com.andeshub.ui.components.formatTimeAgoLocal(localLastViewed),
-                        color = Color.White,
-                        style = Typography.labelSmall.copy(fontSize = 10.sp),
-                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                    )
-                }
-            }
+fun FilterBottomSheetContent(type: String, selectedCategory: String?, selectedSort: String?, selectedCondition: String?, onApply: (String?, String?, String?) -> Unit, onClose: () -> Unit) {
+    var tempCategory by remember { mutableStateOf(selectedCategory) }
+    var tempSort by remember { mutableStateOf(selectedSort) }
+    var tempCondition by remember { mutableStateOf(selectedCondition) }
+    Column(modifier = Modifier.fillMaxWidth().padding(24.dp)) {
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = onClose) { Icon(Icons.Default.Close, contentDescription = "Close") }
+            Text(text = when (type) { "sort" -> "Sort by Price"; "condition" -> "Condition"; else -> "All Filters" }, style = Typography.titleMedium, fontWeight = FontWeight.Bold)
+            TextButton(onClick = { tempCategory = null; tempSort = null; tempCondition = null }) { Text("Clear", color = MaterialTheme.colorScheme.secondary) }
         }
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            text = product.title,
-            style = Typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-            color = MaterialTheme.colorScheme.onSurface,
-            maxLines = 1
-        )
-        Text(
-            text = "$${product.price.toInt()}",
-            style = Typography.labelMedium,
-            color = MaterialTheme.colorScheme.secondary
-        )
-        // Opcional: mostrar el edificio debajo
-        Text(
-            text = product.building_location,
-            style = Typography.labelSmall,
-            color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.7f)
-        )
+        Spacer(modifier = Modifier.height(16.dp))
+        if (type == "all" || type == "sort") {
+            Text("Sort by Price", style = Typography.bodyLarge, fontWeight = FontWeight.Bold)
+            Spacer(modifier = Modifier.height(12.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf("Lowest Price", "Highest Price").forEach { option -> FilterOptionChip(label = option, isSelected = tempSort == option, onClick = { tempSort = if (tempSort == option) null else option }) }
+            }
+            Spacer(modifier = Modifier.height(24.dp))
+        }
+        if (type == "all" || type == "condition") {
+            Text("Condition", style = Typography.bodyLarge, fontWeight = FontWeight.Bold)
+            Spacer(modifier = Modifier.height(12.dp))
+            FlowRow(mainAxisSpacing = 8.dp, crossAxisSpacing = 8.dp) {
+                listOf("New", "Like New", "Good", "Fair").forEach { cond -> FilterOptionChip(label = cond, isSelected = tempCondition == cond, onClick = { tempCondition = if (tempCondition == cond) null else cond }) }
+            }
+            Spacer(modifier = Modifier.height(24.dp))
+        }
+        if (type == "all") {
+            Text("Category", style = Typography.bodyLarge, fontWeight = FontWeight.Bold)
+            Spacer(modifier = Modifier.height(12.dp))
+            FlowRow(mainAxisSpacing = 8.dp, crossAxisSpacing = 8.dp) {
+                listOf("Books & Supplies", "Clothing & Accessories", "Electronics", "Food & Drinks", "Furniture", "Sports & Outdoors", "Tickets & Events", "Transportation", "Tutoring & Services", "Other").forEach { cat -> FilterOptionChip(label = cat, isSelected = tempCategory == cat, onClick = { tempCategory = if (tempCategory == cat) null else cat }) }
+            }
+            Spacer(modifier = Modifier.height(24.dp))
+        }
+        Button(onClick = { onApply(tempCategory, tempSort, tempCondition) }, modifier = Modifier.fillMaxWidth().height(50.dp), colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary), shape = RoundedCornerShape(12.dp)) { Text("Apply", color = MaterialTheme.colorScheme.onBackground, fontWeight = FontWeight.Bold) }
     }
 }
