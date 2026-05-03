@@ -471,11 +471,12 @@ class ProductViewModel(private val context: Context) : ViewModel() {
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 val result = api.getTopCategoriesThisWeek()
+                Log.d("TopCategories", "Result: $result — size: ${result.size}")
                 withContext(Dispatchers.Main) {
                     _topCategories.value = result
                 }
             } catch (e: Exception) {
-                Log.e("ProductViewModel", "Error loading top categories: ${e.message}")
+                Log.e("TopCategories", "Error: ${e.message}")
             }
         }
     }
