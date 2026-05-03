@@ -1,5 +1,6 @@
 package com.andeshub.ui.profile
 
+import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -45,11 +46,21 @@ fun EditProfileScreen(
     var majorError     by remember { mutableStateOf<String?>(null) }
     var phoneError     by remember { mutableStateOf<String?>(null) }
     val snackbarHostState = remember { SnackbarHostState() }
+    var pendingAvatarUri by remember { mutableStateOf<Uri?>(null) }
 
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri ->
-        uri?.let { viewModel.updateAvatar(it) }
+        uri?.let {
+            pendingAvatarUri = it
+            viewModel.updateAvatar(it)
+        }
+    }
+
+    LaunchedEffect(uiState.isAvatarUploading) {
+        if (!uiState.isAvatarUploading && pendingAvatarUri != null) {
+            pendingAvatarUri = null
+        }
     }
 
     LaunchedEffect(uiState.saveSuccess) {
@@ -73,6 +84,7 @@ fun EditProfileScreen(
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
             .verticalScroll(rememberScrollState())
+            .imePadding()
     ) {
         // Top bar
         Box(
@@ -113,10 +125,11 @@ fun EditProfileScreen(
                     .clickable { imagePickerLauncher.launch("image/*") },
                 contentAlignment = Alignment.Center
             ) {
-                if (uiState.avatarUrl != null) {
+                if (pendingAvatarUri != null || uiState.avatarUrl != null) {
                     AsyncImage(
-                        model = uiState.avatarUrl!!
-                            .replace("http://localhost:9000", "http://192.168.1.76:9000"),
+                        model = pendingAvatarUri
+                            ?: uiState.avatarUrl!!
+                                .replace("http://localhost:9000", "http://192.168.1.76:9000"),
                         contentDescription = "Avatar",
                         modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.Crop
@@ -135,12 +148,20 @@ fun EditProfileScreen(
                         .background(MaterialTheme.colorScheme.onBackground.copy(alpha = 0.3f)),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.CameraAlt,
-                        contentDescription = "Cambiar foto",
-                        tint = MaterialTheme.colorScheme.background,
-                        modifier = Modifier.size(28.dp)
-                    )
+                    if (uiState.isAvatarUploading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(28.dp),
+                            color = MaterialTheme.colorScheme.background,
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Default.CameraAlt,
+                            contentDescription = "Cambiar foto",
+                            tint = MaterialTheme.colorScheme.background,
+                            modifier = Modifier.size(28.dp)
+                        )
+                    }
                 }
             }
         }
