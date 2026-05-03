@@ -103,11 +103,21 @@
                         .background(MaterialTheme.colorScheme.surface),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        text = uiState.firstName.firstOrNull()?.toString() ?: "?",
-                        style = MaterialTheme.typography.displayMedium,
-                        color = MaterialTheme.colorScheme.onBackground
-                    )
+                    if (uiState.avatarUrl != null) {
+                        AsyncImage(
+                            model = uiState.avatarUrl!!
+                                .replace("http://localhost:9000", "http://192.168.1.76:9000"),
+                            contentDescription = "Avatar",
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop
+                        )
+                    } else {
+                        Text(
+                            text = uiState.firstName.firstOrNull()?.toString() ?: "?",
+                            style = MaterialTheme.typography.displayMedium,
+                            color = MaterialTheme.colorScheme.onBackground
+                        )
+                    }
                 }
             }
 
