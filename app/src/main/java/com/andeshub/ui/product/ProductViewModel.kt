@@ -23,6 +23,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import com.andeshub.data.local.FavoritesEvent
+import com.andeshub.data.remote.ApiService
 import kotlinx.coroutines.supervisorScope
 
 sealed class ProductUiState {
@@ -459,6 +460,22 @@ class ProductViewModel(private val context: Context) : ViewModel() {
                 Log.d("ProductViewModel", "Purchase recorded — wasFavorited: $wasFavorited")
             } catch (e: Exception) {
                 Log.e("ProductViewModel", "Error recording purchase: ${e.message}")
+            }
+        }
+    }
+    private val _topCategories = MutableStateFlow<List<ApiService.TopCategoryResponse>>(emptyList())
+    val topCategories: StateFlow<List<ApiService.TopCategoryResponse>> = _topCategories
+
+    fun loadTopCategoriesThisWeek() {
+        if (!isNetworkAvailable()) return
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val result = api.getTopCategoriesThisWeek()
+                withContext(Dispatchers.Main) {
+                    _topCategories.value = result
+                }
+            } catch (e: Exception) {
+                Log.e("ProductViewModel", "Error loading top categories: ${e.message}")
             }
         }
     }

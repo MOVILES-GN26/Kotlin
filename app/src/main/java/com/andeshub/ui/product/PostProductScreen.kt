@@ -54,11 +54,12 @@ fun PostProductScreen(
 
     val uiState by productViewModel.uiState.collectAsState()
     val userStores by productViewModel.userStores.collectAsState()
-    
+    val topCategories by productViewModel.topCategories.collectAsState()
     // ESTRATEGIA: MONITOREO DE CONEXIÓN (Mejorado para ser proactivo)
     val isOnline = remember { mutableStateOf(productViewModel.isNetworkAvailable()) }
     
     LaunchedEffect(Unit) {
+        productViewModel.loadTopCategoriesThisWeek()
         while (true) {
             isOnline.value = productViewModel.isNetworkAvailable()
             delay(2000) // Verifica cada 2 segundos para actualizar el botón proactivamente
@@ -283,6 +284,47 @@ fun PostProductScreen(
                                 draftRestored.value = false
                             }
                         )
+                    }
+                }
+            }
+
+            // Banner de categorías trending
+            if (topCategories.isNotEmpty()) {
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp),
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.08f),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.TrendingUp,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Text(
+                                text = "Top categories this week",
+                                style = Typography.labelMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(6.dp))
+                        topCategories.forEachIndexed { index, item ->
+                            Text(
+                                text = "${index + 1}. ${item.category} — ${item.purchases} purchases",
+                                style = Typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onBackground
+                            )
+                        }
                     }
                 }
             }

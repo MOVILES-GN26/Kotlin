@@ -132,4 +132,11 @@ interface ApiService {
         @Body request: PurchaseFromFavoriteRequest
     ): Response<Unit>
 
+    data class TopCategoryResponse(
+        val category: String,
+        val purchases: Int
+    )
+    @GET("interactions/top-categories/week")
+    suspend fun getTopCategoriesThisWeek(): List<TopCategoryResponse>
+
 }
