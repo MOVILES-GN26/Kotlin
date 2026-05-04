@@ -75,12 +75,6 @@ fun SettingsScreen(
                 )
             }
 
-            SettingsSection(title = "App") {
-                SettingsItem(icon = Icons.Default.Notifications, title = "Notifications")
-                SettingsItem(icon = Icons.Default.Shield, title = "Privacy & Security")
-                SettingsItem(icon = Icons.Default.Help, title = "Help & Support")
-            }
-
             Spacer(modifier = Modifier.height(32.dp))
 
             Button(
