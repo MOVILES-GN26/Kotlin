@@ -1,5 +1,6 @@
 package com.andeshub.ui.profile
 
+import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -23,7 +24,10 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.andeshub.data.ALLOWED_MAJORS
+import com.andeshub.data.validatePassword
 import com.andeshub.ui.components.InputField
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -37,22 +41,50 @@ fun EditProfileScreen(
     var confirmPassword by remember { mutableStateOf("") }
     var passwordError by remember { mutableStateOf<String?>(null) }
     var majorExpanded by remember { mutableStateOf(false) }
+    var firstNameError by remember { mutableStateOf<String?>(null) }
+    var lastNameError  by remember { mutableStateOf<String?>(null) }
+    var majorError     by remember { mutableStateOf<String?>(null) }
+    var phoneError     by remember { mutableStateOf<String?>(null) }
+    val snackbarHostState = remember { SnackbarHostState() }
+    var pendingAvatarUri by remember { mutableStateOf<Uri?>(null) }
 
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri ->
-        uri?.let { viewModel.updateAvatar(it) }
+        uri?.let {
+            pendingAvatarUri = it
+            viewModel.updateAvatar(it)
+        }
+    }
+
+    LaunchedEffect(uiState.isAvatarUploading) {
+        if (!uiState.isAvatarUploading && pendingAvatarUri != null) {
+            pendingAvatarUri = null
+        }
     }
 
     LaunchedEffect(uiState.saveSuccess) {
-        if (uiState.saveSuccess) onSaveSuccess()
+        if (uiState.saveSuccess) {
+            if (uiState.errorMessage != null) {
+                launch {
+                    snackbarHostState.showSnackbar(
+                        message = uiState.errorMessage!!,
+                        duration = SnackbarDuration.Short
+                    )
+                }
+                delay(2000)
+            }
+            onSaveSuccess()
+        }
     }
 
+    Box(modifier = Modifier.fillMaxSize()) {
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
             .verticalScroll(rememberScrollState())
+            .imePadding()
     ) {
         // Top bar
         Box(
@@ -93,10 +125,11 @@ fun EditProfileScreen(
                     .clickable { imagePickerLauncher.launch("image/*") },
                 contentAlignment = Alignment.Center
             ) {
-                if (uiState.avatarUrl != null) {
+                if (pendingAvatarUri != null || uiState.avatarUrl != null) {
                     AsyncImage(
-                        model = uiState.avatarUrl!!
-                            .replace("http://localhost:9000", "http://192.168.1.76:9000"),
+                        model = pendingAvatarUri
+                            ?: uiState.avatarUrl!!
+                                .replace("http://localhost:9000", "http://192.168.1.76:9000"),
                         contentDescription = "Avatar",
                         modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.Crop
@@ -115,12 +148,20 @@ fun EditProfileScreen(
                         .background(MaterialTheme.colorScheme.onBackground.copy(alpha = 0.3f)),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.CameraAlt,
-                        contentDescription = "Cambiar foto",
-                        tint = MaterialTheme.colorScheme.background,
-                        modifier = Modifier.size(28.dp)
-                    )
+                    if (uiState.isAvatarUploading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(28.dp),
+                            color = MaterialTheme.colorScheme.background,
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Default.CameraAlt,
+                            contentDescription = "Cambiar foto",
+                            tint = MaterialTheme.colorScheme.background,
+                            modifier = Modifier.size(28.dp)
+                        )
+                    }
                 }
             }
         }
@@ -146,15 +187,17 @@ fun EditProfileScreen(
         ) {
             InputField(
                 value = uiState.firstName,
-                onValueChange = { viewModel.onFirstNameChange(it) },
+                onValueChange = { viewModel.onFirstNameChange(it); firstNameError = null },
                 label = "First_Name",
-                placeholder = "Enter your first name"
+                placeholder = "Enter your first name",
+                errorMessage = firstNameError
             )
             InputField(
                 value = uiState.lastName,
-                onValueChange = { viewModel.onLastNameChange(it) },
+                onValueChange = { viewModel.onLastNameChange(it); lastNameError = null },
                 label = "Last_Name",
-                placeholder = "Enter your last name"
+                placeholder = "Enter your last name",
+                errorMessage = lastNameError
             )
 
 
@@ -190,12 +233,20 @@ fun EditProfileScreen(
                                 onClick = {
                                     viewModel.onMajorChange(major)
                                     majorExpanded = false
+                                    majorError = null
                                 }
                             )
                         }
                     }
                 }
             }
+            Text(
+                text = majorError ?: "",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.error,
+                modifier = Modifier.padding(top = 4.dp, start = 4.dp)
+            )
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.Top
@@ -218,9 +269,10 @@ fun EditProfileScreen(
                 Box(modifier = Modifier.weight(1f)) {
                     InputField(
                         value = uiState.phoneNumber,
-                        onValueChange = { viewModel.onPhoneNumberChange(it) },
+                        onValueChange = { viewModel.onPhoneNumberChange(it); phoneError = null },
                         placeholder = "3001234567",
-                        keyboardType = KeyboardType.Phone
+                        keyboardType = KeyboardType.Phone,
+                        errorMessage = phoneError
                     )
                 }
             }
@@ -255,13 +307,6 @@ fun EditProfileScreen(
                 )
             }
 
-            if (uiState.errorMessage != null) {
-                Text(
-                    text = uiState.errorMessage!!,
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodySmall
-                )
-            }
         }
 
         Spacer(modifier = Modifier.height(32.dp))
@@ -269,11 +314,37 @@ fun EditProfileScreen(
         // Botón guardar
         Button(
             onClick = {
-                if (password.isNotBlank() && password != confirmPassword) {
-                    passwordError = "Las contraseñas no coinciden"
-                    return@Button
+                val nameRegex = Regex("^[a-zA-ZáéíóúÁÉÍÓÚüÜñÑ ]+$")
+                firstNameError = when {
+                    uiState.firstName.isBlank() -> "First name is required"
+                    !uiState.firstName.matches(nameRegex) -> "First name must not contain numbers or special characters"
+                    else -> null
                 }
-                viewModel.saveProfile(password.takeIf { it.isNotBlank() })
+                lastNameError = when {
+                    uiState.lastName.isBlank() -> "Last name is required"
+                    !uiState.lastName.matches(nameRegex) -> "Last name must not contain numbers or special characters"
+                    else -> null
+                }
+                majorError = when {
+                    uiState.major.isBlank() -> "Major is required"
+                    !ALLOWED_MAJORS.contains(uiState.major) -> "Please select a valid major"
+                    else -> null
+                }
+                phoneError = when {
+                    uiState.phoneNumber.isBlank() -> "Phone number is required"
+                    !uiState.phoneNumber.matches(Regex("\\d{7,20}")) -> "Only digits, 7–20 characters"
+                    else -> null
+                }
+                passwordError = if (password.isBlank()) {
+                    null
+                } else {
+                    validatePassword(password)
+                        ?: if (password != confirmPassword) "Passwords do not match" else null
+                }
+                if (firstNameError == null && lastNameError == null && majorError == null &&
+                    phoneError == null && passwordError == null) {
+                    viewModel.saveProfile(password.takeIf { it.isNotBlank() })
+                }
             },
             modifier = Modifier
                 .fillMaxWidth()
@@ -301,5 +372,10 @@ fun EditProfileScreen(
         }
 
         Spacer(modifier = Modifier.height(32.dp))
+    }
+    SnackbarHost(
+        hostState = snackbarHostState,
+        modifier = Modifier.align(Alignment.BottomCenter)
+    )
     }
 }

@@ -1,6 +1,8 @@
 package com.andeshub.data.repository
 
 import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.net.Uri
 import com.andeshub.data.local.SessionManager
 import com.andeshub.data.remote.RetrofitClient
@@ -9,6 +11,7 @@ import com.andeshub.data.model.UserResponse
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.toRequestBody
+import java.io.ByteArrayOutputStream
 
 class UserRepository(private val context: Context) {
 
@@ -46,13 +49,27 @@ class UserRepository(private val context: Context) {
         }
     }
 
+    suspend fun getMe(): Result<UserResponse> {
+        return try {
+            Result.success(api.getMe())
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     suspend fun updateAvatar(imageUri: Uri): Result<UserResponse> {
         return try {
             val inputStream = context.contentResolver.openInputStream(imageUri)
-            val bytes = inputStream?.use { it.readBytes() }
                 ?: return Result.failure(Exception("No se pudo leer la imagen"))
 
-            val requestBody = bytes.toRequestBody("image/*".toMediaType())
+            val originalBitmap = BitmapFactory.decodeStream(inputStream)
+                ?: return Result.failure(Exception("No se pudo decodificar la imagen"))
+
+            val outputStream = ByteArrayOutputStream()
+            originalBitmap.compress(Bitmap.CompressFormat.JPEG, 80, outputStream)
+            val bytes = outputStream.toByteArray()
+
+            val requestBody = bytes.toRequestBody("image/jpeg".toMediaType())
             val part = MultipartBody.Part.createFormData("avatar", "avatar.jpg", requestBody)
 
             val response = api.updateAvatar(part)

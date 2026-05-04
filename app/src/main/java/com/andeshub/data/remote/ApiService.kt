@@ -91,6 +91,9 @@ interface ApiService {
         @Path("userId") userId: String
     ): ProductsResponse
 
+    @GET("users/me")
+    suspend fun getMe(): UserResponse
+
     @PATCH("users/me")
     suspend fun updateProfile(
         @Body body: UpdateProfileRequest
@@ -131,5 +134,12 @@ interface ApiService {
     suspend fun recordPurchaseFromFavorite(
         @Body request: PurchaseFromFavoriteRequest
     ): Response<Unit>
+
+    data class TopCategoryResponse(
+        val category: String,
+        val purchases: Int
+    )
+    @GET("interactions/top-categories/week")
+    suspend fun getTopCategoriesThisWeek(): List<TopCategoryResponse>
 
 }
