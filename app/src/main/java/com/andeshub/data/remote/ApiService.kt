@@ -91,6 +91,9 @@ interface ApiService {
         @Path("userId") userId: String
     ): ProductsResponse
 
+    @GET("users/me")
+    suspend fun getMe(): UserResponse
+
     @PATCH("users/me")
     suspend fun updateProfile(
         @Body body: UpdateProfileRequest

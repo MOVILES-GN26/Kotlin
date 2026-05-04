@@ -20,6 +20,7 @@ data class ProfileUiState(
     val lastName: String = "",
     val email: String = "",
     val major: String = "",
+    val avatarUrl: String? = null,
     val stores: List<Store> = emptyList(),
     val listings: List<Product> = emptyList(),
     val productStats: Map<String, ProductStats> = emptyMap(),
@@ -46,19 +47,24 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
     }
 
     private fun loadProfile() {
-        val firstName = sessionManager.getUserFirstName()
-        val lastName = sessionManager.getUserLastName()
-        val email = sessionManager.getUserEmail()
-        val major = sessionManager.getUserMajor()
-
-        android.util.Log.d("ProfileViewModel", "firstName: $firstName, email: $email")
-
+        // Carga inmediata desde caché local
         _uiState.value = _uiState.value.copy(
-            firstName = firstName ?: "",
-            lastName = lastName ?: "",
-            email = email ?: "",
-            major = major ?: ""
+            firstName = sessionManager.getUserFirstName() ?: "",
+            lastName  = sessionManager.getUserLastName()  ?: "",
+            email     = sessionManager.getUserEmail()     ?: "",
+            major     = sessionManager.getUserMajor()     ?: ""
         )
+        // Obtiene avatar (y datos actualizados) desde el backend
+        viewModelScope.launch {
+            userRepository.getMe().onSuccess { user ->
+                _uiState.value = _uiState.value.copy(
+                    firstName = user.firstName,
+                    lastName  = user.lastName,
+                    major     = user.major,
+                    avatarUrl = user.avatarUrl
+                )
+            }
+        }
     }
 
     private fun loadStores() {

@@ -16,6 +16,7 @@ data class EditProfileUiState(
     val major: String = "",
     val phoneNumber: String = "",
     val avatarUrl: String? = null,
+    val isAvatarUploading: Boolean = false,
     val isSaving: Boolean = false,
     val saveSuccess: Boolean = false,
     val errorMessage: String? = null
@@ -114,18 +115,18 @@ class EditProfileViewModel(application: Application) : AndroidViewModel(applicat
 
     fun updateAvatar(uri: Uri) {
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isSaving = true, errorMessage = null)
+            _uiState.value = _uiState.value.copy(isAvatarUploading = true, errorMessage = null)
 
             userRepository.updateAvatar(uri)
                 .onSuccess { response ->
                     _uiState.value = _uiState.value.copy(
-                        isSaving = false,
+                        isAvatarUploading = false,
                         avatarUrl = response.avatarUrl
                     )
                 }
                 .onFailure { error ->
                     _uiState.value = _uiState.value.copy(
-                        isSaving = false,
+                        isAvatarUploading = false,
                         errorMessage = "Error al subir imagen: ${error.message}"
                     )
                 }
