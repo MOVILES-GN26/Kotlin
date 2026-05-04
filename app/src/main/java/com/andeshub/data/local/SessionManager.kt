@@ -5,23 +5,27 @@ import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 import androidx.core.content.edit
 import com.andeshub.data.model.CachedUser
+import android.util.Log
 
 class SessionManager(context: Context) {
 
-    private val masterKey = MasterKey.Builder(context)
+    private val appContext = context.applicationContext
+
+    private val masterKey = MasterKey.Builder(appContext)
         .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
         .build()
 
     private val prefs = try {
         EncryptedSharedPreferences.create(
-            context.applicationContext,
+            appContext,
             "andeshub_secure_prefs",
             masterKey,
             EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
             EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
         )
     } catch (e: Exception) {
-        context.getSharedPreferences("andeshub_prefs", Context.MODE_PRIVATE)
+        Log.e("SessionManager", "Error creating EncryptedSharedPreferences, falling back to unencrypted", e)
+        appContext.getSharedPreferences("andeshub_prefs", Context.MODE_PRIVATE)
     }
 
     fun saveTokens(accessToken: String, refreshToken: String) {
@@ -37,22 +41,26 @@ class SessionManager(context: Context) {
 
     fun clearSession() {
         prefs.edit {
-            remove("access_token")
-            remove("refresh_token")
-            // Si la biometría NO está activada, borramos el usuario. 
-            // Si ESTÁ activada, lo dejamos para poder hacer "re-login" con huella.
+            // Si la biometría está activada, NO borramos los tokens ni el usuario
+            // porque los necesitamos para que el login biométrico funcione después.
             if (!isBiometricEnabled()) {
+                remove("access_token")
+                remove("refresh_token")
                 remove("user_id")
                 remove("user_email")
                 remove("user_first_name")
                 remove("user_last_name")
                 remove("user_major")
                 remove("user_phone")
+            } else {
+                // Si la biometría está activa, solo podríamos marcar que el estado 
+                // "UI" es deslogueado, pero mantenemos los tokens para la re-entrada.
+                // En este flujo, 'clearSession' solo debería usarse para un Logout TOTAL.
             }
         }
     }
 
-    fun isLoggedIn(): Boolean = getAccessToken() != null
+    fun isLoggedIn(): Boolean = !getAccessToken().isNullOrEmpty()
 
     fun setOnboardingCompleted() {
         prefs.edit { putBoolean("onboarding_completed", true) }

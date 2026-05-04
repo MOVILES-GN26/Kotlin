@@ -429,11 +429,20 @@ class ProductViewModel(private val context: Context) : ViewModel() {
             _uiState.value = ProductUiState.Error("Internet connection is required to post.")
             return
         }
-        val token = sessionManager.getAccessToken() ?: ""
+        
+        // Robust token retrieval: Prefs -> Memory -> Error
+        val token = sessionManager.getAccessToken() ?: RetrofitClient.getToken() ?: ""
+        
         if (token.isEmpty()) {
             _uiState.value = ProductUiState.Error("No active session. Please login again.")
             return
         }
+        
+        // Sync Retrofit just in case it was null but prefs had it
+        if (RetrofitClient.getToken() == null && token.isNotEmpty()) {
+            RetrofitClient.setToken(token)
+        }
+
         viewModelScope.launch {
             _uiState.value = ProductUiState.Loading
             try {
