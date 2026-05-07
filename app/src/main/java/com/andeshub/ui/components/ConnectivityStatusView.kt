@@ -35,7 +35,7 @@ fun ConnectivityStatusView(status: ConnectivityObserver.Status) {
 
     val message = when (status) {
         ConnectivityObserver.Status.Losing -> "unstable connection..."
-        ConnectivityObserver.Status.Lost, ConnectivityObserver.Status.Unavailable -> "Offline"
+        ConnectivityObserver.Status.Lost, ConnectivityObserver.Status.Unavailable -> "No internet connection"
         else -> ""
     }
 
