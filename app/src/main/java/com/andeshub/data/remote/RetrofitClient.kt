@@ -7,7 +7,7 @@ import retrofit2.converter.gson.GsonConverterFactory
 import java.util.concurrent.TimeUnit
 
 object RetrofitClient {
-    private const val BASE_URL = "http://157.253.6.204:3000/"
+    private const val BASE_URL = "http://192.168.0.5:3000/"
 
     fun getBaseUrl(): String = BASE_URL
 
@@ -17,10 +17,12 @@ object RetrofitClient {
         token = accessToken
     }
 
+    fun getToken(): String? = token
+
     private val okHttpClient = OkHttpClient.Builder()
-        .connectTimeout(5, TimeUnit.SECONDS)
-        .readTimeout(5, TimeUnit.SECONDS)
-        .writeTimeout(5, TimeUnit.SECONDS)
+        .connectTimeout(15, TimeUnit.SECONDS)
+        .readTimeout(15, TimeUnit.SECONDS)
+        .writeTimeout(15, TimeUnit.SECONDS)
         .addInterceptor { chain ->
             val request = chain.request().newBuilder().apply {
                 token?.let { addHeader("Authorization", "Bearer $it") }

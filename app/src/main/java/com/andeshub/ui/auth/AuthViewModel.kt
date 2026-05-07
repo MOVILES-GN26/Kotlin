@@ -79,11 +79,12 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
 
     fun loginWithBiometric() {
         val cachedUser = sessionManager.getCachedUser()
+        val savedToken = sessionManager.getAccessToken()
         
-        // Si tenemos un usuario guardado (cacheado), permitimos entrar con huella
-        if (cachedUser != null) {
+        // Si tenemos un usuario guardado Y un token, permitimos entrar con huella
+        if (cachedUser != null && !savedToken.isNullOrEmpty()) {
             val response = AuthResponse(
-                accessToken = sessionManager.getAccessToken() ?: "biometric-session", 
+                accessToken = savedToken, 
                 refreshToken = sessionManager.getRefreshToken() ?: "",
                 user = UserResponse(
                     id = cachedUser.id,
@@ -98,7 +99,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
             RetrofitClient.setToken(response.accessToken)
             _uiState.value = AuthUiState.Success(response)
         } else {
-            _uiState.value = AuthUiState.Error("No biometric record found. Login with password once.")
+            _uiState.value = AuthUiState.Error("No biometric record found or session expired. Login with password once.")
             sessionManager.setBiometricEnabled(false)
         }
     }

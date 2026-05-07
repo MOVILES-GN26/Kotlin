@@ -73,16 +73,19 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun loadData() {
+        //corrutina aca
+        //intentar no usar el main porque se bloquea
         viewModelScope.launch(Dispatchers.Main) {
             if (_uiState.value !is HomeUiState.Success) {
                 _uiState.value = HomeUiState.Loading
             }
+            //aqui creo la corrutina anidada productos
 
             val productsDeferred = async(Dispatchers.IO) {
                 try {
                     // Intenta traer de la API
                     val products = repository.getProducts()
-                    // Guarda en Room para uso offline
+                    // Guardar en Room
                     products.forEach {
                         try { repository.saveProductLocally(it) } catch (e: Exception) { }
                     }
@@ -93,7 +96,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                     repository.getAllLocalProducts()
                 }
             }
-
+            //corrutina anidada para categorias trending
             val trendingDeferred = async(Dispatchers.IO) {
                 try {
                     val trending = api.getTrendingCategories()
@@ -105,9 +108,10 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             }
 
             try {
+                //aqui cojo los results cuando las dos terminan
                 val products = productsDeferred.await()
                 val trending = trendingDeferred.await()
-
+                //aca actualiza el main
                 _uiState.value = HomeUiState.Success(
                     products = products,
                     trendingCategories = trending
