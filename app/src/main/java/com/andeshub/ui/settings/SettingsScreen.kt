@@ -29,6 +29,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.andeshub.data.local.ThemePreferences
 import com.andeshub.ui.auth.AuthViewModel
 import com.andeshub.ui.components.ProductCard
 import com.andeshub.ui.theme.*
@@ -43,6 +44,7 @@ fun SettingsScreen(
     viewModel: SettingsViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val themeMode by viewModel.themeMode.collectAsState(initial = ThemePreferences.SYSTEM)
     val authViewModel: AuthViewModel = viewModel()
     
     val snackbarHostState = remember { SnackbarHostState() }
@@ -184,6 +186,74 @@ fun SettingsScreen(
                                 authViewModel.enableBiometric(it)
                             }
                         )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // Appearance Section
+            Text(
+                text = "Appearance",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)
+            )
+
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp)
+                    .clip(RoundedCornerShape(12.dp)),
+                color = MaterialTheme.colorScheme.surface
+            ) {
+                Column {
+                    listOf(
+                        Triple(ThemePreferences.SYSTEM, "System Default", Icons.Default.SettingsBrightness),
+                        Triple(ThemePreferences.LIGHT,  "Light",          Icons.Default.LightMode),
+                        Triple(ThemePreferences.DARK,   "Dark",           Icons.Default.DarkMode)
+                    ).forEachIndexed { index, (mode, label, icon) ->
+                        if (index > 0) {
+                            HorizontalDivider(
+                                modifier = Modifier.padding(horizontal = 16.dp),
+                                thickness = 0.5.dp,
+                                color = MaterialTheme.colorScheme.outlineVariant
+                            )
+                        }
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { viewModel.setThemeMode(mode) }
+                                .padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(40.dp)
+                                        .clip(CircleShape)
+                                        .background(MaterialTheme.colorScheme.background),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = icon,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.onBackground
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Text(
+                                    text = label,
+                                    style = MaterialTheme.typography.titleSmall,
+                                    color = MaterialTheme.colorScheme.onBackground
+                                )
+                            }
+                            RadioButton(
+                                selected = themeMode == mode,
+                                onClick = { viewModel.setThemeMode(mode) }
+                            )
+                        }
                     }
                 }
             }
