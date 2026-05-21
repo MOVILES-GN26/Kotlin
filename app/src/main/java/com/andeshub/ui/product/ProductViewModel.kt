@@ -77,13 +77,82 @@ class ProductViewModel(private val context: Context) : ViewModel() {
     private val _visitStats = MutableStateFlow<ProductVisitStats?>(null)
     val visitStats: StateFlow<ProductVisitStats?> = _visitStats
 
+    private val prefs = context.getSharedPreferences("favorites_count", Context.MODE_PRIVATE)
+
     fun clearToggleFavoriteError() {
         _toggleFavoriteError.value = null
+    }
+
+    // ── Favorites count local ──
+    fun saveFavoritesCount(productId: String, count: Int) {
+        prefs.edit().putInt("count_$productId", count).apply()
+    }
+
+    fun getLocalFavoritesCount(productId: String): Int {
+        return prefs.getInt("count_$productId", 0)
+    }
+
+    // ── Pending favorites sync ──
+    fun addPendingFavorite(productId: String) {
+        val pending = prefs.getStringSet("pending_add", mutableSetOf())?.toMutableSet() ?: mutableSetOf()
+        pending.add(productId)
+        prefs.edit().putStringSet("pending_add", pending).apply()
+    }
+
+    fun removePendingFavorite(productId: String) {
+        val pending = prefs.getStringSet("pending_add", mutableSetOf())?.toMutableSet() ?: mutableSetOf()
+        pending.remove(productId)
+        prefs.edit().putStringSet("pending_add", pending).apply()
+    }
+
+    fun getPendingFavorites(): Set<String> {
+        return prefs.getStringSet("pending_add", emptySet()) ?: emptySet()
+    }
+
+    fun addPendingRemove(productId: String) {
+        val pending = prefs.getStringSet("pending_remove", mutableSetOf())?.toMutableSet() ?: mutableSetOf()
+        pending.add(productId)
+        prefs.edit().putStringSet("pending_remove", pending).apply()
+    }
+
+    fun removePendingRemove(productId: String) {
+        val pending = prefs.getStringSet("pending_remove", mutableSetOf())?.toMutableSet() ?: mutableSetOf()
+        pending.remove(productId)
+        prefs.edit().putStringSet("pending_remove", pending).apply()
+    }
+
+    fun getPendingRemoves(): Set<String> {
+        return prefs.getStringSet("pending_remove", emptySet()) ?: emptySet()
+    }
+
+    fun syncPendingFavorites() {
+        if (!isNetworkAvailable()) return
+        viewModelScope.launch(Dispatchers.IO) {
+            getPendingFavorites().forEach { productId ->
+                try {
+                    api.addFavorite(productId)
+                    removePendingFavorite(productId)
+                    Log.d("ProductViewModel", "Synced pending add: $productId")
+                } catch (e: Exception) {
+                    Log.e("ProductViewModel", "Error syncing add: ${e.message}")
+                }
+            }
+            getPendingRemoves().forEach { productId ->
+                try {
+                    api.removeFavorite(productId)
+                    removePendingRemove(productId)
+                    Log.d("ProductViewModel", "Synced pending remove: $productId")
+                } catch (e: Exception) {
+                    Log.e("ProductViewModel", "Error syncing remove: ${e.message}")
+                }
+            }
+        }
     }
 
     init {
         loadUserStores()
         loadViewedTimestamps()
+        syncPendingFavorites()
     }
 
     fun isNetworkAvailable(): Boolean {
@@ -273,6 +342,9 @@ class ProductViewModel(private val context: Context) : ViewModel() {
             }
             try {
                 val favorites = api.getFavorites()
+                // Primero desmarca todos los productos
+                db.productDao().unmarkAllFavorites()
+                // Luego marca solo los que son favoritos del usuario
                 favorites.forEach { product ->
                     db.productDao().markAsFavorite(product.id)
                 }
@@ -288,46 +360,69 @@ class ProductViewModel(private val context: Context) : ViewModel() {
         }
     }
 
-    fun toggleFavorite(productId: String) {
-        if (!isNetworkAvailable()) {
-            viewModelScope.launch(Dispatchers.Main) {
-                _toggleFavoriteError.value = null // primero lo limpia
-                _toggleFavoriteError.value = "No internet connection. Try again later."
-            }
-            return
-        }
+
+    fun toggleFavorite(productId: String, product: Product? = null) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 if (_isFavorited.value) {
-                    val response = api.removeFavorite(productId)
-                    if (response.isSuccessful) {
-                        db.productDao().unmarkAsFavorite(productId)
-                        withContext(Dispatchers.Main) {
-                            _isFavorited.value = false
-                            _favoritesCount.value = (_favoritesCount.value - 1).coerceAtLeast(0)
-                            FavoritesEvent.notifyChanged()
-                        }
+                    // Actualiza Room inmediatamente
+                    db.productDao().unmarkAsFavorite(productId)
+                    withContext(Dispatchers.Main) {
+                        _isFavorited.value = false
+                        val newCount = (_favoritesCount.value - 1).coerceAtLeast(0)
+                        _favoritesCount.value = newCount
+                        saveFavoritesCount(productId, newCount)
+                        FavoritesEvent.notifyChanged()
+                    }
+                    // Intenta sincronizar con el backend
+                    if (isNetworkAvailable()) {
+                        api.removeFavorite(productId)
+                    } else {
+                        addPendingRemove(productId)
                     }
                 } else {
-                    val response = api.addFavorite(productId)
-                    if (response.isSuccessful) {
+                    // Guarda en Room inmediatamente
+                    if (product != null) {
+                        db.productDao().insertProduct(
+                            com.andeshub.data.local.ProductEntity(
+                                id = product.id,
+                                title = product.title,
+                                description = product.description,
+                                price = product.price,
+                                category = product.category,
+                                condition = product.condition,
+                                location = product.building_location,
+                                imageUrl = product.image_urls.firstOrNull(),
+                                sellerId = product.seller_id,
+                                storeId = product.store_id,
+                                createdAt = product.created_at,
+                                isFavorite = true
+                            )
+                        )
+                    } else {
                         db.productDao().markAsFavorite(productId)
-                        withContext(Dispatchers.Main) {
-                            _isFavorited.value = true
-                            _favoritesCount.value = _favoritesCount.value + 1
-                            FavoritesEvent.notifyChanged()
-                        }
+                    }
+                    withContext(Dispatchers.Main) {
+                        _isFavorited.value = true
+                        val newCount = _favoritesCount.value + 1
+                        _favoritesCount.value = newCount
+                        saveFavoritesCount(productId, newCount)
+                        FavoritesEvent.notifyChanged()
+                    }
+                    // Intenta sincronizar con el backend
+                    if (isNetworkAvailable()) {
+                        api.addFavorite(productId)
+                    } else {
+                        addPendingFavorite(productId)
                     }
                 }
             } catch (e: Exception) {
-                if (!_isFavorited.value) {
-                    withContext(Dispatchers.Main) {
-                        _toggleFavoriteError.value = "No internet connection. Try again later."
-                    }
-                }
+                Log.e("ProductViewModel", "Error toggling favorite: ${e.message}")
             }
         }
     }
+
+
 
     fun recordProductView(product: Product, source: String? = null) {
         viewModelScope.launch(Dispatchers.Main) { 
@@ -387,15 +482,21 @@ class ProductViewModel(private val context: Context) : ViewModel() {
     }
 
     fun loadFavoritesCount(productId: String) {
+        // Carga el count local inmediatamente
+        _favoritesCount.value = getLocalFavoritesCount(productId)
+
         if (!isNetworkAvailable()) return
+
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 val result = api.getFavoritesCount(productId)
+                // Guarda en local para uso offline
+                saveFavoritesCount(productId, result.count)
                 withContext(Dispatchers.Main) {
                     _favoritesCount.value = result.count
                 }
             } catch (e: Exception) {
-                _favoritesCount.value = 0
+                _favoritesCount.value = getLocalFavoritesCount(productId)
             }
         }
     }

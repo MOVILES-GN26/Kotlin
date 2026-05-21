@@ -275,14 +275,11 @@ fun ProductDetailScreen(
                     ) {
                         if (!productViewModel.isOwner(product)) {
                             IconButton(
-                                onClick = { 
-                                    if (isOnline.value) {
-                                        productViewModel.toggleFavorite(product.id)
-                                    } else {
-                                        Toast.makeText(context, "Internet connection required for favorites", Toast.LENGTH_SHORT).show()
-                                    }
+                                onClick = {
+                                    productViewModel.toggleFavorite(product.id, product)
                                 }
-                            ) {
+                            )
+                             {
                                 Icon(
                                     imageVector = if (isFavorited) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
                                     contentDescription = "Favorite",
