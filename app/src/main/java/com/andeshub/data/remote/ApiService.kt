@@ -52,7 +52,6 @@ interface ApiService {
     @Multipart
     @POST("posts")
     suspend fun createProduct(
-        @Header("Authorization") token: String,
         @Part("title") title: RequestBody,
         @Part("description") description: RequestBody,
         @Part("category") category: RequestBody,
@@ -141,5 +140,12 @@ interface ApiService {
     )
     @GET("interactions/top-categories/week")
     suspend fun getTopCategoriesThisWeek(): List<TopCategoryResponse>
+
+    // Business Question: Conversion from Draft to Published
+    @POST("analytics/drafts/created")
+    suspend fun recordDraftCreated(): Response<Unit>
+
+    @POST("analytics/drafts/published")
+    suspend fun recordDraftPublished(): Response<Unit>
 
 }
