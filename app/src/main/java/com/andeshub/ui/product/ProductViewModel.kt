@@ -182,7 +182,6 @@ class ProductViewModel(private val context: Context) : ViewModel() {
                 matchesSearch && matchesCategory && matchesCondition
             }
 
-            // Aplicar ordenamiento localmente por precio
             if (priceSort != null) {
                 filteredLocal = if (priceSort == "asc") {
                     filteredLocal.sortedBy { it.price }
@@ -235,7 +234,6 @@ class ProductViewModel(private val context: Context) : ViewModel() {
         _isGridView.value = newMode
     }
 
-    // --- Borradores Temporales (SharedPreferences) ---
     fun saveDraft(title: String, description: String) {
         draftManager.saveDraft("$title|$description")
     }
@@ -254,7 +252,6 @@ class ProductViewModel(private val context: Context) : ViewModel() {
         draftManager.clearDraft()
     }
 
-    // --- Gestión de Borradores Persistentes (Room) ---
     fun saveProductAsDraft(
         title: String,
         description: String,
@@ -277,6 +274,10 @@ class ProductViewModel(private val context: Context) : ViewModel() {
                 storeId = storeId
             )
             db.productDraftDao().insertDraft(draft)
+
+            if (isNetworkAvailable()) {
+                try { api.recordDraftCreated() } catch (e: Exception) { Log.e("Analytics", "Error recording draft created", e) }
+            }
         }
     }
 
@@ -564,21 +565,19 @@ class ProductViewModel(private val context: Context) : ViewModel() {
         }
     }
 
-    fun createProduct(title: String, description: String, category: String, location: String, price: Double, condition: String, storeId: String?, imageUri: Uri?, imageBitmap: Bitmap? = null) {
+    fun createProduct(title: String, description: String, category: String, location: String, price: Double, condition: String, storeId: String?, imageUri: Uri?, imageBitmap: Bitmap? = null, wasDraft: Boolean = false) {
         if (!isNetworkAvailable()) {
             _uiState.value = ProductUiState.Error("Internet connection is required to post.")
             return
         }
-        
-        // Robust token retrieval: Prefs -> Memory -> Error
+
         val token = sessionManager.getAccessToken() ?: RetrofitClient.getToken() ?: ""
         
         if (token.isEmpty()) {
             _uiState.value = ProductUiState.Error("No active session. Please login again.")
             return
         }
-        
-        // Sync Retrofit just in case it was null but prefs had it
+
         if (RetrofitClient.getToken() == null && token.isNotEmpty()) {
             RetrofitClient.setToken(token)
         }
@@ -587,10 +586,14 @@ class ProductViewModel(private val context: Context) : ViewModel() {
             _uiState.value = ProductUiState.Loading
             try {
                 val product = withContext(Dispatchers.IO) {
-                    repository.createProduct(token, title, description, category, location, price, condition, storeId, imageUri, imageBitmap)
+                    repository.createProduct(title, description, category, location, price, condition, storeId, imageUri, imageBitmap)
                 }
                 withContext(Dispatchers.IO) {
                     try { repository.saveProductLocally(product) } catch (e: Exception) {}
+
+                    if (wasDraft) {
+                        try { api.recordDraftPublished() } catch (e: Exception) { Log.e("Analytics", "Error recording draft published", e) }
+                    }
                 }
                 _uiState.value = ProductUiState.Created(product)
                 clearDraft()

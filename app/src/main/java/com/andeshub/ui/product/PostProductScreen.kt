@@ -84,6 +84,8 @@ fun PostProductScreen(
     var selectedStore by remember { mutableStateOf<Store?>(null) }
     
     val draftRestored = remember { mutableStateOf(false) }
+    // Nuevo estado para saber si estamos trabajando sobre un borrador cargado
+    val isFromStoredDraft = remember { mutableStateOf(false) }
 
     // Validation States
     var titleError by remember { mutableStateOf<String?>(null) }
@@ -107,7 +109,6 @@ fun PostProductScreen(
     var storeExpanded by remember { mutableStateOf(false) }
     var showImageSourceOptions by remember { mutableStateOf(false) }
 
-    // Función para limpiar todo el formulario y el borrador temporal
     fun clearForm() {
         title = ""
         description = ""
@@ -120,9 +121,10 @@ fun PostProductScreen(
         selectedStore = null
         productViewModel.clearDraft()
         draftRestored.value = false
+        isFromStoredDraft.value = false
     }
 
-    // 1. Cargar borrador persistente de Room (cuando vienes de la lista)
+    // 1. Cargar borrador persistente de Room
     LaunchedEffect(initialDraft) {
         initialDraft?.let {
             title = it.title
@@ -133,10 +135,18 @@ fun PostProductScreen(
             buildingLocation = it.location
             imageUri = it.imageUri?.let { uriStr -> Uri.parse(uriStr) }
             draftRestored.value = true
+            isFromStoredDraft.value = true
         }
     }
 
-    // 2. Cargar borrador automático de SharedPreferences (el de "antes")
+    // Match storeId from draft with userStores
+    LaunchedEffect(userStores, initialDraft) {
+        if (userStores.isNotEmpty() && initialDraft != null) {
+            selectedStore = userStores.find { it.id == initialDraft.storeId }
+        }
+    }
+
+    // 2. Cargar borrador automático de SharedPreferences
     LaunchedEffect(Unit) {
         if (initialDraft == null) {
             val draft = productViewModel.loadDraft()
@@ -144,11 +154,11 @@ fun PostProductScreen(
                 title = draft.first
                 description = draft.second
                 draftRestored.value = true
+                isFromStoredDraft.value = false
             }
         }
     }
 
-    // Auto-guardado del borrador temporal mientras escribes
     LaunchedEffect(title, description) {
         if (title.isNotEmpty() || description.isNotEmpty()) {
             productViewModel.saveDraft(title, description)
@@ -157,6 +167,8 @@ fun PostProductScreen(
 
     LaunchedEffect(uiState) {
         if (uiState is ProductUiState.Created) {
+            // Si se publicó con éxito y venía de un borrador de la lista, lo borramos de Room
+            initialDraft?.let { productViewModel.deleteDraft(it) }
             onCloseClick()
         }
     }
@@ -253,7 +265,7 @@ fun PostProductScreen(
                     shape = RoundedCornerShape(12.dp)
                 ) {
                     Row(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text(text = if (initialDraft != null) "Draft loaded from list" else "Previous draft restored", style = Typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+                        Text(text = if (isFromStoredDraft.value) "Draft loaded from list" else "Previous draft restored", style = Typography.bodySmall, color = MaterialTheme.colorScheme.primary)
                         Row {
                             Text(text = "View drafts", style = Typography.bodySmall.copy(fontWeight = FontWeight.Bold), color = MaterialTheme.colorScheme.primary, modifier = Modifier.clickable { onViewDraftsClick() })
                             Spacer(modifier = Modifier.width(16.dp))
@@ -416,7 +428,18 @@ fun PostProductScreen(
                     onClick = {
                         if (!productViewModel.isNetworkAvailable()) { isOnline.value = false; return@Button }
                         if (validateForm()) {
-                            productViewModel.createProduct(title.trim(), description.trim(), selectedCategory, buildingLocation, price.toDoubleOrNull() ?: 0.0, selectedCondition, selectedStore?.id, imageUri, imageBitmap)
+                            productViewModel.createProduct(
+                                title = title.trim(),
+                                description = description.trim(),
+                                category = selectedCategory,
+                                location = buildingLocation,
+                                price = price.toDoubleOrNull() ?: 0.0,
+                                condition = selectedCondition,
+                                storeId = selectedStore?.id,
+                                imageUri = imageUri,
+                                imageBitmap = imageBitmap,
+                                wasDraft = isFromStoredDraft.value // Enviamos el flag de analíticas
+                            )
                         }
                     },
                     modifier = Modifier.weight(1f).height(56.dp),
