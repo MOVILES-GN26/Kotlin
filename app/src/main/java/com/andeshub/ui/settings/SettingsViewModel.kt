@@ -4,8 +4,10 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.andeshub.data.local.SessionManager
+import com.andeshub.data.local.ThemePreferences
 import com.andeshub.data.model.Product
 import com.andeshub.data.repository.ProductRepository
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -23,6 +25,15 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     private val sessionManager = SessionManager(application)
     private val productRepository = ProductRepository(application)
+    private val themePreferences = ThemePreferences(application)
+
+    val themeMode: Flow<String> = themePreferences.themeMode
+
+    fun setThemeMode(mode: String) {
+        viewModelScope.launch {
+            themePreferences.saveThemeMode(mode)
+        }
+    }
 
     private val _uiState = MutableStateFlow(SettingsUiState())
     val uiState: StateFlow<SettingsUiState> = _uiState

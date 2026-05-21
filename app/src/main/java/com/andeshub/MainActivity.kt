@@ -10,6 +10,7 @@ import android.os.Bundle
 import android.util.Log
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.collectAsState
@@ -19,6 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.fragment.app.FragmentActivity
 import com.andeshub.data.ConnectivityObserver
 import com.andeshub.data.NetworkConnectivityObserver
+import com.andeshub.data.local.ThemePreferences
 import com.andeshub.routes.AppNavigation
 import com.andeshub.ui.components.ConnectivityStatusView
 import com.andeshub.ui.theme.AndesHubTheme
@@ -48,7 +50,15 @@ class MainActivity : FragmentActivity() {
             val connectivityObserver = remember { NetworkConnectivityObserver(applicationContext) }
             val status by connectivityObserver.observe().collectAsState(initial = ConnectivityObserver.Status.Available)
 
-            AndesHubTheme {
+            val themePreferences = remember { ThemePreferences(applicationContext) }
+            val themeMode by themePreferences.themeMode.collectAsState(initial = ThemePreferences.SYSTEM)
+            val darkTheme = when (themeMode) {
+                ThemePreferences.DARK  -> true
+                ThemePreferences.LIGHT -> false
+                else                   -> isSystemInDarkTheme()
+            }
+
+            AndesHubTheme(darkTheme = darkTheme) {
                 Column(modifier = Modifier.fillMaxSize()) {
                     ConnectivityStatusView(status = status)
                     AppNavigation(nfcCredentials = nfcCredentials)
