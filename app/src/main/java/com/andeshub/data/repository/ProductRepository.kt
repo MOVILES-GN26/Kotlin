@@ -26,7 +26,6 @@ class ProductRepository(private val context: Context) {
         condition: String? = null,
         priceSort: String? = null
     ): List<Product> {
-        // No capturamos el error aquí para que el ViewModel pueda manejar el fallback filtrado
         val response = api.getProducts(search, category, condition, priceSort)
         return response.items ?: emptyList()
     }
@@ -49,7 +48,6 @@ class ProductRepository(private val context: Context) {
             category = it.category,
             condition = it.condition,
             building_location = it.location,
-            // PRIORIDAD: Imagen local si existe, sino URL remota
             image_urls = if (!it.localImagePath.isNullOrEmpty() && File(it.localImagePath).exists()) 
                             listOf(it.localImagePath) 
                          else listOfNotNull(it.imageUrl),
@@ -113,7 +111,6 @@ class ProductRepository(private val context: Context) {
     }
 
     suspend fun createProduct(
-        token: String,
         title: String,
         description: String,
         category: String,
@@ -152,7 +149,6 @@ class ProductRepository(private val context: Context) {
         }
 
         return api.createProduct(
-            "Bearer $token",
             titlePart,
             descriptionPart,
             categoryPart,
@@ -168,16 +164,9 @@ class ProductRepository(private val context: Context) {
         return try {
             val response = api.getProductsByUser(userId)
             val products = response.items ?: emptyList()
-            android.util.Log.d("ProductRepository", "Online: guardando ${products.size} productos para sellerId=$userId")
-            // Guardar en Room como cache
-            products.forEach {
-                android.util.Log.d("ProductRepository", "Producto del backend: id=${it.id} seller_id=${it.seller_id} seller=${it.seller?.id}")
-            }
             Result.success(products)
         } catch (e: Exception) {
-            // Estando Offline se usan productos cache de Room
             val cached = productDao.getProductsBySeller(userId).map { mapEntityToProduct(it) }
-            android.util.Log.d("ProductRepository", "Room devolvió ${cached.size} productos")
             if (cached.isNotEmpty()) {
                 Result.success(cached)
             } else {
