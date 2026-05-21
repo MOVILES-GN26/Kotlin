@@ -8,10 +8,7 @@ import android.net.Uri
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.andeshub.data.local.SessionManager
-import com.andeshub.data.local.UserPreferencesManager
-import com.andeshub.data.local.DraftManager
-import com.andeshub.data.local.ProductCache
+import com.andeshub.data.local.*
 import com.andeshub.data.model.*
 import com.andeshub.data.repository.ProductRepository
 import com.andeshub.data.repository.StoreRepository
@@ -20,9 +17,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import com.andeshub.data.local.FavoritesEvent
 import com.andeshub.data.remote.ApiService
 import kotlinx.coroutines.supervisorScope
 
@@ -45,7 +43,7 @@ class ProductViewModel(private val context: Context) : ViewModel() {
     private val userPrefs = UserPreferencesManager(context)
     private val draftManager = DraftManager(context)
     private val api = RetrofitClient.apiService
-    private val db = com.andeshub.data.local.AppDatabase.getInstance(context)
+    private val db = AppDatabase.getInstance(context)
 
     private val _uiState = MutableStateFlow<ProductUiState>(ProductUiState.Idle)
     val uiState: StateFlow<ProductUiState> = _uiState
@@ -76,6 +74,9 @@ class ProductViewModel(private val context: Context) : ViewModel() {
 
     private val _visitStats = MutableStateFlow<ProductVisitStats?>(null)
     val visitStats: StateFlow<ProductVisitStats?> = _visitStats
+
+    val allDrafts = db.productDraftDao().getAllDrafts()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     fun clearToggleFavoriteError() {
         _toggleFavoriteError.value = null
@@ -166,6 +167,7 @@ class ProductViewModel(private val context: Context) : ViewModel() {
         _isGridView.value = newMode
     }
 
+    // --- Borradores Temporales (SharedPreferences) ---
     fun saveDraft(title: String, description: String) {
         draftManager.saveDraft("$title|$description")
     }
@@ -182,6 +184,44 @@ class ProductViewModel(private val context: Context) : ViewModel() {
 
     fun clearDraft() {
         draftManager.clearDraft()
+    }
+
+    // --- Gestión de Borradores Persistentes (Room) ---
+    fun saveProductAsDraft(
+        title: String,
+        description: String,
+        category: String,
+        location: String,
+        price: String,
+        condition: String,
+        imageUri: String?,
+        storeId: String?
+    ) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val draft = ProductDraftEntity(
+                title = title,
+                description = description,
+                category = category,
+                location = location,
+                price = price,
+                condition = condition,
+                imageUri = imageUri,
+                storeId = storeId
+            )
+            db.productDraftDao().insertDraft(draft)
+        }
+    }
+
+    fun deleteDraft(draft: ProductDraftEntity) {
+        viewModelScope.launch(Dispatchers.IO) {
+            db.productDraftDao().deleteDraft(draft)
+        }
+    }
+
+    fun deleteDraftById(id: Long) {
+        viewModelScope.launch(Dispatchers.IO) {
+            db.productDraftDao().deleteDraftById(id)
+        }
     }
 
     fun loadViewedTimestamps() {

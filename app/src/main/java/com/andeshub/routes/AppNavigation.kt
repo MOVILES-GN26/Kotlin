@@ -38,6 +38,8 @@ import kotlinx.coroutines.flow.StateFlow
 import androidx.compose.runtime.collectAsState
 import com.andeshub.MainActivity
 import com.andeshub.ui.product.CheckoutScreen
+import com.andeshub.ui.product.MyDraftsScreen
+import com.andeshub.data.local.ProductDraftEntity
 
 @Composable
 fun AppNavigation(nfcCredentials: StateFlow<Pair<String, String>?> = MutableStateFlow(null)) {
@@ -68,6 +70,7 @@ fun AppNavigation(nfcCredentials: StateFlow<Pair<String, String>?> = MutableStat
                 currentRoute != AppDestinations.Login.route &&
                 currentRoute != AppDestinations.Register.route &&
                 currentRoute != AppDestinations.Onboarding.route &&
+                currentRoute != AppDestinations.MyDrafts.route &&
                 !currentRoute.startsWith("product_detail") &&
                 !currentRoute.startsWith("checkout")) {
                 AndesBottomNavBar(navController = navController)
@@ -192,16 +195,32 @@ fun AppNavigation(nfcCredentials: StateFlow<Pair<String, String>?> = MutableStat
                     LaunchedEffect(Unit) { navController.popBackStack() }
                 }
             }
-            composable(AppDestinations.Post.route) {
+            composable(AppDestinations.Post.route) { backStackEntry ->
                 val userProfile = UserProfile(
                     id = sessionManager.getUserId() ?: "",
                     name = "${sessionManager.getUserFirstName()} ${sessionManager.getUserLastName()}",
                     email = sessionManager.getUserEmail() ?: "",
                     major = sessionManager.getUserMajor() ?: ""
                 )
+                
+                val draft = backStackEntry.savedStateHandle.get<ProductDraftEntity>("selected_draft")
+                
                 PostProductScreen(
                     currentUser = userProfile,
-                    onCloseClick = { navController.popBackStack() }
+                    initialDraft = draft,
+                    onCloseClick = { navController.popBackStack() },
+                    onViewDraftsClick = { navController.navigate(AppDestinations.MyDrafts.route) }
+                )
+            }
+            composable(AppDestinations.MyDrafts.route) {
+                MyDraftsScreen(
+                    onBack = { navController.popBackStack() },
+                    onContinueDraft = { draft ->
+                        navController.previousBackStackEntry
+                            ?.savedStateHandle
+                            ?.set("selected_draft", draft)
+                        navController.popBackStack()
+                    }
                 )
             }
             composable(AppDestinations.Favorites.route) {
