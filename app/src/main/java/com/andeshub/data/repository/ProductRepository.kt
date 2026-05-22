@@ -5,9 +5,11 @@ import android.graphics.Bitmap
 import android.net.Uri
 import com.andeshub.data.local.AppDatabase
 import com.andeshub.data.local.ProductEntity
+import com.andeshub.data.local.ProductDraftEntity
 import com.andeshub.data.model.Product
 import com.andeshub.data.model.UserProfile
 import com.andeshub.data.remote.RetrofitClient
+import com.andeshub.data.remote.ApiService
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.toRequestBody
@@ -131,7 +133,7 @@ class ProductRepository(private val context: Context) {
 
         val imagePart = when {
             imageUri != null -> {
-                val inputStream = context.contentResolver.openInputStream(imageUri)
+                val inputStream = try { context.contentResolver.openInputStream(imageUri) } catch (e: Exception) { null }
                 val bytes = inputStream?.use { it.readBytes() }
                 if (bytes != null) {
                     val requestBody = bytes.toRequestBody("image/*".toMediaType())
@@ -182,5 +184,65 @@ class ProductRepository(private val context: Context) {
         } catch (e: Exception) {
             Result.failure(e)
         }
+    }
+
+    suspend fun saveDraftAdvanced(
+        title: String,
+        description: String,
+        category: String,
+        location: String,
+        price: String,
+        condition: String,
+        imageUri: Uri?,
+        imageBitmap: Bitmap? = null,
+        storeId: String?,
+        isReadyToSync: Boolean = false
+    ) {
+        val localPath = saveImageToInternalStorage(imageUri, imageBitmap)
+        val draft = ProductDraftEntity(
+            title = title,
+            description = description,
+            price = price,
+            category = category,
+            condition = condition,
+            location = location,
+            imageUri = imageUri?.toString(),
+            localImagePath = localPath,
+            storeId = storeId,
+            isReadyToSync = isReadyToSync
+        )
+        val draftDao = AppDatabase.getInstance(context).productDraftDao()
+        draftDao.insertWithLimit(draft)
+    }
+
+    suspend fun syncPendingDrafts() {
+        val draftDao = AppDatabase.getInstance(context).productDraftDao()
+        val pendingDrafts = draftDao.getDraftsReadyToSync()
+        
+        pendingDrafts.forEach { draft ->
+            try {
+                val imageFile = draft.localImagePath?.let { File(it) }
+                val imageUri = if (imageFile?.exists() == true) Uri.fromFile(imageFile) else null
+                
+                createProduct(
+                    title = draft.title,
+                    description = draft.description,
+                    category = draft.category,
+                    location = draft.location,
+                    price = draft.price.toDoubleOrNull() ?: 0.0,
+                    condition = draft.condition,
+                    storeId = draft.storeId,
+                    imageUri = imageUri,
+                    imageBitmap = null
+                )
+                draftDao.deleteDraft(draft)
+            } catch (e: Exception) {
+                android.util.Log.e("ProductRepository", "Error syncing draft ${draft.id}: ${e.message}")
+            }
+        }
+    }
+
+    suspend fun updateProduct(productId: String, request: ApiService.UpdateProductRequest): Product {
+        return api.updateProduct(productId, request)
     }
 }
