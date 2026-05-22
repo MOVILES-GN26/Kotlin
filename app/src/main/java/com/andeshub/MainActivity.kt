@@ -1,15 +1,21 @@
 package com.andeshub
 
+import android.Manifest
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.nfc.NdefMessage
 import android.nfc.NfcAdapter
 import android.nfc.Tag
 import android.nfc.tech.Ndef
+import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -17,15 +23,22 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
+import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.PeriodicWorkRequestBuilder
+import androidx.work.WorkManager
 import com.andeshub.data.ConnectivityObserver
 import com.andeshub.data.NetworkConnectivityObserver
+import com.andeshub.data.local.SessionManager
 import com.andeshub.data.local.ThemePreferences
 import com.andeshub.routes.AppNavigation
 import com.andeshub.ui.components.ConnectivityStatusView
 import com.andeshub.ui.theme.AndesHubTheme
+import com.andeshub.worker.ProductActivityWorker
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import java.util.concurrent.TimeUnit
 
 class MainActivity : FragmentActivity() {
 
@@ -35,9 +48,33 @@ class MainActivity : FragmentActivity() {
     private var nfcAdapter: NfcAdapter? = null
     private lateinit var pendingIntent: PendingIntent
 
+    private val requestNotificationPermission =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { /* no-op */ }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
+        createNotificationChannel()
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
+                != PackageManager.PERMISSION_GRANTED) {
+                requestNotificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+            }
+        }
+
+        val sessionManager = SessionManager(applicationContext)
+        if (sessionManager.isLoggedIn()) {
+            val workRequest = PeriodicWorkRequestBuilder<ProductActivityWorker>(
+                15, TimeUnit.MINUTES
+            ).build()
+            WorkManager.getInstance(applicationContext).enqueueUniquePeriodicWork(
+                ProductActivityWorker.WORK_NAME,
+                ExistingPeriodicWorkPolicy.KEEP,
+                workRequest
+            )
+        }
 
         nfcAdapter = NfcAdapter.getDefaultAdapter(this)
         pendingIntent = PendingIntent.getActivity(
@@ -134,5 +171,17 @@ class MainActivity : FragmentActivity() {
     }
     fun clearNfcCredentials() {
         _nfcCredentials.value = null
+    }
+
+    private fun createNotificationChannel() {
+        val channel = NotificationChannel(
+            ProductActivityWorker.CHANNEL_ID,
+            "Product Activity",
+            NotificationManager.IMPORTANCE_DEFAULT
+        ).apply {
+            description = "Notifications for views and favorites on your listings"
+        }
+        val manager = getSystemService(NotificationManager::class.java)
+        manager.createNotificationChannel(channel)
     }
 }
