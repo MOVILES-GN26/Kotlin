@@ -7,6 +7,7 @@ import com.andeshub.data.local.AppDatabase
 import com.andeshub.data.local.ProductEntity
 import com.andeshub.data.model.Product
 import com.andeshub.data.model.UserProfile
+import com.andeshub.data.remote.ApiService
 import com.andeshub.data.remote.RetrofitClient
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
@@ -183,4 +184,9 @@ class ProductRepository(private val context: Context) {
             Result.failure(e)
         }
     }
+
+    suspend fun updateProduct(productId: String, request: ApiService.UpdateProductRequest): Product {
+        return api.updateProduct(productId, request)
+    }
+
 }

@@ -22,7 +22,6 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -38,7 +37,8 @@ fun ProductDetailScreen(
     product: Product,
     source: String? = null,
     onBackClick: () -> Unit = {},
-    onBuyClick: (Product) -> Unit = {}
+    onBuyClick: (Product) -> Unit = {},
+    onEditClick: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val productViewModel: ProductViewModel = viewModel(
@@ -55,7 +55,6 @@ fun ProductDetailScreen(
     val toggleFavoriteError by productViewModel.toggleFavoriteError.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
 
-    // MONITOREO DE CONEXIÓN
     val isOnline = remember { mutableStateOf(productViewModel.isNetworkAvailable()) }
     LaunchedEffect(Unit) {
         while (true) {
@@ -65,7 +64,6 @@ fun ProductDetailScreen(
     }
 
     LaunchedEffect(product.id, source) {
-        // ACTUALIZACIÓN: Ahora pasamos el 'source' para registrar desde dónde entró el usuario (Home, Catalog, etc.)
         productViewModel.recordProductView(product, source)
         productViewModel.checkIfFavorited(product.id)
         productViewModel.loadFavoritesCount(product.id)
@@ -108,7 +106,32 @@ fun ProductDetailScreen(
             )
         },
         bottomBar = {
-            if (!productViewModel.isOwner(product)) {
+            if (productViewModel.isOwner(product)) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(MaterialTheme.colorScheme.background)
+                        .padding(horizontal = 24.dp, vertical = 16.dp)
+                        .navigationBarsPadding()
+                ) {
+                    Button(
+                        onClick = onEditClick,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(50.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primary
+                        ),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text(
+                            text = "Edit Product",
+                            style = Typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                            color = MaterialTheme.colorScheme.onPrimary
+                        )
+                    }
+                }
+            } else {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -278,8 +301,7 @@ fun ProductDetailScreen(
                                 onClick = {
                                     productViewModel.toggleFavorite(product.id, product)
                                 }
-                            )
-                             {
+                            ) {
                                 Icon(
                                     imageVector = if (isFavorited) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
                                     contentDescription = "Favorite",
@@ -310,7 +332,6 @@ fun ProductDetailScreen(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // Metadata Chips
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -335,22 +356,20 @@ fun ProductDetailScreen(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // Detail Section
                 Text(
                     text = "Details",
                     style = Typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
                     color = MaterialTheme.colorScheme.onBackground
                 )
-                
+
                 Spacer(modifier = Modifier.height(12.dp))
-                
+
                 DetailRow(icon = Icons.Default.LocationOn, label = "Location", value = product.building_location)
                 DetailRow(icon = Icons.Default.Category, label = "Category", value = product.category)
                 DetailRow(icon = Icons.Default.Info, label = "Condition", value = product.condition)
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // Seller Section
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
                     color = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f),
