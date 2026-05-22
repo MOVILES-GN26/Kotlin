@@ -1,6 +1,7 @@
 package com.andeshub.ui.product
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -70,6 +71,32 @@ fun EditProductScreen(
     LaunchedEffect(editUiState) {
         if (editUiState is ProductUiState.Success) {
             onProductUpdated()
+        }
+    }
+
+    val draftRestored = remember { mutableStateOf(false) }
+
+// Carga borrador al abrir
+    LaunchedEffect(product.id) {
+        val draft = productViewModel.loadEditDraft(product.id)
+        if (draft != null) {
+            title = draft.title.ifEmpty { product.title }
+            description = draft.description.ifEmpty { product.description }
+            price = draft.price.ifEmpty { product.price.toInt().toString() }
+            selectedCategory = draft.category.ifEmpty { product.category }
+            selectedLocation = draft.location.ifEmpty { product.building_location }
+            selectedCondition = draft.condition.ifEmpty { product.condition }
+            if (draft.title.isNotEmpty()) draftRestored.value = true
+        }
+    }
+
+// Guarda borrador cuando cambian los campos
+    LaunchedEffect(title, description, price, selectedCategory, selectedLocation, selectedCondition) {
+        if (title.isNotEmpty() || description.isNotEmpty()) {
+            productViewModel.saveEditDraft(
+                product.id, title, description,
+                selectedCategory, selectedLocation, price, selectedCondition
+            )
         }
     }
 
@@ -173,6 +200,43 @@ fun EditProductScreen(
                         color = MaterialTheme.colorScheme.error,
                         modifier = Modifier.padding(12.dp)
                     )
+                }
+            }
+
+            if (draftRestored.value) {
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 12.dp),
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = "Draft restored",
+                            style = Typography.bodySmall,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        Text(
+                            text = "Clear",
+                            style = Typography.bodySmall.copy(fontWeight = FontWeight.Bold),
+                            color = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.clickable {
+                                productViewModel.clearEditDraft(product.id)
+                                title = product.title
+                                description = product.description
+                                price = product.price.toInt().toString()
+                                selectedCategory = product.category
+                                selectedLocation = product.building_location
+                                selectedCondition = product.condition
+                                draftRestored.value = false
+                            }
+                        )
+                    }
                 }
             }
 
