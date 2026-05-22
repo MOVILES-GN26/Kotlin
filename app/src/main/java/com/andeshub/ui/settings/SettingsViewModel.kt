@@ -1,16 +1,23 @@
 package com.andeshub.ui.settings
 
 import android.app.Application
+import android.content.Context
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.andeshub.data.local.SessionManager
 import com.andeshub.data.local.ThemePreferences
 import com.andeshub.data.model.Product
+import com.andeshub.data.remote.NotificationPreferencesRequest
+import com.andeshub.data.remote.RetrofitClient
 import com.andeshub.data.repository.ProductRepository
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 data class SettingsUiState(
     val firstName: String = "",
@@ -93,5 +100,31 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     }
     fun logout() {
         sessionManager.clearSession()
+    }
+
+    fun updateNotificationPreferences(
+        notifyViews: Boolean? = null,
+        notifyFavorites: Boolean? = null
+    ) {
+        viewModelScope.launch {
+            try {
+                val cm = getApplication<Application>()
+                    .getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+                val network = cm.activeNetwork ?: return@launch
+                val caps = cm.getNetworkCapabilities(network) ?: return@launch
+                if (!caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)) return@launch
+
+                withContext(Dispatchers.IO) {
+                    RetrofitClient.apiService.updateNotificationPreferences(
+                        NotificationPreferencesRequest(
+                            notifyViews = notifyViews,
+                            notifyFavorites = notifyFavorites
+                        )
+                    )
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("SettingsViewModel", "updateNotificationPreferences error: ${e.message}")
+            }
+        }
     }
 }
