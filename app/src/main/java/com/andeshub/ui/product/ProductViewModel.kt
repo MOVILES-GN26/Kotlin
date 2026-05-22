@@ -633,4 +633,47 @@ class ProductViewModel(private val context: Context) : ViewModel() {
         }
     }
 
+    private val _editUiState = MutableStateFlow<ProductUiState>(ProductUiState.Idle)
+    val editUiState: StateFlow<ProductUiState> = _editUiState
+
+    fun updateProduct(
+        productId: String,
+        title: String,
+        description: String,
+        category: String,
+        location: String,
+        price: String,
+        condition: String
+    ) {
+        if (!isNetworkAvailable()) {
+            _editUiState.value = ProductUiState.Error("Internet connection is required to edit.")
+            return
+        }
+        viewModelScope.launch {
+            _editUiState.value = ProductUiState.Loading
+            try {
+                val updated = withContext(Dispatchers.IO) {
+                    repository.updateProduct(
+                        productId,
+                        ApiService.UpdateProductRequest(
+                            title = title,
+                            description = description,
+                            category = category,
+                            building_location = location,
+                            price = price,
+                            condition = condition
+                        )
+                    )
+                }
+                // Actualiza Room con los nuevos datos
+                withContext(Dispatchers.IO) {
+                    repository.saveProductLocally(updated)
+                }
+                _editUiState.value = ProductUiState.Success(listOf(updated))
+            } catch (e: Exception) {
+                _editUiState.value = ProductUiState.Error(e.message ?: "Error updating product")
+            }
+        }
+    }
+
 }
