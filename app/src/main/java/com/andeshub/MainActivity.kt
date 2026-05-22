@@ -19,12 +19,14 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
+import androidx.lifecycle.ViewModelProvider
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
@@ -32,8 +34,10 @@ import com.andeshub.data.ConnectivityObserver
 import com.andeshub.data.NetworkConnectivityObserver
 import com.andeshub.data.local.SessionManager
 import com.andeshub.data.local.ThemePreferences
+import com.andeshub.data.remote.RetrofitClient
 import com.andeshub.routes.AppNavigation
 import com.andeshub.ui.components.ConnectivityStatusView
+import com.andeshub.ui.product.ProductViewModel
 import com.andeshub.ui.theme.AndesHubTheme
 import com.andeshub.worker.ProductActivityWorker
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -53,6 +57,13 @@ class MainActivity : FragmentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        
+        // Sincronizar token inmediatamente al arrancar para evitar 401 en ViewModels
+        val sessionManager = SessionManager(applicationContext)
+        sessionManager.getAccessToken()?.let {
+            RetrofitClient.setToken(it)
+        }
+
         enableEdgeToEdge()
 
         createNotificationChannel()
@@ -64,7 +75,6 @@ class MainActivity : FragmentActivity() {
             }
         }
 
-        val sessionManager = SessionManager(applicationContext)
         if (sessionManager.isLoggedIn()) {
             val workRequest = PeriodicWorkRequestBuilder<ProductActivityWorker>(
                 15, TimeUnit.MINUTES
@@ -83,9 +93,26 @@ class MainActivity : FragmentActivity() {
             PendingIntent.FLAG_MUTABLE
         )
 
+        // ViewModel global para orquestar la sincronización de fondo [REQUERIMIENTO D]
+        val productViewModel = ViewModelProvider(this, object : ViewModelProvider.Factory {
+            override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
+                @Suppress("UNCHECKED_CAST")
+                return ProductViewModel(applicationContext) as T
+            }
+        })[ProductViewModel::class.java]
+
         setContent {
             val connectivityObserver = remember { NetworkConnectivityObserver(applicationContext) }
             val status by connectivityObserver.observe().collectAsState(initial = ConnectivityObserver.Status.Available)
+
+            // REQUERIMIENTO [D]: Eventual Connectivity
+            // Disparar sincronización automática cuando el estado cambie a Available
+            LaunchedEffect(status) {
+                if (status == ConnectivityObserver.Status.Available) {
+                    Log.d("Sync", "Network available - Triggering background sync")
+                    productViewModel.triggerSync()
+                }
+            }
 
             val themePreferences = remember { ThemePreferences(applicationContext) }
             val themeMode by themePreferences.themeMode.collectAsState(initial = ThemePreferences.SYSTEM)
