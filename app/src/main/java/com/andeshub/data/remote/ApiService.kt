@@ -158,4 +158,18 @@ interface ApiService {
     @POST("analytics/drafts/published")
     suspend fun recordDraftPublished(): Response<Unit>
 
+    data class UpdateProductRequest(
+        val title: String? = null,
+        val description: String? = null,
+        val category: String? = null,
+        val building_location: String? = null,
+        val price: String? = null,
+        val condition: String? = null
+    )
+
+    @PATCH("posts/{id}")
+    suspend fun updateProduct(
+        @Path("id") productId: String,
+        @Body request: UpdateProductRequest
+    ): Product
 }

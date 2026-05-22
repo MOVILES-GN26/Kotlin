@@ -40,6 +40,8 @@ import com.andeshub.MainActivity
 import com.andeshub.ui.product.CheckoutScreen
 import com.andeshub.ui.product.MyDraftsScreen
 import com.andeshub.data.local.ProductDraftEntity
+import com.andeshub.ui.product.EditProductScreen
+
 
 @Composable
 fun AppNavigation(nfcCredentials: StateFlow<Pair<String, String>?> = MutableStateFlow(null)) {
@@ -72,7 +74,8 @@ fun AppNavigation(nfcCredentials: StateFlow<Pair<String, String>?> = MutableStat
                 currentRoute != AppDestinations.Onboarding.route &&
                 currentRoute != AppDestinations.MyDrafts.route &&
                 !currentRoute.startsWith("product_detail") &&
-                !currentRoute.startsWith("checkout")) {
+                !currentRoute.startsWith("checkout") &&
+                !currentRoute.startsWith("edit_product")) {
                 AndesBottomNavBar(navController = navController)
             }
         }
@@ -168,6 +171,11 @@ fun AppNavigation(nfcCredentials: StateFlow<Pair<String, String>?> = MutableStat
                         product = product,
                         source = source,
                         onBackClick = { navController.popBackStack() },
+                        onEditClick = {
+                            val route = AppDestinations.EditProduct.createRoute(product.id)
+                            navController.navigate(route)
+                            navController.getBackStackEntry(route).savedStateHandle["product"] = product
+                        },
                         onBuyClick = { selectedProduct ->
                             val route = AppDestinations.Checkout.createRoute(selectedProduct.id)
                             navController.navigate(route)
@@ -290,6 +298,22 @@ fun AppNavigation(nfcCredentials: StateFlow<Pair<String, String>?> = MutableStat
                     onBackClick = { navController.popBackStack() },
                     onSaveSuccess = { navController.popBackStack() }
                 )
+            }
+
+            composable(
+                route = AppDestinations.EditProduct.route,
+                arguments = listOf(navArgument("productId") { type = NavType.StringType })
+            ) { backStackEntry ->
+                val product = backStackEntry.savedStateHandle.get<Product>("product")
+                if (product != null) {
+                    EditProductScreen(
+                        product = product,
+                        onBackClick = { navController.popBackStack() },
+                        onProductUpdated = { navController.popBackStack() }
+                    )
+                } else {
+                    LaunchedEffect(Unit) { navController.popBackStack() }
+                }
             }
         }
     }

@@ -77,11 +77,58 @@ class ProductViewModel(private val context: Context) : ViewModel() {
 
     private val prefs = context.getSharedPreferences("favorites_count", Context.MODE_PRIVATE)
 
+    // Flow reactivo de borradores
     val allDrafts = db.productDraftDao().getAllDrafts()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     fun clearToggleFavoriteError() {
         _toggleFavoriteError.value = null
+    }
+
+    // --- REQUERIMIENTO [A, B, C]: Guardado avanzado multi-hilo con gestión de espacio ---
+    fun saveProductAsDraft(
+        title: String,
+        description: String,
+        category: String,
+        location: String,
+        price: String,
+        condition: String,
+        imageUri: Uri?,
+        imageBitmap: Bitmap? = null,
+        storeId: String?,
+        isReadyToSync: Boolean = false
+    ) {
+        viewModelScope.launch {
+            try {
+                repository.saveDraftAdvanced(
+                    title, description, category, location, price, condition, imageUri, imageBitmap, storeId, isReadyToSync
+                )
+                
+                if (isNetworkAvailable()) {
+                    try { api.recordDraftCreated() } catch (e: Exception) {}
+                }
+            } catch (e: Exception) {
+                Log.e("Draft", "Error saving advanced draft", e)
+            }
+        }
+    }
+
+    fun updateDraftSyncStatus(draftId: Long, ready: Boolean) {
+        viewModelScope.launch(Dispatchers.IO) {
+            db.productDraftDao().updateSyncStatus(draftId, ready)
+            if (ready && isNetworkAvailable()) {
+                triggerSync()
+            }
+        }
+    }
+
+    // --- REQUERIMIENTO [D]: Sincronización automática de fondo ---
+    fun triggerSync() {
+        if (!isNetworkAvailable()) return
+        viewModelScope.launch {
+            repository.syncPendingDrafts()
+            syncPendingFavorites()
+        }
     }
 
     // ── Favorites count local ──
@@ -133,19 +180,13 @@ class ProductViewModel(private val context: Context) : ViewModel() {
                 try {
                     api.addFavorite(productId)
                     removePendingFavorite(productId)
-                    Log.d("ProductViewModel", "Synced pending add: $productId")
-                } catch (e: Exception) {
-                    Log.e("ProductViewModel", "Error syncing add: ${e.message}")
-                }
+                } catch (e: Exception) {}
             }
             getPendingRemoves().forEach { productId ->
                 try {
                     api.removeFavorite(productId)
                     removePendingRemove(productId)
-                    Log.d("ProductViewModel", "Synced pending remove: $productId")
-                } catch (e: Exception) {
-                    Log.e("ProductViewModel", "Error syncing remove: ${e.message}")
-                }
+                } catch (e: Exception) {}
             }
         }
     }
@@ -252,35 +293,6 @@ class ProductViewModel(private val context: Context) : ViewModel() {
         draftManager.clearDraft()
     }
 
-    fun saveProductAsDraft(
-        title: String,
-        description: String,
-        category: String,
-        location: String,
-        price: String,
-        condition: String,
-        imageUri: String?,
-        storeId: String?
-    ) {
-        viewModelScope.launch(Dispatchers.IO) {
-            val draft = ProductDraftEntity(
-                title = title,
-                description = description,
-                category = category,
-                location = location,
-                price = price,
-                condition = condition,
-                imageUri = imageUri,
-                storeId = storeId
-            )
-            db.productDraftDao().insertDraft(draft)
-
-            if (isNetworkAvailable()) {
-                try { api.recordDraftCreated() } catch (e: Exception) { Log.e("Analytics", "Error recording draft created", e) }
-            }
-        }
-    }
-
     fun deleteDraft(draft: ProductDraftEntity) {
         viewModelScope.launch(Dispatchers.IO) {
             db.productDraftDao().deleteDraft(draft)
@@ -382,9 +394,7 @@ class ProductViewModel(private val context: Context) : ViewModel() {
             }
             try {
                 val favorites = api.getFavorites()
-                // Primero desmarca todos los productos
                 db.productDao().unmarkAllFavorites()
-                // Luego marca solo los que son favoritos del usuario
                 favorites.forEach { product ->
                     db.productDao().markAsFavorite(product.id)
                 }
@@ -405,7 +415,6 @@ class ProductViewModel(private val context: Context) : ViewModel() {
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 if (_isFavorited.value) {
-                    // Actualiza Room inmediatamente
                     db.productDao().unmarkAsFavorite(productId)
                     withContext(Dispatchers.Main) {
                         _isFavorited.value = false
@@ -414,14 +423,12 @@ class ProductViewModel(private val context: Context) : ViewModel() {
                         saveFavoritesCount(productId, newCount)
                         FavoritesEvent.notifyChanged()
                     }
-                    // Intenta sincronizar con el backend
                     if (isNetworkAvailable()) {
                         api.removeFavorite(productId)
                     } else {
                         addPendingRemove(productId)
                     }
                 } else {
-                    // Guarda en Room inmediatamente
                     if (product != null) {
                         db.productDao().insertProduct(
                             com.andeshub.data.local.ProductEntity(
@@ -449,7 +456,6 @@ class ProductViewModel(private val context: Context) : ViewModel() {
                         saveFavoritesCount(productId, newCount)
                         FavoritesEvent.notifyChanged()
                     }
-                    // Intenta sincronizar con el backend
                     if (isNetworkAvailable()) {
                         api.addFavorite(productId)
                     } else {
@@ -522,15 +528,11 @@ class ProductViewModel(private val context: Context) : ViewModel() {
     }
 
     fun loadFavoritesCount(productId: String) {
-        // Carga el count local inmediatamente
         _favoritesCount.value = getLocalFavoritesCount(productId)
-
         if (!isNetworkAvailable()) return
-
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 val result = api.getFavoritesCount(productId)
-                // Guarda en local para uso offline
                 saveFavoritesCount(productId, result.count)
                 withContext(Dispatchers.Main) {
                     _favoritesCount.value = result.count
@@ -572,12 +574,10 @@ class ProductViewModel(private val context: Context) : ViewModel() {
         }
 
         val token = sessionManager.getAccessToken() ?: RetrofitClient.getToken() ?: ""
-        
         if (token.isEmpty()) {
             _uiState.value = ProductUiState.Error("No active session. Please login again.")
             return
         }
-
         if (RetrofitClient.getToken() == null && token.isNotEmpty()) {
             RetrofitClient.setToken(token)
         }
@@ -590,7 +590,6 @@ class ProductViewModel(private val context: Context) : ViewModel() {
                 }
                 withContext(Dispatchers.IO) {
                     try { repository.saveProductLocally(product) } catch (e: Exception) {}
-
                     if (wasDraft) {
                         try { api.recordDraftPublished() } catch (e: Exception) { Log.e("Analytics", "Error recording draft published", e) }
                     }
@@ -623,12 +622,52 @@ class ProductViewModel(private val context: Context) : ViewModel() {
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 val result = api.getTopCategoriesThisWeek()
-                Log.d("TopCategories", "Result: $result — size: ${result.size}")
                 withContext(Dispatchers.Main) {
                     _topCategories.value = result
                 }
+            } catch (e: Exception) {}
+        }
+    }
+
+    private val _editUiState = MutableStateFlow<ProductUiState>(ProductUiState.Idle)
+    val editUiState: StateFlow<ProductUiState> = _editUiState
+
+    fun updateProduct(
+        productId: String,
+        title: String,
+        description: String,
+        category: String,
+        location: String,
+        price: String,
+        condition: String
+    ) {
+        if (!isNetworkAvailable()) {
+            _editUiState.value = ProductUiState.Error("Internet connection is required to edit.")
+            return
+        }
+        viewModelScope.launch {
+            _editUiState.value = ProductUiState.Loading
+            try {
+                val updated = withContext(Dispatchers.IO) {
+                    repository.updateProduct(
+                        productId,
+                        ApiService.UpdateProductRequest(
+                            title = title,
+                            description = description,
+                            category = category,
+                            building_location = location,
+                            price = price,
+                            condition = condition
+                        )
+                    )
+                }
+                // Actualiza Room con los nuevos datos
+                withContext(Dispatchers.IO) {
+                    repository.saveProductLocally(updated)
+                }
+                _editUiState.value = ProductUiState.Success(listOf(updated))
             } catch (e: Exception) {
-                Log.e("TopCategories", "Error: ${e.message}")
+                _editUiState.value = ProductUiState.Error(e.message ?: "Error updating product")
             }
         }
     }
