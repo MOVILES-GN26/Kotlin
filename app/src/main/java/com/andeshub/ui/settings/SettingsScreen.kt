@@ -34,6 +34,7 @@ import com.andeshub.ui.auth.AuthViewModel
 import com.andeshub.ui.components.ProductCard
 import com.andeshub.ui.theme.*
 import kotlinx.coroutines.launch
+import androidx.compose.material.icons.filled.Notifications
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -46,6 +47,7 @@ fun SettingsScreen(
     val uiState by viewModel.uiState.collectAsState()
     val themeMode by viewModel.themeMode.collectAsState(initial = ThemePreferences.SYSTEM)
     val authViewModel: AuthViewModel = viewModel()
+    var showNotificationSheet by remember { mutableStateOf(false) }
     
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -181,13 +183,62 @@ fun SettingsScreen(
                         }
                         Switch(
                             checked = biometricChecked,
-                            onCheckedChange = { 
+                            onCheckedChange = {
                                 biometricChecked = it
                                 authViewModel.enableBiometric(it)
                             }
                         )
                     }
+
+                    HorizontalDivider(
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        thickness = 0.5.dp,
+                        color = MaterialTheme.colorScheme.outlineVariant
+                    )
+
+                    // Notification Settings Item
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { showNotificationSheet = true }
+                            .padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .clip(CircleShape)
+                                    .background(MaterialTheme.colorScheme.background),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Notifications,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onBackground
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text(
+                                text = "Notification Settings",
+                                style = MaterialTheme.typography.titleSmall,
+                                color = MaterialTheme.colorScheme.onBackground
+                            )
+                        }
+                        Icon(
+                            imageVector = Icons.Default.ChevronRight,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.secondary
+                        )
+                    }
                 }
+            }
+
+            if (showNotificationSheet) {
+                NotificationSettingsBottomSheet(
+                    onDismiss = { showNotificationSheet = false }
+                )
             }
 
             Spacer(modifier = Modifier.height(24.dp))
