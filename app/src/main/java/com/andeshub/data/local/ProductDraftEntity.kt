@@ -16,7 +16,9 @@ data class ProductDraftEntity(
     val category: String,
     val condition: String,
     val location: String,
-    val imageUri: String?, // Guardamos la URI como String
+    val imageUri: String?, // URI de la imagen original
+    val localImagePath: String? = null, // Ruta de la imagen procesada y guardada localmente
     val storeId: String?,
+    val isReadyToSync: Boolean = false, // Para el requerimiento (d)
     val timestamp: Long = System.currentTimeMillis()
 ) : Parcelable

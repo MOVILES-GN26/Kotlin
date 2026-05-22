@@ -38,8 +38,10 @@ import coil.compose.AsyncImage
 import com.andeshub.data.local.ProductDraftEntity
 import com.andeshub.data.model.Store
 import com.andeshub.data.model.UserProfile
+import com.andeshub.ui.components.InputField
 import com.andeshub.ui.theme.*
 import kotlinx.coroutines.delay
+import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -84,7 +86,6 @@ fun PostProductScreen(
     var selectedStore by remember { mutableStateOf<Store?>(null) }
     
     val draftRestored = remember { mutableStateOf(false) }
-    // Nuevo estado para saber si estamos trabajando sobre un borrador cargado
     val isFromStoredDraft = remember { mutableStateOf(false) }
 
     // Validation States
@@ -124,7 +125,6 @@ fun PostProductScreen(
         isFromStoredDraft.value = false
     }
 
-    // 1. Cargar borrador persistente de Room
     LaunchedEffect(initialDraft) {
         initialDraft?.let {
             title = it.title
@@ -133,20 +133,24 @@ fun PostProductScreen(
             selectedCategory = it.category
             selectedCondition = it.condition
             buildingLocation = it.location
-            imageUri = it.imageUri?.let { uriStr -> Uri.parse(uriStr) }
+            
+            // REPARACIÓN: Restaurar imagen tanto de URI (Galería) como de localPath (Cámara)
+            val galleryUri = it.imageUri?.let { uriStr -> Uri.parse(uriStr) }
+            val cameraUri = it.localImagePath?.let { path -> Uri.fromFile(File(path)) }
+            imageUri = galleryUri ?: cameraUri
+            imageBitmap = null // Limpiar bitmap temporal
+
             draftRestored.value = true
             isFromStoredDraft.value = true
         }
     }
 
-    // Match storeId from draft with userStores
     LaunchedEffect(userStores, initialDraft) {
         if (userStores.isNotEmpty() && initialDraft != null) {
             selectedStore = userStores.find { it.id == initialDraft.storeId }
         }
     }
 
-    // 2. Cargar borrador automático de SharedPreferences
     LaunchedEffect(Unit) {
         if (initialDraft == null) {
             val draft = productViewModel.loadDraft()
@@ -167,7 +171,6 @@ fun PostProductScreen(
 
     LaunchedEffect(uiState) {
         if (uiState is ProductUiState.Created) {
-            // Si se publicó con éxito y venía de un borrador de la lista, lo borramos de Room
             initialDraft?.let { productViewModel.deleteDraft(it) }
             onCloseClick()
         }
@@ -239,7 +242,6 @@ fun PostProductScreen(
                 .padding(horizontal = 24.dp)
                 .verticalScroll(rememberScrollState())
         ) {
-            // Warning de conexión
             AnimatedVisibility(
                 visible = !isOnline.value,
                 enter = expandVertically(),
@@ -277,7 +279,6 @@ fun PostProductScreen(
                 }
             }
 
-            // Banner de categorías trending
             if (topCategories.isNotEmpty()) {
                 Surface(
                     modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
@@ -319,19 +320,11 @@ fun PostProductScreen(
 
             Text(text = "Details", style = Typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground, modifier = Modifier.padding(top = 24.dp, bottom = 12.dp))
 
-            OutlinedTextField(
-                value = title, onValueChange = { title = it; if (titleError != null) validateForm() }, label = { Text("Title") }, modifier = Modifier.fillMaxWidth(), isError = titleError != null,
-                supportingText = { if (titleError != null) Text(titleError!!) }, shape = RoundedCornerShape(12.dp),
-                colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = MaterialTheme.colorScheme.surface, focusedBorderColor = MaterialTheme.colorScheme.primary, unfocusedContainerColor = MaterialTheme.colorScheme.surface, focusedContainerColor = MaterialTheme.colorScheme.surface)
-            )
+            InputField(value = title, onValueChange = { title = it; if (titleError != null) validateForm() }, placeholder = "Title", label = "Title", errorMessage = titleError)
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            OutlinedTextField(
-                value = description, onValueChange = { description = it; if (descriptionError != null) validateForm() }, label = { Text("Description") }, modifier = Modifier.fillMaxWidth().height(120.dp), isError = descriptionError != null,
-                supportingText = { if (descriptionError != null) Text(descriptionError!!) }, shape = RoundedCornerShape(12.dp),
-                colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = MaterialTheme.colorScheme.surface, focusedBorderColor = MaterialTheme.colorScheme.primary, unfocusedContainerColor = MaterialTheme.colorScheme.surface, focusedContainerColor = MaterialTheme.colorScheme.surface)
-            )
+            InputField(value = description, onValueChange = { description = it; if (descriptionError != null) validateForm() }, placeholder = "Description", label = "Description", singleLine = false, minLines = 3, errorMessage = descriptionError)
 
             Spacer(modifier = Modifier.height(16.dp))
 
@@ -378,12 +371,7 @@ fun PostProductScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            OutlinedTextField(
-                value = price, onValueChange = { if (it.isEmpty() || it.toDoubleOrNull() != null || (it.endsWith(".") && it.count { c -> c == '.' } <= 1)) { price = it; if (priceError != null) validateForm() } },
-                label = { Text("Price") }, prefix = { Text("$ ") }, modifier = Modifier.fillMaxWidth(), isError = priceError != null, supportingText = { if (priceError != null) Text(priceError!!) },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), shape = RoundedCornerShape(12.dp),
-                colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = MaterialTheme.colorScheme.surface, focusedBorderColor = MaterialTheme.colorScheme.primary, unfocusedContainerColor = MaterialTheme.colorScheme.surface, focusedContainerColor = MaterialTheme.colorScheme.surface)
-            )
+            InputField(value = price, onValueChange = { if (it.isEmpty() || it.toDoubleOrNull() != null || (it.endsWith(".") && it.count { c -> c == '.' } <= 1)) { price = it; if (priceError != null) validateForm() } }, placeholder = "0.00", label = "Price", keyboardType = KeyboardType.Number, errorMessage = priceError)
 
             Spacer(modifier = Modifier.height(16.dp))
 
@@ -407,12 +395,21 @@ fun PostProductScreen(
                 Text(text = (uiState as ProductUiState.Error).message, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(bottom = 8.dp))
             }
 
-            // BOTONES DE ACCIÓN
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 OutlinedButton(
                     onClick = {
-                        productViewModel.saveProductAsDraft(title, description, selectedCategory, buildingLocation, price, selectedCondition, imageUri?.toString(), selectedStore?.id)
-                        clearForm() // Limpiar borrador temporal al guardar uno permanente
+                        productViewModel.saveProductAsDraft(
+                            title = title,
+                            description = description,
+                            category = selectedCategory,
+                            location = buildingLocation,
+                            price = price,
+                            condition = selectedCondition,
+                            imageUri = imageUri,
+                            imageBitmap = imageBitmap,
+                            storeId = selectedStore?.id
+                        )
+                        clearForm()
                         onViewDraftsClick()
                     },
                     modifier = Modifier.weight(1f).height(56.dp),
@@ -438,7 +435,7 @@ fun PostProductScreen(
                                 storeId = selectedStore?.id,
                                 imageUri = imageUri,
                                 imageBitmap = imageBitmap,
-                                wasDraft = isFromStoredDraft.value // Enviamos el flag de analíticas
+                                wasDraft = isFromStoredDraft.value
                             )
                         }
                     },
