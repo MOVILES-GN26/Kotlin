@@ -237,7 +237,13 @@ fun SettingsScreen(
 
             if (showNotificationSheet) {
                 NotificationSettingsBottomSheet(
-                    onDismiss = { showNotificationSheet = false }
+                    onDismiss = { showNotificationSheet = false },
+                    onNotifyViewsChanged = { enabled ->
+                        viewModel.updateNotificationPreferences(notifyViews = enabled)
+                    },
+                    onNotifyFavoritesChanged = { enabled ->
+                        viewModel.updateNotificationPreferences(notifyFavorites = enabled)
+                    }
                 )
             }
 
