@@ -41,22 +41,14 @@ class SessionManager(context: Context) {
 
     fun clearSession() {
         prefs.edit {
-            // Si la biometría está activada, NO borramos los tokens ni el usuario
-            // porque los necesitamos para que el login biométrico funcione después.
-            if (!isBiometricEnabled()) {
-                remove("access_token")
-                remove("refresh_token")
-                remove("user_id")
-                remove("user_email")
-                remove("user_first_name")
-                remove("user_last_name")
-                remove("user_major")
-                remove("user_phone")
-            } else {
-                // Si la biometría está activa, solo podríamos marcar que el estado 
-                // "UI" es deslogueado, pero mantenemos los tokens para la re-entrada.
-                // En este flujo, 'clearSession' solo debería usarse para un Logout TOTAL.
-            }
+            remove("access_token")
+            remove("refresh_token")
+            remove("user_id")
+            remove("user_email")
+            remove("user_first_name")
+            remove("user_last_name")
+            remove("user_major")
+            remove("user_phone")
         }
     }
 

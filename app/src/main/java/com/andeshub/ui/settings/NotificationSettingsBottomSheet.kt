@@ -19,7 +19,9 @@ import kotlinx.coroutines.launch
 
 @Composable
 fun NotificationSettingsBottomSheet(
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    onNotifyViewsChanged: (Boolean) -> Unit = {},
+    onNotifyFavoritesChanged: (Boolean) -> Unit = {}
 ) {
     val context = LocalContext.current
     val notificationPrefs = remember { NotificationPreferences(context) }
@@ -90,6 +92,7 @@ fun NotificationSettingsBottomSheet(
                         checked = notifyViews,
                         onCheckedChange = { enabled ->
                             scope.launch { notificationPrefs.saveNotifyViews(enabled) }
+                            onNotifyViewsChanged(enabled)
                         }
                     )
                 }
@@ -135,6 +138,7 @@ fun NotificationSettingsBottomSheet(
                         checked = notifyFavorites,
                         onCheckedChange = { enabled ->
                             scope.launch { notificationPrefs.saveNotifyFavorites(enabled) }
+                            onNotifyFavoritesChanged(enabled)
                         }
                     )
                 }

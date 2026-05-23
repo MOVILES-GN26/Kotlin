@@ -28,6 +28,11 @@ data class ProductsResponse(
     val items: List<Product>? = emptyList()
 )
 
+data class NotificationPreferencesRequest(
+    val notifyViews: Boolean? = null,
+    val notifyFavorites: Boolean? = null
+)
+
 data class WhatsAppContactResponse(
     val url: String
 )
@@ -128,6 +133,11 @@ interface ApiService {
 
     @GET("analytics/product-visit/stats")
     suspend fun getProductVisitStats(@Query("productId") productId: String? = null): ProductVisitStats
+
+    @PATCH("users/me/notification-preferences")
+    suspend fun updateNotificationPreferences(
+        @Body body: NotificationPreferencesRequest
+    ): Response<Unit>
 
     @POST("interactions/purchase")
     suspend fun recordPurchaseFromFavorite(
