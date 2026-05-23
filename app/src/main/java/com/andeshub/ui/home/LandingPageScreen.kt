@@ -47,19 +47,6 @@ fun LandingPageScreen(
 
     var showHistory by remember { mutableStateOf(false) }
 
-    val filteredProducts by remember(uiState, searchQuery, selectedCategory) {
-        derivedStateOf {
-            val successProducts = if (uiState is HomeUiState.Success)
-                (uiState as HomeUiState.Success).products else emptyList()
-            successProducts.filter { product ->
-                (searchQuery.isEmpty() ||
-                    product.title.contains(searchQuery, ignoreCase = true) ||
-                    product.description.contains(searchQuery, ignoreCase = true)) &&
-                (selectedCategory == null || product.category == selectedCategory)
-            }
-        }
-    }
-
     LaunchedEffect(Unit) {
         viewModel.loadData()
         viewModel.loadViewedTimestamps()
@@ -285,7 +272,16 @@ fun LandingPageScreen(
                     }
                 }
                 is HomeUiState.Success -> {
-                    if (filteredProducts.isEmpty()) {
+                    val products = state.products.filter { product ->
+                        val matchesSearch = searchQuery.isEmpty() ||
+                                product.title.contains(searchQuery, ignoreCase = true) ||
+                                product.description.contains(searchQuery, ignoreCase = true)
+                        val matchesCategory = selectedCategory == null ||
+                                product.category == selectedCategory
+                        matchesSearch && matchesCategory
+                    }
+
+                    if (products.isEmpty()) {
                         item(span = { androidx.compose.foundation.lazy.grid.GridItemSpan(2) }) {
                             Box(
                                 modifier = Modifier
@@ -301,7 +297,7 @@ fun LandingPageScreen(
                             }
                         }
                     } else {
-                        items(filteredProducts) { product ->
+                        items(products) { product ->
                             Box(modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)) {
                                 ProductCard(
                                     product = product,
