@@ -668,6 +668,16 @@ class ProductViewModel(private val context: Context) : ViewModel() {
                 }
                 _editUiState.value = ProductUiState.Success(listOf(updated))
                 clearEditDraft(productId)
+
+                // Registra la edición para la BQ
+                viewModelScope.launch(Dispatchers.IO) {
+                    try {
+                        api.recordEdit(RecordInteractionRequest(productId, null))
+                        Log.d("ProductViewModel", "Edit recorded for product: $productId")
+                    } catch (e: Exception) {
+                        Log.e("ProductViewModel", "Error recording edit: ${e.message}")
+                    }
+                }
             } catch (e: Exception) {
                 _editUiState.value = ProductUiState.Error(e.message ?: "Error updating product")
             }

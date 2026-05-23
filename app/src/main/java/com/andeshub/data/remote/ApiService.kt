@@ -172,4 +172,9 @@ interface ApiService {
         @Path("id") productId: String,
         @Body request: UpdateProductRequest
     ): Product
+
+    @POST("interactions/edit")
+    suspend fun recordEdit(
+        @Body request: RecordInteractionRequest
+    ): Response<Unit>
 }
