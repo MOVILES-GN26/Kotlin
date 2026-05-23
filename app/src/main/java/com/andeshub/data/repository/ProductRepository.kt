@@ -80,7 +80,7 @@ class ProductRepository(private val context: Context) {
             }
 
             val decodeOptions = BitmapFactory.Options().apply { this.inSampleSize = inSampleSize }
-            val bitmap = context.contentResolver.openInputStream(uri)?.use { 
+            val bitmap = context.contentResolver.openInputStream(uri)?.use {
                 BitmapFactory.decodeStream(it, null, decodeOptions)
             }
 
@@ -257,12 +257,12 @@ class ProductRepository(private val context: Context) {
     suspend fun syncPendingDrafts() {
         val draftDao = AppDatabase.getInstance(context).productDraftDao()
         val pendingDrafts = draftDao.getDraftsReadyToSync()
-        
+
         pendingDrafts.forEach { draft ->
             try {
                 val imageFile = draft.localImagePath?.let { File(it) }
                 val imageUri = if (imageFile?.exists() == true) Uri.fromFile(imageFile) else null
-                
+
                 createProduct(
                     title = draft.title,
                     description = draft.description,
@@ -284,4 +284,13 @@ class ProductRepository(private val context: Context) {
     suspend fun updateProduct(productId: String, request: ApiService.UpdateProductRequest): Product {
         return api.updateProduct(productId, request)
     }
+
+    suspend fun markProductAsViewedByUser(productId: String) {
+        try {
+            productDao.markAsViewedByUser(productId)
+        } catch (e: Exception) {
+            android.util.Log.e("ProductRepository", "Error: ${e.message}")
+        }
+    }
+
 }

@@ -476,6 +476,7 @@ class ProductViewModel(private val context: Context) : ViewModel() {
                 try {
                     repository.saveProductLocally(product)
                     repository.markProductAsViewed(product.id)
+                    repository.markProductAsViewedByUser(product.id)
                     if (isNetworkAvailable() && source != null) {
                         api.recordProductVisit(ProductVisitRequest(product.id, source))
                     }
@@ -666,8 +667,52 @@ class ProductViewModel(private val context: Context) : ViewModel() {
                     repository.saveProductLocally(updated)
                 }
                 _editUiState.value = ProductUiState.Success(listOf(updated))
+                clearEditDraft(productId)
             } catch (e: Exception) {
                 _editUiState.value = ProductUiState.Error(e.message ?: "Error updating product")
+            }
+        }
+    }
+
+    fun saveEditDraft(
+        productId: String,
+        title: String,
+        description: String,
+        category: String,
+        location: String,
+        price: String,
+        condition: String
+    ) {
+        EditProductLogger.saveDraft(context, productId, title, description, category, location, price, condition)
+    }
+
+    fun loadEditDraft(productId: String): EditProductDraft? {
+        return EditProductLogger.loadDraft(context, productId)
+    }
+
+    fun clearEditDraft(productId: String) {
+        EditProductLogger.clearDraft(context, productId)
+    }
+
+    private val _editInitData = MutableStateFlow<Pair<Product?, List<Store>>?>(null)
+    val editInitData: StateFlow<Pair<Product?, List<Store>>?> = _editInitData
+
+    fun loadEditInitData(productId: String) {
+        viewModelScope.launch {
+            try {
+                val productDeferred = async(Dispatchers.IO) {
+                    try { repository.getProductOffline(productId) } catch (e: Exception) { null }
+                }
+                val storesDeferred = async(Dispatchers.IO) {
+                    try { storeRepository.getMyStores() } catch (e: Exception) { emptyList() }
+                }
+                val product = productDeferred.await()
+                val stores = storesDeferred.await()
+                withContext(Dispatchers.Main) {
+                    _editInitData.value = Pair(product, stores)
+                }
+            } catch (e: Exception) {
+                Log.e("ProductViewModel", "Error loading edit init data: ${e.message}")
             }
         }
     }
