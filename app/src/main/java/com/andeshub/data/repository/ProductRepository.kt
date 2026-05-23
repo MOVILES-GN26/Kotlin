@@ -4,13 +4,12 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
-import com.andeshub.data.local.AppDatabase
-import com.andeshub.data.local.ProductEntity
-import com.andeshub.data.local.ProductDraftEntity
+import com.andeshub.data.local.*
 import com.andeshub.data.model.Product
 import com.andeshub.data.model.UserProfile
 import com.andeshub.data.remote.RetrofitClient
 import com.andeshub.data.remote.ApiService
+import kotlinx.coroutines.*
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.toRequestBody
@@ -21,7 +20,9 @@ import java.io.FileOutputStream
 class ProductRepository(private val context: Context) {
 
     private val api = RetrofitClient.apiService
-    private val productDao = AppDatabase.getInstance(context).productDao()
+    private val db = AppDatabase.getInstance(context)
+    private val productDao = db.productDao()
+    private val draftDao = db.productDraftDao()
 
     suspend fun getProducts(
         search: String? = null,
@@ -62,58 +63,99 @@ class ProductRepository(private val context: Context) {
     }
 
     /**
-     * MICRO-OPTIMIZACIÓN: Compresión y redimensionamiento de imagen inteligente.
-     * Utiliza inSampleSize para cargar solo los píxeles necesarios en RAM.
+     * ESTRATEGIA [A]: Multi-threading / Concurrency
+     * Procesa y guarda un borrador usando paralelismo para no bloquear la UI.
      */
-    private fun compressImageToBytes(uri: Uri, maxDimension: Int, quality: Int): ByteArray? {
-        return try {
-            val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-            context.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, options) }
-
-            var inSampleSize = 1
-            if (options.outHeight > maxDimension || options.outWidth > maxDimension) {
-                val halfHeight = options.outHeight / 2
-                val halfWidth = options.outWidth / 2
-                while (halfHeight / inSampleSize >= maxDimension && halfWidth / inSampleSize >= maxDimension) {
-                    inSampleSize *= 2
+    suspend fun saveDraftAdvanced(
+        title: String,
+        description: String,
+        category: String,
+        location: String,
+        price: String,
+        condition: String,
+        imageUri: Uri?,
+        imageBitmap: Bitmap? = null,
+        storeId: String?,
+        isReadyToSync: Boolean = false
+    ) = coroutineScope {
+        // [A] Ejecutamos el procesamiento de imagen en paralelo (Hilo de CPU)
+        val imageJob = async(Dispatchers.Default) {
+            val fileName = "draft_${System.currentTimeMillis()}.jpg"
+            val file = File(context.filesDir, fileName)
+            
+            try {
+                FileOutputStream(file).use { out ->
+                    if (imageUri != null) {
+                        context.contentResolver.openInputStream(imageUri)?.use { it.copyTo(out) }
+                    } else if (imageBitmap != null) {
+                        imageBitmap.compress(Bitmap.CompressFormat.JPEG, 80, out)
+                    }
                 }
+                
+                // [C] REQUERIMIENTO: Caching - Miniatura en memoria para respuesta instantánea
+                val original = BitmapFactory.decodeFile(file.absolutePath)
+                if (original != null) {
+                    val thumb = Bitmap.createScaledBitmap(original, 150, 150, true)
+                    DraftImageCache.put(fileName, thumb)
+                }
+                
+                file.absolutePath
+            } catch (e: Exception) {
+                null
             }
+        }
 
-            val decodeOptions = BitmapFactory.Options().apply { this.inSampleSize = inSampleSize }
-            val bitmap = context.contentResolver.openInputStream(uri)?.use { 
-                BitmapFactory.decodeStream(it, null, decodeOptions)
-            }
+        // [A] Esperamos a que el hilo paralelo de la imagen termine
+        val localPath = imageJob.await()
 
-            val outputStream = ByteArrayOutputStream()
-            bitmap?.compress(Bitmap.CompressFormat.JPEG, quality, outputStream)
-            val result = outputStream.toByteArray()
-            bitmap?.recycle() // Liberar memoria nativa inmediatamente
-            result
-        } catch (e: Exception) {
-            null
+        val draft = ProductDraftEntity(
+            title = title,
+            description = description,
+            price = price,
+            category = category,
+            condition = condition,
+            location = location,
+            imageUri = imageUri?.toString(),
+            localImagePath = localPath,
+            storeId = storeId,
+            isReadyToSync = isReadyToSync
+        )
+
+        // [A] Guardamos en la BD en un hilo de I/O para no trabar la interfaz
+        withContext(Dispatchers.IO) {
+            // [B] ESTRATEGIA: Local Storage Management (Límite de 10 borradores)
+            draftDao.insertWithLimit(draft, 10)
         }
     }
 
-    fun saveImageToInternalStorage(uri: Uri?, bitmap: Bitmap?): String? {
-        val fileName = "prod_img_${System.currentTimeMillis()}.jpg"
-        val file = File(context.filesDir, fileName)
-        return try {
-            val outputStream = FileOutputStream(file)
-            if (uri != null) {
-                // También optimizamos el almacenamiento local de borradores
-                val compressed = compressImageToBytes(uri, 1024, 80)
-                if (compressed != null) outputStream.write(compressed)
-            } else if (bitmap != null) {
-                bitmap.compress(Bitmap.CompressFormat.JPEG, 80, outputStream)
+    suspend fun syncPendingDrafts() = withContext(Dispatchers.IO) {
+        val pendingDrafts = draftDao.getDraftsReadyToSync()
+        
+        pendingDrafts.forEach { draft ->
+            try {
+                val imageFile = draft.localImagePath?.let { File(it) }
+                val imageUri = if (imageFile?.exists() == true) Uri.fromFile(imageFile) else null
+                
+                createProduct(
+                    title = draft.title,
+                    description = draft.description,
+                    category = draft.category,
+                    location = draft.location,
+                    price = draft.price.toDoubleOrNull() ?: 0.0,
+                    condition = draft.condition,
+                    storeId = draft.storeId,
+                    imageUri = imageUri,
+                    imageBitmap = null
+                )
+                draftDao.deleteDraft(draft)
+                try { api.recordDraftPublished() } catch (e: Exception) {}
+            } catch (e: Exception) {
+                android.util.Log.e("ProductRepository", "Error syncing: ${e.message}")
             }
-            outputStream.close()
-            file.absolutePath
-        } catch (e: Exception) {
-            null
         }
     }
 
-    suspend fun saveProductLocally(product: Product, localPath: String? = null) {
+    suspend fun saveProductLocally(product: Product, localPath: String? = null) = withContext(Dispatchers.IO) {
         try {
             val existing = productDao.getProductById(product.id)
             val entity = ProductEntity(
@@ -144,13 +186,18 @@ class ProductRepository(private val context: Context) {
         try {
             productDao.updateLastViewed(productId, System.currentTimeMillis())
         } catch (e: Exception) {
-            android.util.Log.e("ProductRepository", "Error marking product as viewed: ${e.message}")
+            android.util.Log.e("ProductRepository", "Error marking product: ${e.message}")
         }
     }
 
-    /**
-     * CÓDIGO OPTIMIZADO: Ahora usa la función de compresión para evitar el error 413.
-     */
+    suspend fun markProductAsViewedByUser(productId: String) {
+        try {
+            productDao.markAsViewedByUser(productId)
+        } catch (e: Exception) {
+            android.util.Log.e("ProductRepository", "Error marking product by user: ${e.message}")
+        }
+    }
+
     suspend fun createProduct(
         title: String,
         description: String,
@@ -172,47 +219,33 @@ class ProductRepository(private val context: Context) {
 
         val imagePart = when {
             imageUri != null -> {
-                // MICRO-OPTIMIZACIÓN: Redimensionamos a max 1200px y comprimimos al 80%
-                val bytes = compressImageToBytes(imageUri, 1200, 80)
-                if (bytes != null) {
-                    val requestBody = bytes.toRequestBody("image/jpeg".toMediaType())
+                val bytes = context.contentResolver.openInputStream(imageUri)?.readBytes()
+                bytes?.let { 
+                    val requestBody = it.toRequestBody("image/jpeg".toMediaType())
                     MultipartBody.Part.createFormData("images", "product.jpg", requestBody)
-                } else null
+                }
             }
             imageBitmap != null -> {
                 val stream = ByteArrayOutputStream()
                 imageBitmap.compress(Bitmap.CompressFormat.JPEG, 80, stream)
-                val bytes = stream.toByteArray()
-                val requestBody = bytes.toRequestBody("image/jpeg".toMediaType())
+                val requestBody = stream.toByteArray().toRequestBody("image/jpeg".toMediaType())
                 MultipartBody.Part.createFormData("images", "product.jpg", requestBody)
             }
             else -> null
         }
 
         return api.createProduct(
-            titlePart,
-            descriptionPart,
-            categoryPart,
-            locationPart,
-            pricePart,
-            conditionPart,
-            storeIdPart,
-            imagePart
+            titlePart, descriptionPart, categoryPart, locationPart, pricePart, conditionPart, storeIdPart, imagePart
         )
     }
 
     suspend fun getProductsByUser(userId: String): Result<List<Product>> {
         return try {
             val response = api.getProductsByUser(userId)
-            val products = response.items ?: emptyList()
-            Result.success(products)
+            Result.success(response.items ?: emptyList())
         } catch (e: Exception) {
             val cached = productDao.getProductsBySeller(userId).map { mapEntityToProduct(it) }
-            if (cached.isNotEmpty()) {
-                Result.success(cached)
-            } else {
-                Result.failure(e)
-            }
+            if (cached.isNotEmpty()) Result.success(cached) else Result.failure(e)
         }
     }
 
@@ -222,62 +255,6 @@ class ProductRepository(private val context: Context) {
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
-        }
-    }
-
-    suspend fun saveDraftAdvanced(
-        title: String,
-        description: String,
-        category: String,
-        location: String,
-        price: String,
-        condition: String,
-        imageUri: Uri?,
-        imageBitmap: Bitmap? = null,
-        storeId: String?,
-        isReadyToSync: Boolean = false
-    ) {
-        val localPath = saveImageToInternalStorage(imageUri, imageBitmap)
-        val draft = ProductDraftEntity(
-            title = title,
-            description = description,
-            price = price,
-            category = category,
-            condition = condition,
-            location = location,
-            imageUri = imageUri?.toString(),
-            localImagePath = localPath,
-            storeId = storeId,
-            isReadyToSync = isReadyToSync
-        )
-        val draftDao = AppDatabase.getInstance(context).productDraftDao()
-        draftDao.insertWithLimit(draft)
-    }
-
-    suspend fun syncPendingDrafts() {
-        val draftDao = AppDatabase.getInstance(context).productDraftDao()
-        val pendingDrafts = draftDao.getDraftsReadyToSync()
-        
-        pendingDrafts.forEach { draft ->
-            try {
-                val imageFile = draft.localImagePath?.let { File(it) }
-                val imageUri = if (imageFile?.exists() == true) Uri.fromFile(imageFile) else null
-                
-                createProduct(
-                    title = draft.title,
-                    description = draft.description,
-                    category = draft.category,
-                    location = draft.location,
-                    price = draft.price.toDoubleOrNull() ?: 0.0,
-                    condition = draft.condition,
-                    storeId = draft.storeId,
-                    imageUri = imageUri,
-                    imageBitmap = null
-                )
-                draftDao.deleteDraft(draft)
-            } catch (e: Exception) {
-                android.util.Log.e("ProductRepository", "Error syncing draft ${draft.id}: ${e.message}")
-            }
         }
     }
 
