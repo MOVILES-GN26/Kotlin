@@ -470,6 +470,7 @@ class ProductViewModel(private val context: Context) : ViewModel() {
                 try {
                     repository.saveProductLocally(product)
                     repository.markProductAsViewed(product.id)
+                    repository.markProductAsViewedByUser(product.id)
                     if (isNetworkAvailable() && source != null) {
                         api.recordProductVisit(ProductVisitRequest(product.id, source))
                     }

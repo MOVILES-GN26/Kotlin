@@ -45,6 +45,12 @@ interface ProductDao {
 
     @Query("UPDATE products SET isFavorite = 0")
     suspend fun unmarkAllFavorites()
+
+    @Query("UPDATE products SET wasViewedByUser = 1 WHERE id = :productId")
+    suspend fun markAsViewedByUser(productId: String)
+
+    @Query("SELECT * FROM products WHERE wasViewedByUser = 1 ORDER BY lastViewedAt DESC LIMIT 10")
+    suspend fun getRecentlyViewedByUser(): List<ProductEntity>
 }
 
 data class ViewedTimestamp(

@@ -189,4 +189,12 @@ class ProductRepository(private val context: Context) {
         return api.updateProduct(productId, request)
     }
 
+    suspend fun markProductAsViewedByUser(productId: String) {
+        try {
+            productDao.markAsViewedByUser(productId)
+        } catch (e: Exception) {
+            android.util.Log.e("ProductRepository", "Error: ${e.message}")
+        }
+    }
+
 }

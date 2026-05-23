@@ -315,6 +315,20 @@ fun AppNavigation(nfcCredentials: StateFlow<Pair<String, String>?> = MutableStat
                     LaunchedEffect(Unit) { navController.popBackStack() }
                 }
             }
+
+            composable(AppDestinations.Home.route) {
+                val homeViewModel: com.andeshub.ui.home.HomeViewModel =
+                    androidx.lifecycle.viewmodel.compose.viewModel()
+                LandingPageScreen(
+                    viewModel = homeViewModel,
+                    onProductClick = { product ->
+                        homeViewModel.addToRecentlyViewed(product) // ← agrega esta línea
+                        val route = AppDestinations.ProductDetail.createRoute(product.id, "home")
+                        navController.navigate(route)
+                        navController.getBackStackEntry(route).savedStateHandle["product"] = product
+                    }
+                )
+            }
         }
     }
 }
