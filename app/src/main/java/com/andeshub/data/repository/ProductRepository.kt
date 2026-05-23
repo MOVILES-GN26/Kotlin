@@ -2,6 +2,7 @@ package com.andeshub.data.repository
 
 import android.content.Context
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.net.Uri
 import com.andeshub.data.local.AppDatabase
 import com.andeshub.data.local.ProductEntity
@@ -60,15 +61,50 @@ class ProductRepository(private val context: Context) {
         )
     }
 
+    /**
+     * MICRO-OPTIMIZACIÓN: Compresión y redimensionamiento de imagen inteligente.
+     * Utiliza inSampleSize para cargar solo los píxeles necesarios en RAM.
+     */
+    private fun compressImageToBytes(uri: Uri, maxDimension: Int, quality: Int): ByteArray? {
+        return try {
+            val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            context.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, options) }
+
+            var inSampleSize = 1
+            if (options.outHeight > maxDimension || options.outWidth > maxDimension) {
+                val halfHeight = options.outHeight / 2
+                val halfWidth = options.outWidth / 2
+                while (halfHeight / inSampleSize >= maxDimension && halfWidth / inSampleSize >= maxDimension) {
+                    inSampleSize *= 2
+                }
+            }
+
+            val decodeOptions = BitmapFactory.Options().apply { this.inSampleSize = inSampleSize }
+            val bitmap = context.contentResolver.openInputStream(uri)?.use { 
+                BitmapFactory.decodeStream(it, null, decodeOptions)
+            }
+
+            val outputStream = ByteArrayOutputStream()
+            bitmap?.compress(Bitmap.CompressFormat.JPEG, quality, outputStream)
+            val result = outputStream.toByteArray()
+            bitmap?.recycle() // Liberar memoria nativa inmediatamente
+            result
+        } catch (e: Exception) {
+            null
+        }
+    }
+
     fun saveImageToInternalStorage(uri: Uri?, bitmap: Bitmap?): String? {
         val fileName = "prod_img_${System.currentTimeMillis()}.jpg"
         val file = File(context.filesDir, fileName)
         return try {
             val outputStream = FileOutputStream(file)
             if (uri != null) {
-                context.contentResolver.openInputStream(uri)?.use { it.copyTo(outputStream) }
+                // También optimizamos el almacenamiento local de borradores
+                val compressed = compressImageToBytes(uri, 1024, 80)
+                if (compressed != null) outputStream.write(compressed)
             } else if (bitmap != null) {
-                bitmap.compress(Bitmap.CompressFormat.JPEG, 90, outputStream)
+                bitmap.compress(Bitmap.CompressFormat.JPEG, 80, outputStream)
             }
             outputStream.close()
             file.absolutePath
@@ -112,6 +148,9 @@ class ProductRepository(private val context: Context) {
         }
     }
 
+    /**
+     * CÓDIGO OPTIMIZADO: Ahora usa la función de compresión para evitar el error 413.
+     */
     suspend fun createProduct(
         title: String,
         description: String,
@@ -133,16 +172,16 @@ class ProductRepository(private val context: Context) {
 
         val imagePart = when {
             imageUri != null -> {
-                val inputStream = try { context.contentResolver.openInputStream(imageUri) } catch (e: Exception) { null }
-                val bytes = inputStream?.use { it.readBytes() }
+                // MICRO-OPTIMIZACIÓN: Redimensionamos a max 1200px y comprimimos al 80%
+                val bytes = compressImageToBytes(imageUri, 1200, 80)
                 if (bytes != null) {
-                    val requestBody = bytes.toRequestBody("image/*".toMediaType())
+                    val requestBody = bytes.toRequestBody("image/jpeg".toMediaType())
                     MultipartBody.Part.createFormData("images", "product.jpg", requestBody)
                 } else null
             }
             imageBitmap != null -> {
                 val stream = ByteArrayOutputStream()
-                imageBitmap.compress(Bitmap.CompressFormat.JPEG, 90, stream)
+                imageBitmap.compress(Bitmap.CompressFormat.JPEG, 80, stream)
                 val bytes = stream.toByteArray()
                 val requestBody = bytes.toRequestBody("image/jpeg".toMediaType())
                 MultipartBody.Part.createFormData("images", "product.jpg", requestBody)
