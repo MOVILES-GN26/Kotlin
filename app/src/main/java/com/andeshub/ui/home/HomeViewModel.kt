@@ -5,6 +5,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.andeshub.data.local.AppDatabase
 import com.andeshub.data.local.HomeLruCache
+import com.andeshub.data.local.RecentlyViewedLruCache
 import com.andeshub.data.local.SearchPreferences
 import com.andeshub.data.local.TrendingCategoriesPreferences
 import com.andeshub.data.model.Product
@@ -16,6 +17,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 sealed class HomeUiState {
     object Idle    : HomeUiState()
@@ -73,51 +75,49 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun loadData() {
-        //corrutina aca
-        //intentar no usar el main porque se bloquea
-        viewModelScope.launch(Dispatchers.Main) {
+        viewModelScope.launch {  // ← sin Dispatchers.Main
             if (_uiState.value !is HomeUiState.Success) {
-                _uiState.value = HomeUiState.Loading
+                withContext(Dispatchers.Main) {
+                    _uiState.value = HomeUiState.Loading
+                }
             }
-            //aqui creo la corrutina anidada productos
 
             val productsDeferred = async(Dispatchers.IO) {
                 try {
-                    // Intenta traer de la API
                     val products = repository.getProducts()
-                    // Guardar en Room
                     products.forEach {
                         try { repository.saveProductLocally(it) } catch (e: Exception) { }
                     }
                     products
                 } catch (e: Exception) {
-                    // Sin internet: devuelve los productos guardados en Room
                     android.util.Log.d("HomeViewModel", "Sin internet, cargando desde Room")
                     repository.getAllLocalProducts()
                 }
             }
-            //corrutina anidada para categorias trending
+
             val trendingDeferred = async(Dispatchers.IO) {
                 try {
                     val trending = api.getTrendingCategories()
-                    trendingPreferences.save(trending) // guarda para uso offline
+                    trendingPreferences.save(trending)
                     trending
                 } catch (e: Exception) {
-                    trendingPreferences.load() // sin internet: carga desde DataStore
+                    trendingPreferences.load()
                 }
             }
 
             try {
-                //aqui cojo los results cuando las dos terminan
                 val products = productsDeferred.await()
                 val trending = trendingDeferred.await()
-                //aca actualiza el main
-                _uiState.value = HomeUiState.Success(
-                    products = products,
-                    trendingCategories = trending
-                )
+                withContext(Dispatchers.Main) {
+                    _uiState.value = HomeUiState.Success(
+                        products = products,
+                        trendingCategories = trending
+                    )
+                }
             } catch (e: Exception) {
-                _uiState.value = HomeUiState.Error(e.message ?: "Error desconocido")
+                withContext(Dispatchers.Main) {
+                    _uiState.value = HomeUiState.Error(e.message ?: "Error desconocido")
+                }
             }
         }
     }
@@ -133,7 +133,8 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     fun search() {
         viewModelScope.launch {
             val currentState = _uiState.value
-            val currentTrending = if (currentState is HomeUiState.Success) currentState.trendingCategories else emptyList()
+            val currentTrending =
+                if (currentState is HomeUiState.Success) currentState.trendingCategories else emptyList()
 
             val query = _searchQuery.value
 
@@ -181,5 +182,74 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     fun selectHistoryItem(query: String) {
         _searchQuery.value = query
         search()
+    }
+
+    private val _recentlyViewed = MutableStateFlow<List<Product>>(emptyList())
+    val recentlyViewed: StateFlow<List<Product>> = _recentlyViewed
+
+    private val _showRecentlyViewed = MutableStateFlow(false)
+    val showRecentlyViewed: StateFlow<Boolean> = _showRecentlyViewed
+
+    fun toggleFeedMode() {
+        _showRecentlyViewed.value = !_showRecentlyViewed.value
+        if (_showRecentlyViewed.value) {
+            loadRecentlyViewed()
+        }
+    }
+
+    fun loadRecentlyViewed() {
+        // Primero revisa el LRU cache
+        val cached = RecentlyViewedLruCache.getAll()
+        if (cached.isNotEmpty()) {
+            _recentlyViewed.value = cached
+            android.util.Log.d("RecentlyViewed", "Cargado desde caché: ${cached.size} productos")
+            return
+        }
+
+        // Si no hay en caché, carga desde Room usando la query correcta
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val db = AppDatabase.getInstance(getApplication())
+                val entities = db.productDao().getRecentlyViewedByUser()
+                android.util.Log.d("RecentlyViewed", "Entities found: ${entities.size}")
+                entities.forEach {
+                    android.util.Log.d("RecentlyViewed", "Product: ${it.title} - lastViewedAt: ${it.lastViewedAt}")
+                }
+
+                val products = entities.map { entity ->
+                    Product(
+                        id = entity.id,
+                        title = entity.title,
+                        description = entity.description,
+                        price = entity.price,
+                        category = entity.category,
+                        condition = entity.condition,
+                        building_location = entity.location,
+                        image_urls = entity.imageUrl?.let { listOf(it) } ?: emptyList(),
+                        seller_id = entity.sellerId,
+                        store_id = entity.storeId,
+                        created_at = entity.createdAt
+                    )
+                }
+
+                // Guarda en LRU
+                products.forEach { RecentlyViewedLruCache.put(it) }
+
+                withContext(Dispatchers.Main) {
+                    _recentlyViewed.value = products
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("RecentlyViewed", "Error: ${e.message}")
+            }
+        }
+    }
+
+    fun addToRecentlyViewed(product: Product) {
+        RecentlyViewedLruCache.put(product)
+        if (_showRecentlyViewed.value) {
+            viewModelScope.launch(Dispatchers.Main) {
+                _recentlyViewed.value = RecentlyViewedLruCache.getAll()
+            }
+        }
     }
 }
