@@ -44,6 +44,8 @@ fun LandingPageScreen(
     val selectedCategory by viewModel.selectedCategory.collectAsStateWithLifecycle()
     val viewedTimestamps by viewModel.viewedTimestamps.collectAsStateWithLifecycle()
     val searchHistory by viewModel.searchHistory.collectAsStateWithLifecycle()
+    val recentlyViewed by viewModel.recentlyViewed.collectAsStateWithLifecycle()
+    val showRecentlyViewed by viewModel.showRecentlyViewed.collectAsStateWithLifecycle()
 
     var showHistory by remember { mutableStateOf(false) }
 
@@ -194,7 +196,6 @@ fun LandingPageScreen(
                             val trendingList = trending.map { tc ->
                                 Category(tc.category, getIconForCategory(tc.category))
                             }
-                            
                             FlowRow(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -233,85 +234,137 @@ fun LandingPageScreen(
             item(span = { androidx.compose.foundation.lazy.grid.GridItemSpan(2) }) {
                 Column {
                     Spacer(modifier = Modifier.height(24.dp))
-                    Text(
-                        text = "Recently Added",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onBackground,
-                        modifier = Modifier.padding(horizontal = 20.dp)
-                    )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 20.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = if (showRecentlyViewed) "Recently Viewed" else "Recently Added",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onBackground
+                        )
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            FilterChip(
+                                selected = !showRecentlyViewed,
+                                onClick = { if (showRecentlyViewed) viewModel.toggleFeedMode() },
+                                label = { Text("New", style = MaterialTheme.typography.labelSmall) },
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = MaterialTheme.colorScheme.primary,
+                                    selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
+                                    containerColor = MaterialTheme.colorScheme.surface,
+                                    labelColor = MaterialTheme.colorScheme.secondary
+                                ),
+                                shape = RoundedCornerShape(20.dp)
+                            )
+                            FilterChip(
+                                selected = showRecentlyViewed,
+                                onClick = { if (!showRecentlyViewed) viewModel.toggleFeedMode() },
+                                label = { Text("Viewed", style = MaterialTheme.typography.labelSmall) },
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = MaterialTheme.colorScheme.primary,
+                                    selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
+                                    containerColor = MaterialTheme.colorScheme.surface,
+                                    labelColor = MaterialTheme.colorScheme.secondary
+                                ),
+                                shape = RoundedCornerShape(20.dp)
+                            )
+                        }
+                    }
                     Spacer(modifier = Modifier.height(12.dp))
                 }
             }
 
-            when (val state = uiState) {
-                is HomeUiState.Loading -> {
-                    item(span = { androidx.compose.foundation.lazy.grid.GridItemSpan(2) }) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(150.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            CircularProgressIndicator(color = MaterialTheme.colorScheme.onBackground)
+            if (!showRecentlyViewed) {
+                when (val state = uiState) {
+                    is HomeUiState.Loading -> {
+                        item(span = { androidx.compose.foundation.lazy.grid.GridItemSpan(2) }) {
+                            Box(
+                                modifier = Modifier.fillMaxWidth().height(150.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                CircularProgressIndicator(color = MaterialTheme.colorScheme.onBackground)
+                            }
                         }
                     }
+                    is HomeUiState.Error -> {
+                        item(span = { androidx.compose.foundation.lazy.grid.GridItemSpan(2) }) {
+                            Box(
+                                modifier = Modifier.fillMaxWidth().height(150.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(text = state.message, color = MaterialTheme.colorScheme.error)
+                            }
+                        }
+                    }
+                    is HomeUiState.Success -> {
+                        val products = state.products.filter { product ->
+                            val matchesSearch = searchQuery.isEmpty() ||
+                                    product.title.contains(searchQuery, ignoreCase = true) ||
+                                    product.description.contains(searchQuery, ignoreCase = true)
+                            val matchesCategory = selectedCategory == null ||
+                                    product.category == selectedCategory
+                            matchesSearch && matchesCategory
+                        }
+                        if (products.isEmpty()) {
+                            item(span = { androidx.compose.foundation.lazy.grid.GridItemSpan(2) }) {
+                                Box(
+                                    modifier = Modifier.fillMaxWidth().height(150.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = "No products found",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.secondary
+                                    )
+                                }
+                            }
+                        } else {
+                            items(products) { product ->
+                                Box(modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)) {
+                                    ProductCard(
+                                        product = product,
+                                        showStats = false,
+                                        onClick = { onProductClick(product) }
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    else -> {}
                 }
-                is HomeUiState.Error -> {
+            }
+
+            if (showRecentlyViewed) {
+                if (recentlyViewed.isEmpty()) {
                     item(span = { androidx.compose.foundation.lazy.grid.GridItemSpan(2) }) {
                         Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(150.dp),
+                            modifier = Modifier.fillMaxWidth().height(150.dp),
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = state.message,
-                                color = MaterialTheme.colorScheme.error
+                                text = "No recently viewed products",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.secondary
+                            )
+                        }
+                    }
+                } else {
+                    items(recentlyViewed) { product ->
+                        Box(modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)) {
+                            ProductCard(
+                                product = product,
+                                showStats = false,
+                                onClick = { onProductClick(product) }
                             )
                         }
                     }
                 }
-                is HomeUiState.Success -> {
-                    val products = state.products.filter { product ->
-                        val matchesSearch = searchQuery.isEmpty() ||
-                                product.title.contains(searchQuery, ignoreCase = true) ||
-                                product.description.contains(searchQuery, ignoreCase = true)
-                        val matchesCategory = selectedCategory == null ||
-                                product.category == selectedCategory
-                        matchesSearch && matchesCategory
-                    }
-
-                    if (products.isEmpty()) {
-                        item(span = { androidx.compose.foundation.lazy.grid.GridItemSpan(2) }) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(150.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = "No products found",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.secondary
-                                )
-                            }
-                        }
-                    } else {
-                        items(products) { product ->
-                            Box(modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)) {
-                                ProductCard(
-                                    product = product,
-                                    showStats = false,
-                                    onClick = { onProductClick(product) }
-                                )
-                            }
-                        }
-                    }
-                }
-                else -> {}
             }
         }
-    } // cierre del Box exterior
+    }
 }
 
 fun getIconForCategory(category: String): ImageVector {
