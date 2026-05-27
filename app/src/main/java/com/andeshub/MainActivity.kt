@@ -17,7 +17,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -123,9 +123,9 @@ class MainActivity : FragmentActivity() {
             }
 
             AndesHubTheme(darkTheme = darkTheme) {
-                Column(modifier = Modifier.fillMaxSize()) {
-                    ConnectivityStatusView(status = status)
+                Box(modifier = Modifier.fillMaxSize()) {
                     AppNavigation(nfcCredentials = nfcCredentials)
+                    ConnectivityStatusView(status = status)
                 }
             }
         }

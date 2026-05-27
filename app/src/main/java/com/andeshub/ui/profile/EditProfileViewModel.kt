@@ -107,7 +107,7 @@ class EditProfileViewModel(application: Application) : AndroidViewModel(applicat
                 _uiState.value = _uiState.value.copy(
                     isSaving = false,
                     saveSuccess = true,
-                    errorMessage = "Guardado localmente. Se sincronizará cuando haya conexión."
+                    errorMessage = "Saved locally. It will sync when there is a connection."
                 )
             }
         }
