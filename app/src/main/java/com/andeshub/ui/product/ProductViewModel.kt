@@ -550,17 +550,41 @@ class ProductViewModel(private val context: Context) : ViewModel() {
     }
 
     fun loadFavoritesCount(productId: String) {
-        _favoritesCount.value = getLocalFavoritesCount(productId)
-        if (!isNetworkAvailable()) return
         viewModelScope.launch(Dispatchers.IO) {
+            val localCount = getLocalFavoritesCount(productId)
+            val localProduct = db.productDao().getProductById(productId)
+            val isLocalFavorite = localProduct?.isFavorite == true
+
+            withContext(Dispatchers.Main) {
+                _favoritesCount.value = localCount
+            }
+
+            if (!isNetworkAvailable()) return@launch
+
             try {
                 val result = api.getFavoritesCount(productId)
-                saveFavoritesCount(productId, result.count)
-                withContext(Dispatchers.Main) {
-                    _favoritesCount.value = result.count
+                val remoteCount = result.count
+
+                /*
+                 * Si el producto está marcado como favorito localmente,
+                 * no dejamos que el contador remoto baje el contador local.
+                 */
+                val finalCount = if (isLocalFavorite) {
+                    maxOf(localCount, remoteCount, 1)
+                } else {
+                    remoteCount
                 }
+
+                saveFavoritesCount(productId, finalCount)
+
+                withContext(Dispatchers.Main) {
+                    _favoritesCount.value = finalCount
+                }
+
             } catch (e: Exception) {
-                _favoritesCount.value = getLocalFavoritesCount(productId)
+                withContext(Dispatchers.Main) {
+                    _favoritesCount.value = localCount
+                }
             }
         }
     }
