@@ -49,7 +49,7 @@ fun ConnectivityStatusView(status: ConnectivityObserver.Status) {
                 .fillMaxWidth()
                 .background(backgroundColor)
                 .statusBarsPadding() // Asegura que el contenido esté debajo de la barra de estado, pero el fondo la cubra
-                .padding(vertical = 4.dp, horizontal = 8.dp),
+                .padding(vertical = 3.dp, horizontal = 8.dp),
             contentAlignment = Alignment.Center
         ) {
             Text(
