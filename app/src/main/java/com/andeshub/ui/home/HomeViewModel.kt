@@ -75,7 +75,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun loadData() {
-        viewModelScope.launch {  // ← sin Dispatchers.Main
+        viewModelScope.launch {
             if (_uiState.value !is HomeUiState.Success) {
                 withContext(Dispatchers.Main) {
                     _uiState.value = HomeUiState.Loading
@@ -90,7 +90,6 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                     }
                     products
                 } catch (e: Exception) {
-                    android.util.Log.d("HomeViewModel", "Sin internet, cargando desde Room")
                     repository.getAllLocalProducts()
                 }
             }

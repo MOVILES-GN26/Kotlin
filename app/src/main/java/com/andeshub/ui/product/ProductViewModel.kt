@@ -385,26 +385,47 @@ class ProductViewModel(private val context: Context) : ViewModel() {
 
     fun checkIfFavorited(productId: String) {
         viewModelScope.launch(Dispatchers.IO) {
-            if (!isNetworkAvailable()) {
-                val product = db.productDao().getProductById(productId)
+            // 1. Primero revisar estado local
+            val localProduct = db.productDao().getProductById(productId)
+            val isLocalFavorite = localProduct?.isFavorite == true
+
+            // Si localmente ya está marcado como favorito,
+            // mantenemos el corazón lleno aunque el backend todavía no lo tenga.
+            if (isLocalFavorite) {
                 withContext(Dispatchers.Main) {
-                    _isFavorited.value = product?.isFavorite == true
+                    _isFavorited.value = true
+                }
+            }
+
+            // 2. Si no hay internet, nos quedamos con el estado local
+            if (!isNetworkAvailable()) {
+                withContext(Dispatchers.Main) {
+                    _isFavorited.value = isLocalFavorite
                 }
                 return@launch
             }
+
+            // 3. Si hay internet, sincronizar con backend sin borrar favoritos locales pendientes
             try {
                 val favorites = api.getFavorites()
-                db.productDao().unmarkAllFavorites()
+                val isRemoteFavorite = favorites.any { it.id == productId }
+
+                // Marcar como favoritos los que vienen del backend
                 favorites.forEach { product ->
                     db.productDao().markAsFavorite(product.id)
                 }
+
+                // 4. El producto se considera favorito si está local O remoto
+                val finalFavoriteState = isLocalFavorite || isRemoteFavorite
+
                 withContext(Dispatchers.Main) {
-                    _isFavorited.value = favorites.any { it.id == productId }
+                    _isFavorited.value = finalFavoriteState
                 }
+
             } catch (e: Exception) {
-                val product = db.productDao().getProductById(productId)
+                // Si falla el backend, usar estado local
                 withContext(Dispatchers.Main) {
-                    _isFavorited.value = product?.isFavorite == true
+                    _isFavorited.value = isLocalFavorite
                 }
             }
         }
